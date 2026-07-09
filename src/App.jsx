@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dumbbell,
   Activity,
@@ -81,26 +81,36 @@ const GymRoutine = () => (
   </div>
 );
 
+const initialExercises = [
+  { name: 'Barbell Bench Press', muscleGroup: 'Chest • Shoulders • Triceps', weight: '225 lbs', reps: '8-12' },
+  { name: 'Incline Dumbbell Press', muscleGroup: 'Chest • Shoulders • Triceps', weight: '85 lbs', reps: '8-12' },
+  { name: 'Cable Crossovers', muscleGroup: 'Chest • Shoulders • Triceps', weight: '45 lbs', reps: '12-15' },
+  { name: 'Overhead Press', muscleGroup: 'Shoulders • Triceps', weight: '95 lbs', reps: '6-10' },
+  { name: 'Lateral Raises', muscleGroup: 'Shoulders', weight: '20 lbs', reps: '12-15' },
+  { name: 'Tricep Pushdowns', muscleGroup: 'Triceps', weight: '70 lbs', reps: '10-12' },
+];
+
+const emptyFormState = { name: '', muscleGroup: '', weight: '', reps: '' };
+
 const GymExercises = () => {
-  const [exercises, setExercises] = useState([
-    { name: 'Barbell Bench Press', muscleGroup: 'Chest • Shoulders • Triceps', weight: '225 lbs', reps: '8-12' },
-    { name: 'Incline Dumbbell Press', muscleGroup: 'Chest • Shoulders • Triceps', weight: '85 lbs', reps: '8-12' },
-    { name: 'Cable Crossovers', muscleGroup: 'Chest • Shoulders • Triceps', weight: '45 lbs', reps: '12-15' },
-    { name: 'Overhead Press', muscleGroup: 'Shoulders • Triceps', weight: '95 lbs', reps: '6-10' },
-    { name: 'Lateral Raises', muscleGroup: 'Shoulders', weight: '20 lbs', reps: '12-15' },
-    { name: 'Tricep Pushdowns', muscleGroup: 'Triceps', weight: '70 lbs', reps: '10-12' },
-  ]);
+  const [exercises, setExercises] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pulseV3-exercises');
+      return saved ? JSON.parse(saved) : initialExercises;
+    } catch {
+      return initialExercises;
+    }
+  });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    muscleGroup: '',
-    weight: '',
-    reps: '',
-  });
+  const [formState, setFormState] = useState(emptyFormState);
 
-  const openExerciseForm = (exercise = { name: '', muscleGroup: '', weight: '', reps: '' }, index = null) => {
-    setFormData(exercise);
+  useEffect(() => {
+    localStorage.setItem('pulseV3-exercises', JSON.stringify(exercises));
+  }, [exercises]);
+
+  const openExerciseForm = (exercise = emptyFormState, index = null) => {
+    setFormState(exercise);
     setEditingIndex(index);
     setIsFormOpen(true);
   };
@@ -108,25 +118,25 @@ const GymExercises = () => {
   const closeExerciseForm = () => {
     setIsFormOpen(false);
     setEditingIndex(null);
-    setFormData({ name: '', muscleGroup: '', weight: '', reps: '' });
+    setFormState(emptyFormState);
   };
 
   const handleSaveExercise = () => {
-    if (!formData.name.trim()) {
+    if (!formState.name.trim()) {
       return;
     }
 
     if (editingIndex === null) {
-      setExercises((current) => [...current, formData]);
+      setExercises((current) => [...current, formState]);
     } else {
-      setExercises((current) => current.map((exercise, i) => (i === editingIndex ? formData : exercise)));
+      setExercises((current) => current.map((exercise, i) => (i === editingIndex ? formState : exercise)));
     }
 
     closeExerciseForm();
   };
 
   const handleChange = (field) => (event) => {
-    setFormData((current) => ({ ...current, [field]: event.target.value }));
+    setFormState((current) => ({ ...current, [field]: event.target.value }));
   };
 
   return (
@@ -170,7 +180,7 @@ const GymExercises = () => {
             <label className="space-y-2 text-sm text-gray-300">
               Name
               <input
-                value={formData.name}
+                value={formState.name}
                 onChange={handleChange('name')}
                 placeholder="Exercise name"
                 className="w-full rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-white focus:outline-none focus:border-rose-600/50"
@@ -179,7 +189,7 @@ const GymExercises = () => {
             <label className="space-y-2 text-sm text-gray-300">
               Muscle group
               <input
-                value={formData.muscleGroup}
+                value={formState.muscleGroup}
                 onChange={handleChange('muscleGroup')}
                 placeholder="Chest • Shoulders • Triceps"
                 className="w-full rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-white focus:outline-none focus:border-rose-600/50"
@@ -188,7 +198,7 @@ const GymExercises = () => {
             <label className="space-y-2 text-sm text-gray-300">
               Weight
               <input
-                value={formData.weight}
+                value={formState.weight}
                 onChange={handleChange('weight')}
                 placeholder="225 lbs"
                 className="w-full rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-white focus:outline-none focus:border-rose-600/50"
@@ -197,7 +207,7 @@ const GymExercises = () => {
             <label className="space-y-2 text-sm text-gray-300">
               Reps
               <input
-                value={formData.reps}
+                value={formState.reps}
                 onChange={handleChange('reps')}
                 placeholder="8-12"
                 className="w-full rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-white focus:outline-none focus:border-rose-600/50"
@@ -209,7 +219,7 @@ const GymExercises = () => {
             onClick={handleSaveExercise}
             className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl"
           >
-            {editingIndex === null ? 'Add Exercise' : 'Save Exercise'}
+            {editingIndex === null ? 'Add Exercise' : 'Save Changes'}
           </button>
         </div>
       )}
@@ -326,8 +336,61 @@ const GymView = () => {
   );
 };
 
+const initialLogs = [
+  { date: "Oct 26", weight: "175.4 lbs", diff: "+0.2" },
+  { date: "Oct 25", weight: "175.2 lbs", diff: "-0.5" },
+  { date: "Oct 24", weight: "175.7 lbs", diff: "+0.1" },
+];
+
 const LifestyleWeighIn = () => {
-  const [weight, setWeight] = useState(175.4);
+  const [weight, setWeight] = useState(() => {
+    const saved = localStorage.getItem('pulseV3-weight');
+    return saved ? JSON.parse(saved) : 175.4;
+  });
+
+  const [logs, setLogs] = useState(() => {
+    const saved = localStorage.getItem('pulseV3-weighInLogs');
+    return saved ? JSON.parse(saved) : initialLogs;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pulseV3-weight', JSON.stringify(weight));
+  }, [weight]);
+
+  useEffect(() => {
+    localStorage.setItem('pulseV3-weighInLogs', JSON.stringify(logs));
+  }, [logs]);
+
+  const handleLogWeight = () => {
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const existingLogIndex = logs.findIndex(log => log.date === todayStr);
+
+    const lastWeight = (existingLogIndex === 0 && logs.length > 1)
+        ? parseFloat(logs[1].weight)
+        : (logs.length > 0 ? parseFloat(logs[0].weight) : weight);
+
+    const diff = weight - lastWeight;
+    const diffStr = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
+
+    const newLogEntry = {
+        date: todayStr,
+        weight: `${weight.toFixed(1)} lbs`,
+        diff: diffStr,
+    };
+
+    let newLogs;
+    if (existingLogIndex !== -1) {
+        // Update today's log if it exists
+        newLogs = [...logs];
+        newLogs[existingLogIndex] = newLogEntry;
+    } else {
+        // Add a new log for today
+        newLogs = [newLogEntry, ...logs];
+    }
+    setLogs(newLogs.slice(0, 10));
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -353,7 +416,7 @@ const LifestyleWeighIn = () => {
           </button>
           
           <div className="flex items-baseline space-x-1 w-32 justify-center">
-            <span className="text-5xl font-black text-white">{weight}</span>
+            <span className="text-5xl font-black text-white">{weight.toFixed(1)}</span>
             <span className="text-lg text-emerald-500 font-bold">lbs</span>
           </div>
 
@@ -365,7 +428,7 @@ const LifestyleWeighIn = () => {
           </button>
         </div>
 
-        <button className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+        <button onClick={handleLogWeight} className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]">
           LOG WEIGHT
         </button>
       </div>
@@ -373,11 +436,7 @@ const LifestyleWeighIn = () => {
       <div>
         <h3 className="text-sm font-bold text-gray-500 tracking-wider mb-3">RECENT LOGS</h3>
         <div className="space-y-3">
-          {[
-            { date: 'Today', weight: '175.4 lbs', diff: '+0.2' },
-            { date: 'Yesterday', weight: '175.2 lbs', diff: '-0.5' },
-            { date: 'Oct 24', weight: '175.7 lbs', diff: '+0.1' },
-          ].map((log, i) => (
+          {logs.map((log, i) => (
             <div key={i} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
               <span className="text-white font-medium">{log.date}</span>
               <div className="flex items-center space-x-3">
@@ -395,7 +454,22 @@ const LifestyleWeighIn = () => {
 };
 
 const LifestyleMealPrep = () => {
-  const [water, setWater] = useState(3);
+  const [water, setWater] = useState(() => {
+    const saved = localStorage.getItem('pulseV3-hydration');
+    const savedDate = localStorage.getItem('pulseV3-hydrationDate');
+    const today = new Date().toLocaleDateString();
+    // Reset to 0 if it's a new day or no data is saved
+    if (saved !== null && savedDate === today) {
+        return JSON.parse(saved);
+    }
+    return 0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pulseV3-hydration', JSON.stringify(water));
+    localStorage.setItem('pulseV3-hydrationDate', new Date().toLocaleDateString());
+  }, [water]);
+
   const waterGoal = 8;
 
   return (
