@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pulse V3 icon">
+  <rect width="512" height="512" rx="128" fill="#0f0f0f" />
+  <path d="M128 280h64l42-104 64 184 42-104h44" fill="none" stroke="#f43f5e" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="356" cy="280" r="32" fill="#f43f5e" />
+</svg>
