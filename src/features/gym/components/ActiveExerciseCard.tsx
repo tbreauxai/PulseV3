@@ -135,8 +135,8 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               <div className="space-y-2 mt-4">
                 <div className="flex text-xs font-bold text-gray-600 px-2 pb-1">
                   <div className="w-10 text-center">SET</div>
-                  <div className="flex-1 text-center">LBS</div>
-                  <div className="flex-1 text-center">REPS</div>
+                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'TIME (MIN)' : 'LBS'}</div>
+                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'DISTANCE (MI)' : 'REPS'}</div>
                   <div className="w-20"></div>
                 </div>
                 
@@ -149,17 +149,17 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       {idx + 1}
                     </div>
                     <input 
-                      type="number" 
+                      type={exercise.type === 'cardio' ? 'text' : 'number'}
                       placeholder="--"
-                      value={set.weight}
-                      onChange={(e) => onUpdateSet(exerciseIndex, idx, 'weight', e.target.value)}
+                      value={exercise.type === 'cardio' ? set.time : set.weight}
+                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
                       className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                     />
                     <input 
-                      type="number" 
+                      type={exercise.type === 'cardio' ? 'text' : 'number'}
                       placeholder="--"
-                      value={set.reps}
-                      onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
+                      value={exercise.type === 'cardio' ? set.distance : set.reps}
+                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'distance' : 'reps', e.target.value)}
                       className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                     />
                     <div className="w-20 flex space-x-1 justify-end">

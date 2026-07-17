@@ -53,8 +53,11 @@ export const GymToday = () => {
     });
   }, []);
 
-  const handleOpenExerciseModal = useCallback((swapIndex: any = null) => {
+  const [modalInitialFilter, setModalInitialFilter] = useState('All');
+
+  const handleOpenExerciseModal = useCallback((swapIndex: any = null, filter: string = 'All') => {
     setSwapExerciseIndex(swapIndex);
+    setModalInitialFilter(filter);
     setIsExerciseModalOpen(true);
   }, []);
 
@@ -68,6 +71,7 @@ export const GymToday = () => {
         newExercises[swapExerciseIndex] = {
           exerciseName: exercise.name,
           muscleGroup: exercise.muscleGroup,
+          type: exercise.type,
           sets: '-',
           reps: '-'
         };
@@ -77,6 +81,7 @@ export const GymToday = () => {
         newExercises.push({
           exerciseName: exercise.name,
           muscleGroup: exercise.muscleGroup,
+          type: exercise.type,
           sets: '-',
           reps: '-'
         });
@@ -203,10 +208,21 @@ export const GymToday = () => {
       
       let newSet;
       if (lastSet) {
-        newSet = { weight: lastSet.weight, reps: lastSet.reps, completed: false };
+        newSet = { 
+          weight: lastSet.weight || '', 
+          reps: lastSet.reps || '', 
+          time: lastSet.time || '',
+          distance: lastSet.distance || '',
+          completed: false 
+        };
       } else {
         const memory = getExerciseMemory(exerciseName);
-        newSet = { weight: memory.weight, reps: memory.reps, completed: false };
+        const exercise = prev.exercises[exerciseIndex];
+        if (exercise && exercise.type === 'cardio') {
+          newSet = { weight: '', reps: '', time: memory.time || '30:00', distance: memory.distance || '3.0', completed: false };
+        } else {
+          newSet = { weight: memory.weight || '', reps: memory.reps || '', completed: false };
+        }
       }
 
       return {
@@ -358,13 +374,22 @@ export const GymToday = () => {
                 />
               ))}
               
+            <div className="flex space-x-3">
               <button 
                 onClick={() => handleOpenExerciseModal(null)}
-                className="w-full py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
+                className="flex-1 py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
               >
                 <Plus className="h-4 w-4" />
                 <span>ADD EXERCISE</span>
               </button>
+              <button 
+                onClick={() => handleOpenExerciseModal(null, 'Cardio')}
+                className="flex-1 py-4 rounded-xl border border-dashed border-emerald-900/30 text-emerald-600/70 font-bold hover:text-emerald-500 hover:border-emerald-700 transition-colors flex items-center justify-center space-x-2 text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>ADD CARDIO</span>
+              </button>
+            </div>
             </div>
           </div>
         </div>
@@ -378,15 +403,18 @@ export const GymToday = () => {
         activeRoutineId={activeSession?.routineId}
       />
 
-      <ExerciseSelectorModal 
+      <ExerciseSelectorModal
         isOpen={isExerciseModalOpen}
         onClose={() => {
           setIsExerciseModalOpen(false);
           setSwapExerciseIndex(null);
         }}
-        onSelect={addOrSwapCustomExercise}
+        onSelect={(exercise) => {
+          addOrSwapCustomExercise(exercise);
+        }}
         title={swapExerciseIndex !== null ? "SWAP EXERCISE" : "ADD EXERCISE"}
         isSwap={swapExerciseIndex !== null}
+        initialMuscleGroup={modalInitialFilter}
       />
     </div>
   );

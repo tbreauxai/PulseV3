@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
 import { useExercises } from '../hooks/useExercises';
 
-export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false }) => {
+export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, initialMuscleGroup = 'All' }) => {
   const { exercises: allExercises } = useExercises();
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [filterMuscleGroup, setFilterMuscleGroup] = useState('All');
   const [filterEquipment, setFilterEquipment] = useState('All');
+
+  useEffect(() => {
+    if (isOpen) {
+      setFilterMuscleGroup(initialMuscleGroup);
+    }
+  }, [isOpen, initialMuscleGroup]);
 
   if (!isOpen) return null;
 
