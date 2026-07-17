@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { GymView } from './views/GymView';
-import { LifestyleView } from './views/LifestyleView';
+import React, { useState, Suspense, lazy } from 'react';
 import { useAuth } from './context/AuthContext';
-import { AuthScreen } from './components/auth/AuthScreen';
-import { LogOut } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
+
+const AuthScreen = lazy(() => import('./components/auth/AuthScreen').then(module => ({ default: module.AuthScreen })));
+const GymView = lazy(() => import('./views/GymView').then(module => ({ default: module.GymView })));
+const LifestyleView = lazy(() => import('./views/LifestyleView').then(module => ({ default: module.LifestyleView })));
 import { supabase } from './lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,7 +13,11 @@ export default function App() {
   const { session } = useAuth();
 
   if (!session) {
-    return <AuthScreen />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-rose-600 animate-spin" /></div>}>
+        <AuthScreen />
+      </Suspense>
+    );
   }
 
   return (
@@ -74,7 +79,9 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              {activeTab === 'gym' ? <GymView /> : <LifestyleView />}
+              <Suspense fallback={<div className="flex justify-center items-center py-32"><Loader2 className="w-8 h-8 text-gray-800 animate-spin" /></div>}>
+                {activeTab === 'gym' ? <GymView /> : <LifestyleView />}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </div>
