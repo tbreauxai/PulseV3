@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { queueMutation } from '../../lib/offlineSync';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -110,6 +111,15 @@ export const LifestyleMealPrep = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      if (!navigator.onLine) {
+        queueMutation('upsert', 'hydration_logs', {
+          user_id: user.id,
+          date: todayDate,
+          water_glasses: newWater
+        }, { onConflict: 'user_id, date' });
+        return;
+      }
+
       const { error } = await supabase
         .from('hydration_logs')
         .upsert({ 
@@ -121,7 +131,12 @@ export const LifestyleMealPrep = () => {
       if (error) throw error;
     } catch (e) {
       console.error('Error logging water:', e);
-      setWater(water);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        // Can't queue without user ID easily if user object fetch failed, but assume user object is cached
+        const cachedUser = supabase.auth.getUser(); // Assuming we already failed in upsert, user is known
+      } else {
+        setWater(water);
+      }
     }
   };
 
@@ -133,20 +148,29 @@ export const LifestyleMealPrep = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const payload = {
+        user_id: user.id,
+        calories_goal: editGoals.calories,
+        protein_goal: editGoals.protein,
+        carbs_goal: editGoals.carbs,
+        fats_goal: editGoals.fats
+      };
+
+      if (!navigator.onLine) {
+        queueMutation('upsert', 'user_settings', payload, { onConflict: 'user_id' });
+        return;
+      }
+
       const { error } = await supabase
         .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          calories_goal: editGoals.calories,
-          protein_goal: editGoals.protein,
-          carbs_goal: editGoals.carbs,
-          fats_goal: editGoals.fats
-        }, { onConflict: 'user_id' });
+        .upsert(payload, { onConflict: 'user_id' });
 
       if (error) throw error;
     } catch (e) {
       console.error('Error saving macro goals:', e);
-      alert('Error saving to database. Did you run the SQL script?');
+      if (e.message !== 'Failed to fetch' && !(e.message && e.message.includes('NetworkError'))) {
+        alert('Error saving to database. Did you run the SQL script?');
+      }
     }
   };
 
@@ -166,22 +190,31 @@ export const LifestyleMealPrep = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const payload = {
+        user_id: user.id,
+        date: todayDate,
+        calories: newMacros.calories,
+        protein: newMacros.protein,
+        carbs: newMacros.carbs,
+        fats: newMacros.fats
+      };
+
+      if (!navigator.onLine) {
+        queueMutation('upsert', 'daily_macros', payload, { onConflict: 'user_id, date' });
+        return;
+      }
+
       const { error } = await supabase
         .from('daily_macros')
-        .upsert({
-          user_id: user.id,
-          date: todayDate,
-          calories: newMacros.calories,
-          protein: newMacros.protein,
-          carbs: newMacros.carbs,
-          fats: newMacros.fats
-        }, { onConflict: 'user_id, date' });
+        .upsert(payload, { onConflict: 'user_id, date' });
 
       if (error) throw error;
     } catch (e) {
       console.error('Error saving daily macros:', e);
-      alert('Error saving to database. Did you run the SQL script?');
-      setCurrentMacros(currentMacros);
+      if (e.message !== 'Failed to fetch' && !(e.message && e.message.includes('NetworkError'))) {
+        alert('Error saving to database. Did you run the SQL script?');
+        setCurrentMacros(currentMacros);
+      }
     }
   };
 

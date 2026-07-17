@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { queueMutation } from '../../lib/offlineSync';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
 import { useExercises } from '../../hooks/useExercises';
@@ -365,17 +366,34 @@ export const GymToday = () => {
     }));
 
     try {
+      const payload = { 
+        exercise_name: exerciseName, 
+        weight: weight.toString(), 
+        reps: reps.toString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (!navigator.onLine) {
+        queueMutation('upsert', 'exercise_memory', payload);
+        return;
+      }
+
       const { error } = await supabase
         .from('exercise_memory')
-        .upsert({ 
+        .upsert(payload);
+      if (error) console.error(error);
+    } catch (e) {
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        const payload = { 
           exercise_name: exerciseName, 
           weight: weight.toString(), 
           reps: reps.toString(),
           updated_at: new Date().toISOString()
-        });
-      if (error) console.error(error);
-    } catch (e) {
-      console.error(e);
+        };
+        queueMutation('upsert', 'exercise_memory', payload);
+      } else {
+        console.error(e);
+      }
     }
   };
 

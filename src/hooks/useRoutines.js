@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { queueMutation } from '../lib/offlineSync';
 import { usePersistentState } from './usePersistentState';
 
 export const useRoutines = () => {
@@ -36,6 +37,11 @@ export const useRoutines = () => {
     setRoutines(prev => [optimisticRoutine, ...prev]);
 
     try {
+      if (!navigator.onLine) {
+        queueMutation('insert', 'routines', [routine], null, tempId);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('routines')
         .insert([routine])
@@ -48,8 +54,12 @@ export const useRoutines = () => {
       }
     } catch (error) {
       console.error('Error adding routine:', error);
-      alert('Error saving routine. Reverting changes.');
-      setRoutines(previousRoutines);
+      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
+        queueMutation('insert', 'routines', [routine], null, tempId);
+      } else {
+        alert('Error saving routine. Reverting changes.');
+        setRoutines(previousRoutines);
+      }
     }
   };
 
@@ -59,6 +69,11 @@ export const useRoutines = () => {
     setRoutines(prev => prev.map(r => String(r.id) === String(id) ? { ...r, ...updatedRoutine } : r));
 
     try {
+      if (!navigator.onLine) {
+        queueMutation('update', 'routines', updatedRoutine, { id }, String(id).startsWith('temp-') ? id : null);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('routines')
         .update(updatedRoutine)
@@ -71,8 +86,12 @@ export const useRoutines = () => {
       }
     } catch (error) {
       console.error('Error updating routine:', error);
-      alert('Error updating routine. Reverting changes.');
-      setRoutines(previousRoutines);
+      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
+        queueMutation('update', 'routines', updatedRoutine, { id }, String(id).startsWith('temp-') ? id : null);
+      } else {
+        alert('Error updating routine. Reverting changes.');
+        setRoutines(previousRoutines);
+      }
     }
   };
 
@@ -82,6 +101,11 @@ export const useRoutines = () => {
     setRoutines(prev => prev.filter(r => String(r.id) !== String(id)));
 
     try {
+      if (!navigator.onLine) {
+        queueMutation('delete', 'routines', null, { id }, String(id).startsWith('temp-') ? id : null);
+        return;
+      }
+
       const { error } = await supabase
         .from('routines')
         .delete()
@@ -90,8 +114,12 @@ export const useRoutines = () => {
       if (error) throw error;
     } catch (error) {
       console.error('Error removing routine:', error);
-      alert('Error deleting routine. Reverting changes.');
-      setRoutines(previousRoutines);
+      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
+        queueMutation('delete', 'routines', null, { id }, String(id).startsWith('temp-') ? id : null);
+      } else {
+        alert('Error deleting routine. Reverting changes.');
+        setRoutines(previousRoutines);
+      }
     }
   };
 

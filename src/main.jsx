@@ -2,7 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
+
+import { syncOfflineQueue } from './lib/offlineSync';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -12,10 +15,18 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
+window.addEventListener('online', syncOfflineQueue);
+
+if (navigator.onLine) {
+  syncOfflineQueue();
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

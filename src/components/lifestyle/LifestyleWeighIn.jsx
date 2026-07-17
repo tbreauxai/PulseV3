@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { queueMutation } from '../../lib/offlineSync';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { Virtuoso } from 'react-virtuoso';
 
@@ -124,6 +125,15 @@ export const LifestyleWeighIn = () => {
         diff_str: diffStr
       };
 
+      if (!navigator.onLine) {
+        if (existingLogIndex !== -1) {
+          queueMutation('update', 'weigh_ins', dbEntry, { id: logs[existingLogIndex].id }, String(logs[existingLogIndex].id).startsWith('temp-') ? logs[existingLogIndex].id : null);
+        } else {
+          queueMutation('insert', 'weigh_ins', [dbEntry], null, newLogEntry.id);
+        }
+        return;
+      }
+
       if (existingLogIndex !== -1) {
         // Update today's existing log
         const { error } = await supabase
@@ -148,8 +158,17 @@ export const LifestyleWeighIn = () => {
       }
     } catch (e) {
       console.error('Error logging weight:', e);
-      alert('Error logging weight. Reverting changes.');
-      setLogs(previousLogs);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        const dbEntry = { date: todayStr, weight_lbs: weight, diff_str: diffStr };
+        if (existingLogIndex !== -1) {
+          queueMutation('update', 'weigh_ins', dbEntry, { id: logs[existingLogIndex].id }, String(logs[existingLogIndex].id).startsWith('temp-') ? logs[existingLogIndex].id : null);
+        } else {
+          queueMutation('insert', 'weigh_ins', [dbEntry], null, newLogEntry.id);
+        }
+      } else {
+        alert('Error logging weight. Reverting changes.');
+        setLogs(previousLogs);
+      }
     }
   };
 
@@ -185,6 +204,14 @@ export const LifestyleWeighIn = () => {
 
     // --- DB SYNC ---
     try {
+      if (!navigator.onLine) {
+        queueMutation('update', 'weigh_ins', { weight_lbs: newWeight, diff_str: diffStr }, { id: log.id }, String(log.id).startsWith('temp-') ? log.id : null);
+        if (index > 0 && nextLogToUpdate) {
+          queueMutation('update', 'weigh_ins', { diff_str: nextLogToUpdate.diff }, { id: nextLogToUpdate.id }, String(nextLogToUpdate.id).startsWith('temp-') ? nextLogToUpdate.id : null);
+        }
+        return;
+      }
+
       await supabase.from('weigh_ins').update({ weight_lbs: newWeight, diff_str: diffStr }).eq('id', log.id);
       
       if (index > 0 && nextLogToUpdate) {
@@ -192,8 +219,15 @@ export const LifestyleWeighIn = () => {
       }
     } catch (e) {
       console.error('Error updating log:', e);
-      alert('Error updating log. Reverting changes.');
-      setLogs(previousLogs);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        queueMutation('update', 'weigh_ins', { weight_lbs: newWeight, diff_str: diffStr }, { id: log.id }, String(log.id).startsWith('temp-') ? log.id : null);
+        if (index > 0 && nextLogToUpdate) {
+          queueMutation('update', 'weigh_ins', { diff_str: nextLogToUpdate.diff }, { id: nextLogToUpdate.id }, String(nextLogToUpdate.id).startsWith('temp-') ? nextLogToUpdate.id : null);
+        }
+      } else {
+        alert('Error updating log. Reverting changes.');
+        setLogs(previousLogs);
+      }
     }
   };
 
@@ -226,6 +260,14 @@ export const LifestyleWeighIn = () => {
 
     // --- DB SYNC ---
     try {
+      if (!navigator.onLine) {
+        queueMutation('delete', 'weigh_ins', null, { id }, String(id).startsWith('temp-') ? id : null);
+        if (nextLogToUpdate) {
+          queueMutation('update', 'weigh_ins', { diff_str: nextLogToUpdate.diff }, { id: nextLogToUpdate.id }, String(nextLogToUpdate.id).startsWith('temp-') ? nextLogToUpdate.id : null);
+        }
+        return;
+      }
+
       await supabase.from('weigh_ins').delete().eq('id', id);
       
       if (nextLogToUpdate) {
@@ -233,8 +275,15 @@ export const LifestyleWeighIn = () => {
       }
     } catch (e) {
       console.error('Error deleting log:', e);
-      alert('Error deleting log. Reverting changes.');
-      setLogs(previousLogs);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        queueMutation('delete', 'weigh_ins', null, { id }, String(id).startsWith('temp-') ? id : null);
+        if (nextLogToUpdate) {
+          queueMutation('update', 'weigh_ins', { diff_str: nextLogToUpdate.diff }, { id: nextLogToUpdate.id }, String(nextLogToUpdate.id).startsWith('temp-') ? nextLogToUpdate.id : null);
+        }
+      } else {
+        alert('Error deleting log. Reverting changes.');
+        setLogs(previousLogs);
+      }
     }
   };
 

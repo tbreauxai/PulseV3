@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { queueMutation } from '../lib/offlineSync';
 import { usePersistentState } from './usePersistentState';
 
 export const useWorkoutHistory = () => {
@@ -61,6 +62,11 @@ export const useWorkoutHistory = () => {
         exercise_details: workout.exerciseDetails,
       };
 
+      if (!navigator.onLine) {
+        queueMutation('insert', 'workout_history', [dbWorkout], null, tempId);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('workout_history')
         .insert([dbWorkout])
@@ -81,8 +87,12 @@ export const useWorkoutHistory = () => {
       }
     } catch (e) {
       console.error('Error adding workout:', e);
-      alert('Error saving workout. Reverting changes.');
-      setHistory(previousHistory);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        queueMutation('insert', 'workout_history', [dbWorkout], null, tempId);
+      } else {
+        alert('Error saving workout. Reverting changes.');
+        setHistory(previousHistory);
+      }
     }
   };
 
@@ -91,6 +101,11 @@ export const useWorkoutHistory = () => {
     setHistory(prev => prev.filter(w => w.id !== id));
 
     try {
+      if (!navigator.onLine) {
+        queueMutation('delete', 'workout_history', null, { id });
+        return;
+      }
+
       const { error } = await supabase
         .from('workout_history')
         .delete()
@@ -99,8 +114,12 @@ export const useWorkoutHistory = () => {
       if (error) throw error;
     } catch (e) {
       console.error('Error removing workout:', e);
-      alert('Error deleting workout. Reverting changes.');
-      setHistory(previousHistory);
+      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
+        queueMutation('delete', 'workout_history', null, { id });
+      } else {
+        alert('Error deleting workout. Reverting changes.');
+        setHistory(previousHistory);
+      }
     }
   };
 
