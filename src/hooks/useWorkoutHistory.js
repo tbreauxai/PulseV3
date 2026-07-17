@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { usePersistentState } from './usePersistentState';
 
 export const useWorkoutHistory = () => {
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [history, setHistory] = usePersistentState('pulse_workout_history', []);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchHistory();

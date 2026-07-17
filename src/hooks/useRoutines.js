@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { usePersistentState } from './usePersistentState';
 
 export const useRoutines = () => {
-  const [routines, setRoutines] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [routines, setRoutines] = usePersistentState('pulse_routines', []);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchRoutines();
