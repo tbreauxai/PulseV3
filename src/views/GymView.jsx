@@ -4,16 +4,29 @@ import { GymRoutine } from '../components/gym/GymRoutine';
 import { GymExercises } from '../components/gym/GymExercises';
 import { GymProgress } from '../components/gym/GymProgress';
 import { GymToday } from '../components/gym/GymToday';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const GymView = () => {
   const [gymTab, setGymTab] = useState('today');
 
   return (
     <div className="pb-24">
-      {gymTab === 'today' && <GymToday />}
-      {gymTab === 'routine' && <GymRoutine />}
-      {gymTab === 'exercises' && <GymExercises />}
-      {gymTab === 'progress' && <GymProgress />}
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={gymTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {gymTab === 'today' && <GymToday />}
+            {gymTab === 'routine' && <GymRoutine />}
+            {gymTab === 'exercises' && <GymExercises />}
+            {gymTab === 'progress' && <GymProgress />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <nav className="fixed bottom-0 left-0 right-0 w-full bg-black/90 backdrop-blur-xl border-t border-gray-900 z-40 pb-safe">
         <div className="flex items-center justify-around px-6 py-4 max-w-md mx-auto">

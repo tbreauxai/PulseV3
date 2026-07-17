@@ -3,15 +3,28 @@ import { Scale, Utensils, LineChart } from 'lucide-react';
 import { LifestyleWeighIn } from '../components/lifestyle/LifestyleWeighIn';
 import { LifestyleMealPrep } from '../components/lifestyle/LifestyleMealPrep';
 import { LifestyleProgress } from '../components/lifestyle/LifestyleProgress';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const LifestyleView = () => {
   const [lifeTab, setLifeTab] = useState('weigh-in');
 
   return (
     <div className="pb-24">
-      {lifeTab === 'weigh-in' && <LifestyleWeighIn />}
-      {lifeTab === 'meal-prep' && <LifestyleMealPrep />}
-      {lifeTab === 'progress' && <LifestyleProgress />}
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={lifeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {lifeTab === 'weigh-in' && <LifestyleWeighIn />}
+            {lifeTab === 'meal-prep' && <LifestyleMealPrep />}
+            {lifeTab === 'progress' && <LifestyleProgress />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <nav className="fixed bottom-0 left-0 right-0 w-full bg-black/90 backdrop-blur-xl border-t border-gray-900 z-40 pb-safe">
         <div className="flex items-center justify-around px-6 py-4 max-w-md mx-auto">

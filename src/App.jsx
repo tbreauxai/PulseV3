@@ -5,6 +5,7 @@ import { useAuth } from './context/AuthContext';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { LogOut } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('gym');
@@ -27,7 +28,7 @@ export default function App() {
         >
           GYM
           {activeTab === 'gym' && (
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]"></div>
+            <motion.div layoutId="nav-underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]"></motion.div>
           )}
         </button>
         
@@ -43,7 +44,7 @@ export default function App() {
         >
           LIFESTYLE
           {activeTab === 'lifestyle' && (
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+            <motion.div layoutId="nav-underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></motion.div>
           )}
         </button>
       </nav>
@@ -64,8 +65,18 @@ export default function App() {
           </button>
         </div>
 
-        <div className="transition-all duration-500">
-          {activeTab === 'gym' ? <GymView /> : <LifestyleView />}
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              {activeTab === 'gym' ? <GymView /> : <LifestyleView />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
