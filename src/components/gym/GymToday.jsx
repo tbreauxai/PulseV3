@@ -285,7 +285,7 @@ export const GymToday = () => {
     setExerciseSearchTerm('');
   };
 
-  const finishWorkout = () => {
+  const finishWorkout = async () => {
     if (window.confirm('Are you sure you want to finish and save this workout?')) {
       let totalVolume = 0;
       let completedSetsCount = 0;
@@ -311,15 +311,20 @@ export const GymToday = () => {
       });
 
       if (completedSetsCount > 0) {
-        addWorkout({
-          id: String(Date.now()),
-          routineName: activeSession.routineName || "Free Day",
-          date: new Date().toISOString(),
-          duration: Date.now() - activeSession.startTime,
-          completedSets: completedSetsCount,
-          totalVolume: totalVolume,
-          exerciseDetails: completedExercises
-        });
+        try {
+          await addWorkout({
+            id: String(Date.now()),
+            routineName: activeSession.routineName || "Free Day",
+            date: new Date().toISOString(),
+            duration: Date.now() - activeSession.startTime,
+            completedSets: completedSetsCount,
+            totalVolume: totalVolume,
+            exerciseDetails: completedExercises
+          });
+        } catch (e) {
+          alert("Error saving workout: " + e.message);
+          return;
+        }
       }
 
       setActiveSession(null);

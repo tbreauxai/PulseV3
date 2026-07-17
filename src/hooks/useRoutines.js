@@ -39,6 +39,7 @@ export const useRoutines = () => {
       }
     } catch (error) {
       console.error('Error adding routine:', error);
+      throw error;
     }
   };
 

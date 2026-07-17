@@ -55,26 +55,31 @@ export const GymRoutine = () => {
     setDraftExercises(updated);
   };
 
-  const handleSaveRoutine = () => {
+  const handleSaveRoutine = async () => {
     if (!draftName.trim()) {
       alert("Please enter a routine name.");
       return;
     }
     
-    addRoutine({
-      name: draftName,
-      description: draftDesc,
-      exercises: draftExercises.map(ex => ({
-        exerciseName: ex.name,
-        sets: ex.sets,
-        reps: ex.reps
-      }))
-    });
+    try {
+      await addRoutine({
+        name: draftName,
+        description: draftDesc,
+        exercises: draftExercises.map(ex => ({
+          exerciseName: ex.name,
+          sets: ex.sets,
+          reps: ex.reps
+        }))
+      });
 
-    setIsCreating(false);
-    setDraftName('');
-    setDraftDesc('');
-    setDraftExercises([]);
+      setIsCreating(false);
+      setDraftName('');
+      setDraftDesc('');
+      setDraftExercises([]);
+    } catch (e) {
+      alert("Error saving routine: " + e.message);
+      console.error(e);
+    }
   };
 
   const renderExerciseSelectorModal = () => (

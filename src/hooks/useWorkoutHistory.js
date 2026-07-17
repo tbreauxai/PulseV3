@@ -66,6 +66,7 @@ export const useWorkoutHistory = () => {
       }
     } catch (e) {
       console.error('Error adding workout:', e);
+      throw e;
     }
   };
 

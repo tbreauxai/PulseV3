@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 import { GymView } from './views/GymView';
 import { LifestyleView } from './views/LifestyleView';
+import { useAuth } from './context/AuthContext';
+import { AuthScreen } from './components/auth/AuthScreen';
+import { LogOut } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('gym');
+  const { session } = useAuth();
+
+  if (!session) {
+    return <AuthScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-gray-800">
@@ -40,13 +49,19 @@ export default function App() {
       </nav>
 
       <main className="pt-24 px-6 max-w-md mx-auto">
-        <div className="mb-8">
+        <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-black italic tracking-tighter text-white flex items-center">
             PULSE
             <span className={`ml-1 transition-colors duration-500 ${activeTab === 'gym' ? 'text-rose-600' : 'text-emerald-500'}`}>
               V3
             </span>
           </h1>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="transition-all duration-500">
