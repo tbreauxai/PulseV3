@@ -1,24 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 export const LifestyleMealPrep = () => {
-  const [water, setWater] = useState(() => {
-    const saved = localStorage.getItem('pulseV3-hydration');
-    const savedDate = localStorage.getItem('pulseV3-hydrationDate');
-    const today = new Date().toLocaleDateString();
-    // Reset to 0 if it's a new day or no data is saved
-    if (saved !== null && savedDate === today) {
-        return JSON.parse(saved);
-    }
-    return 0;
-  });
+  const [water, setWater] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const waterGoal = 8;
+  const todayDate = new Date().toLocaleDateString('en-US');
 
   useEffect(() => {
-    localStorage.setItem('pulseV3-hydration', JSON.stringify(water));
-    localStorage.setItem('pulseV3-hydrationDate', new Date().toLocaleDateString());
-  }, [water]);
+    fetchHydration();
+  }, []);
 
-  const waterGoal = 8;
+  const fetchHydration = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('hydration_logs')
+        .select('*')
+        .eq('date', todayDate)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 is "No rows returned", which is fine for a new day
+        throw error;
+      }
+      
+      if (data) {
+        setWater(data.water_glasses);
+      } else {
+        setWater(0);
+      }
+    } catch (e) {
+      console.error('Error fetching hydration:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogWater = async () => {
+    const newWater = Math.min(water + 1, waterGoal);
+    setWater(newWater); // Optimistic UI update
+
+    try {
+      // In PostgreSQL/Supabase, we can upsert easily based on UNIQUE(user_id, date) constraint we set
+      const { error } = await supabase
+        .from('hydration_logs')
+        .upsert({ 
+          date: todayDate, 
+          water_glasses: newWater 
+        }, { onConflict: 'user_id, date' });
+
+      if (error) throw error;
+    } catch (e) {
+      console.error('Error logging water:', e);
+      // Revert if error
+      setWater(water);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -75,12 +114,15 @@ export const LifestyleMealPrep = () => {
               <Droplets className="h-4 w-4 text-emerald-500" />
               <span className="text-xs font-bold text-gray-500 tracking-wider">HYDRATION</span>
             </div>
-            <div className="text-3xl font-black text-white">{water}<span className="text-lg text-gray-600">/{waterGoal}</span></div>
+            <div className="text-3xl font-black text-white">
+              {loading ? '-' : water}<span className="text-lg text-gray-600">/{waterGoal}</span>
+            </div>
             <p className="text-xs font-medium text-emerald-500/80 mt-1">Glasses today</p>
           </div>
           <button 
-            onClick={() => setWater(w => Math.min(w + 1, waterGoal))}
-            className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-all flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+            onClick={handleLogWater}
+            disabled={loading || water >= waterGoal}
+            className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]"
           >
             <Plus className="h-6 w-6 text-black" />
           </button>

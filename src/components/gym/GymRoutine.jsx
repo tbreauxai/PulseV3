@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Flame, Plus, Dumbbell, X, Search, ChevronDown, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Flame, Plus, Dumbbell, X, Search, ChevronDown, Trash2, Save, ArrowLeft, Edit2 } from 'lucide-react';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useExercises } from '../../hooks/useExercises';
 
 export const GymRoutine = () => {
-  const { routines, addRoutine, removeRoutine } = useRoutines();
+  const { routines, addRoutine, updateRoutine, removeRoutine } = useRoutines();
   const { exercises: allExercises } = useExercises();
 
   const [isCreating, setIsCreating] = useState(false);
+  const [editingRoutineId, setEditingRoutineId] = useState(null);
   
   // Builder state
   const [draftName, setDraftName] = useState('');
@@ -55,6 +56,25 @@ export const GymRoutine = () => {
     setDraftExercises(updated);
   };
 
+  const handleEditRoutine = (routine) => {
+    setEditingRoutineId(routine.id);
+    setDraftName(routine.name);
+    setDraftDesc(routine.description || '');
+    // Map exercises to have the required structure for the form
+    setDraftExercises(routine.exercises.map(ex => {
+      // Find original exercise info if needed (like muscleGroup)
+      const originalEx = allExercises.find(e => e.name === ex.exerciseName);
+      return {
+        id: originalEx ? originalEx.id : Date.now(),
+        name: ex.exerciseName,
+        muscleGroup: originalEx ? originalEx.muscleGroup : 'Custom',
+        sets: ex.sets || '3',
+        reps: ex.reps || '10'
+      };
+    }));
+    setIsCreating(true);
+  };
+
   const handleSaveRoutine = async () => {
     if (!draftName.trim()) {
       alert("Please enter a routine name.");
@@ -62,7 +82,7 @@ export const GymRoutine = () => {
     }
     
     try {
-      await addRoutine({
+      const routinePayload = {
         name: draftName,
         description: draftDesc,
         exercises: draftExercises.map(ex => ({
@@ -70,9 +90,16 @@ export const GymRoutine = () => {
           sets: ex.sets,
           reps: ex.reps
         }))
-      });
+      };
+
+      if (editingRoutineId) {
+        await updateRoutine(editingRoutineId, routinePayload);
+      } else {
+        await addRoutine(routinePayload);
+      }
 
       setIsCreating(false);
+      setEditingRoutineId(null);
       setDraftName('');
       setDraftDesc('');
       setDraftExercises([]);
@@ -80,6 +107,14 @@ export const GymRoutine = () => {
       alert("Error saving routine: " + e.message);
       console.error(e);
     }
+  };
+
+  const cancelCreating = () => {
+    setIsCreating(false);
+    setEditingRoutineId(null);
+    setDraftName('');
+    setDraftDesc('');
+    setDraftExercises([]);
   };
 
   const renderExerciseSelectorModal = () => (
@@ -166,12 +201,14 @@ export const GymRoutine = () => {
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
         <div className="flex items-center space-x-3">
           <button 
-            onClick={() => setIsCreating(false)}
+            onClick={cancelCreating}
             className="h-10 w-10 rounded-full bg-[#1a1a1a] flex items-center justify-center hover:bg-[#222] transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-400" />
           </button>
-          <h2 className="text-xl font-bold text-white tracking-tight">Create Routine</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            {editingRoutineId ? 'Edit Routine' : 'Create Routine'}
+          </h2>
         </div>
 
         <div className="space-y-4">
@@ -264,7 +301,7 @@ export const GymRoutine = () => {
           className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] mt-6"
         >
           <Save className="h-5 w-5" />
-          <span>SAVE ROUTINE</span>
+          <span>{editingRoutineId ? 'UPDATE ROUTINE' : 'SAVE ROUTINE'}</span>
         </button>
 
         {renderExerciseSelectorModal()}
@@ -286,7 +323,13 @@ export const GymRoutine = () => {
       </div>
 
       <button 
-        onClick={() => setIsCreating(true)}
+        onClick={() => {
+          setEditingRoutineId(null);
+          setDraftName('');
+          setDraftDesc('');
+          setDraftExercises([]);
+          setIsCreating(true);
+        }}
         className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(225,29,72,0.3)]"
       >
         <Plus className="h-5 w-5 stroke-[3]" />
@@ -315,16 +358,24 @@ export const GymRoutine = () => {
                   </div>
                 </div>
                 
-                <button 
-                  onClick={() => {
-                    if (window.confirm('Delete this routine?')) {
-                      removeRoutine(routine.id);
-                    }
-                  }}
-                  className="h-8 w-8 rounded-lg bg-[#111] flex items-center justify-center text-gray-600 hover:text-rose-500 hover:bg-rose-950/20 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => handleEditRoutine(routine)}
+                    className="h-8 w-8 rounded-lg bg-[#111] flex items-center justify-center text-gray-600 hover:text-emerald-500 hover:bg-emerald-950/20 transition-colors"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('Delete this routine?')) {
+                        removeRoutine(routine.id);
+                      }
+                    }}
+                    className="h-8 w-8 rounded-lg bg-[#111] flex items-center justify-center text-gray-600 hover:text-rose-500 hover:bg-rose-950/20 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))
           )}
