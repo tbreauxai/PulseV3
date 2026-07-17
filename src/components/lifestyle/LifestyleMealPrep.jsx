@@ -1,12 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, Droplets, Plus } from 'lucide-react';
+import { Utensils, Droplets, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 export const LifestyleMealPrep = () => {
+  const todayDate = new Date().toLocaleDateString('en-US');
+
+  // Hydration state
   const [water, setWater] = useState(0);
   const [loading, setLoading] = useState(true);
   const waterGoal = 8;
-  const todayDate = new Date().toLocaleDateString('en-US');
+
+  // Macros state
+  const [macroGoals, setMacroGoals] = useState(() => {
+    const saved = localStorage.getItem('pulse_macro_goals');
+    return saved ? JSON.parse(saved) : { calories: 2800, protein: 180, carbs: 300, fats: 85 };
+  });
+
+  const [currentMacros, setCurrentMacros] = useState(() => {
+    const saved = localStorage.getItem(`pulse_current_macros_${todayDate}`);
+    return saved ? JSON.parse(saved) : { calories: 2150, protein: 145, carbs: 210, fats: 65 }; // Default dummy data for now
+  });
+
+  const [isEditingMacros, setIsEditingMacros] = useState(false);
+  const [editGoals, setEditGoals] = useState(macroGoals);
+
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [mealInput, setMealInput] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
 
   useEffect(() => {
     fetchHydration();
@@ -22,7 +41,6 @@ export const LifestyleMealPrep = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        // PGRST116 is "No rows returned", which is fine for a new day
         throw error;
       }
       
@@ -40,10 +58,9 @@ export const LifestyleMealPrep = () => {
 
   const handleLogWater = async () => {
     const newWater = Math.min(water + 1, waterGoal);
-    setWater(newWater); // Optimistic UI update
+    setWater(newWater);
 
     try {
-      // In PostgreSQL/Supabase, we can upsert easily based on UNIQUE(user_id, date) constraint we set
       const { error } = await supabase
         .from('hydration_logs')
         .upsert({ 
@@ -54,17 +71,37 @@ export const LifestyleMealPrep = () => {
       if (error) throw error;
     } catch (e) {
       console.error('Error logging water:', e);
-      // Revert if error
       setWater(water);
     }
   };
 
+  const saveMacroGoals = () => {
+    setMacroGoals(editGoals);
+    localStorage.setItem('pulse_macro_goals', JSON.stringify(editGoals));
+    setIsEditingMacros(false);
+  };
+
+  const handleLogMeal = () => {
+    const newMacros = {
+      calories: currentMacros.calories + Number(mealInput.calories),
+      protein: currentMacros.protein + Number(mealInput.protein),
+      carbs: currentMacros.carbs + Number(mealInput.carbs),
+      fats: currentMacros.fats + Number(mealInput.fats),
+    };
+    setCurrentMacros(newMacros);
+    localStorage.setItem(`pulse_current_macros_${todayDate}`, JSON.stringify(newMacros));
+    setShowLogModal(false);
+    setMealInput({ calories: 0, protein: 0, carbs: 0, fats: 0 });
+  };
+
+  const calcPercent = (current, goal) => Math.min(100, Math.round((current / goal) * 100)) || 0;
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Nutrition</h2>
-          <p className="text-emerald-500/80 font-medium text-sm mt-1">2,150 / 2,800 kcal</p>
+          <p className="text-emerald-500/80 font-medium text-sm mt-1">{currentMacros.calories} / {macroGoals.calories} kcal</p>
         </div>
         <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
           <Utensils className="text-emerald-500 h-5 w-5" />
@@ -72,36 +109,81 @@ export const LifestyleMealPrep = () => {
       </div>
 
       <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-gray-500 tracking-wider mb-4">MACROS</h3>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between text-xs font-bold mb-1.5">
-              <span className="text-white">Protein</span>
-              <span className="text-emerald-500">145g / 180g</span>
-            </div>
-            <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full w-[80%] rounded-full"></div>
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs font-bold mb-1.5">
-              <span className="text-white">Carbs</span>
-              <span className="text-emerald-500">210g / 300g</span>
-            </div>
-            <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full w-[70%] rounded-full"></div>
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs font-bold mb-1.5">
-              <span className="text-white">Fats</span>
-              <span className="text-emerald-500">65g / 85g</span>
-            </div>
-            <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full w-[76%] rounded-full"></div>
-            </div>
-          </div>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-gray-500 tracking-wider">MACROS</h3>
+          <button 
+            onClick={() => {
+              if (isEditingMacros) saveMacroGoals();
+              else {
+                setEditGoals(macroGoals);
+                setIsEditingMacros(true);
+              }
+            }}
+            className="text-xs font-bold text-emerald-500 hover:text-emerald-400"
+          >
+            {isEditingMacros ? 'SAVE GOALS' : 'EDIT GOALS'}
+          </button>
         </div>
+
+        {isEditingMacros ? (
+          <div className="space-y-4">
+            {[
+              { label: 'Calories (kcal)', key: 'calories' },
+              { label: 'Protein (g)', key: 'protein' },
+              { label: 'Carbs (g)', key: 'carbs' },
+              { label: 'Fats (g)', key: 'fats' }
+            ].map(item => (
+              <div key={item.key} className="flex items-center justify-between">
+                <span className="text-white text-sm font-bold">{item.label}</span>
+                <input 
+                  type="number" 
+                  value={editGoals[item.key]}
+                  onChange={e => setEditGoals({...editGoals, [item.key]: Number(e.target.value)})}
+                  className="w-24 bg-gray-900 border border-gray-800 rounded px-3 py-2 text-white text-right outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1.5">
+                <span className="text-white">Protein</span>
+                <span className="text-emerald-500">{currentMacros.protein}g / {macroGoals.protein}g</span>
+              </div>
+              <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${calcPercent(currentMacros.protein, macroGoals.protein)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1.5">
+                <span className="text-white">Carbs</span>
+                <span className="text-emerald-500">{currentMacros.carbs}g / {macroGoals.carbs}g</span>
+              </div>
+              <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${calcPercent(currentMacros.carbs, macroGoals.carbs)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1.5">
+                <span className="text-white">Fats</span>
+                <span className="text-emerald-500">{currentMacros.fats}g / {macroGoals.fats}g</span>
+              </div>
+              <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${calcPercent(currentMacros.fats, macroGoals.fats)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-5 relative overflow-hidden">
@@ -137,10 +219,54 @@ export const LifestyleMealPrep = () => {
         </div>
       </div>
 
-      <button className="w-full bg-[#0a0a0a] border border-[#1a1a1a] hover:border-emerald-500/30 active:scale-[0.98] transition-all text-white font-medium py-4 rounded-xl flex items-center justify-center space-x-2">
+      <button 
+        onClick={() => setShowLogModal(true)}
+        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] hover:border-emerald-500/30 active:scale-[0.98] transition-all text-white font-medium py-4 rounded-xl flex items-center justify-center space-x-2"
+      >
         <Plus className="h-5 w-5 text-emerald-500" />
         <span>Log Meal</span>
       </button>
+
+      {/* Log Meal Modal */}
+      {showLogModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-white">Log Meal</h3>
+              <button onClick={() => setShowLogModal(false)} className="text-gray-500 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4 mb-8">
+              {[
+                { label: 'Calories', key: 'calories', placeholder: 'kcal' },
+                { label: 'Protein', key: 'protein', placeholder: 'g' },
+                { label: 'Carbs', key: 'carbs', placeholder: 'g' },
+                { label: 'Fats', key: 'fats', placeholder: 'g' }
+              ].map(item => (
+                <div key={item.key} className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-500 tracking-wider mb-1.5">{item.label}</label>
+                  <input 
+                    type="number" 
+                    value={mealInput[item.key] || ''}
+                    onChange={e => setMealInput({...mealInput, [item.key]: e.target.value})}
+                    placeholder={item.placeholder}
+                    className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={handleLogMeal}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+            >
+              ADD TO DAILY TOTAL
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Scale, Minus, Plus } from 'lucide-react';
+import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 export const LifestyleWeighIn = () => {
   const [weight, setWeight] = useState(175.4);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [editingId, setEditingId] = useState(null);
+  const [editWeight, setEditWeight] = useState('');
 
   useEffect(() => {
     fetchWeighIns();
@@ -31,6 +34,8 @@ export const LifestyleWeighIn = () => {
           diff: row.diff_str
         }));
         setLogs(formattedLogs);
+      } else {
+        setLogs([]);
       }
     } catch (e) {
       console.error('Error fetching weigh-ins:', e);
@@ -81,6 +86,63 @@ export const LifestyleWeighIn = () => {
     } catch (e) {
       console.error('Error logging weight:', e);
       alert('Error logging weight: ' + e.message);
+    }
+  };
+
+  const handleEditSave = async (index) => {
+    const log = logs[index];
+    const newWeight = parseFloat(editWeight);
+    if (isNaN(newWeight)) return;
+
+    try {
+      setLoading(true);
+      
+      let diffStr = log.diff;
+      if (index < logs.length - 1) {
+        const prevWeight = parseFloat(logs[index + 1].weight);
+        const diff = newWeight - prevWeight;
+        diffStr = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
+      }
+
+      await supabase.from('weigh_ins').update({ weight_lbs: newWeight, diff_str: diffStr }).eq('id', log.id);
+      
+      if (index > 0) {
+        const nextLog = logs[index - 1];
+        const nextWeight = parseFloat(nextLog.weight);
+        const nextDiff = nextWeight - newWeight;
+        await supabase.from('weigh_ins').update({ diff_str: `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}` }).eq('id', nextLog.id);
+      }
+
+      setEditingId(null);
+      fetchWeighIns();
+    } catch (e) {
+      console.error('Error updating log:', e);
+      alert('Error updating log: ' + e.message);
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteLog = async (id, index) => {
+    if (!window.confirm('Delete this weigh-in?')) return;
+    try {
+      setLoading(true);
+      await supabase.from('weigh_ins').delete().eq('id', id);
+      
+      if (index > 0 && index < logs.length - 1) {
+        const nextLog = logs[index - 1];
+        const prevLog = logs[index + 1];
+        const nextWeight = parseFloat(nextLog.weight);
+        const prevWeight = parseFloat(prevLog.weight);
+        const nextDiff = nextWeight - prevWeight;
+        await supabase.from('weigh_ins').update({ diff_str: `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}` }).eq('id', nextLog.id);
+      }
+
+      setEditingId(null);
+      fetchWeighIns();
+    } catch (e) {
+      console.error('Error deleting log:', e);
+      alert('Error deleting log: ' + e.message);
+      setLoading(false);
     }
   };
 
@@ -136,14 +198,44 @@ export const LifestyleWeighIn = () => {
             <p className="text-gray-500 text-sm text-center py-4">No weigh-ins logged yet.</p>
           )}
           {logs.map((log, i) => (
-            <div key={i} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
+            <div key={log.id} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
               <span className="text-white font-medium">{log.date}</span>
-              <div className="flex items-center space-x-3">
-                <span className="text-white font-bold">{log.weight}</span>
-                <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
-                  {log.diff}
-                </span>
-              </div>
+              
+              {editingId === log.id ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    className="w-20 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-white text-right outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                  <button onClick={() => handleEditSave(i)} className="text-emerald-500 p-1.5 hover:bg-emerald-500/20 rounded transition-colors">
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setEditingId(null)} className="text-gray-500 p-1.5 hover:bg-gray-800 rounded transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => handleDeleteLog(log.id, i)} className="text-red-500 p-1.5 hover:bg-red-500/20 rounded transition-colors ml-1">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  className="flex items-center space-x-3 group cursor-pointer"
+                  onClick={() => {
+                    setEditingId(log.id);
+                    setEditWeight(parseFloat(log.weight).toString());
+                  }}
+                >
+                  <span className="text-white font-bold">{log.weight}</span>
+                  <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
+                    {log.diff}
+                  </span>
+                  <Pencil className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -151,3 +243,4 @@ export const LifestyleWeighIn = () => {
     </div>
   );
 };
+
