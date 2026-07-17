@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2 } from 'lucide-react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2, Search } from 'lucide-react';
 import { useRoutines } from '../../hooks/useRoutines';
+import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
+import { useExercises } from '../../hooks/useExercises';
 
 const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -9,7 +11,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
   const handleQuickAdd = (e) => {
     e.stopPropagation(); // Prevent card from toggling expand if it was collapsed
     if (!isExpanded) setIsExpanded(true);
-    onAddSet(exerciseIndex, exercise.exerciseName);
+    onAddSet(exerciseIndex, exercise.exerciseName || exercise.name);
   };
 
   return (
@@ -24,9 +26,9 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
             <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
           </div>
           <div>
-            <h4 className="text-white font-medium">{exercise.exerciseName}</h4>
+            <h4 className="text-white font-medium">{exercise.exerciseName || exercise.name}</h4>
             <p className="text-xs text-gray-500 mt-0.5">
-              Target: {exercise.sets} Sets • {exercise.reps}
+              Target: {exercise.sets || '-'} Sets • {exercise.reps || '-'}
             </p>
           </div>
         </div>
@@ -92,7 +94,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button 
-                      onClick={() => onToggleComplete(exerciseIndex, idx, exercise.exerciseName)}
+                      onClick={() => onToggleComplete(exerciseIndex, idx, exercise.exerciseName || exercise.name)}
                       className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
                         set.completed 
                           ? 'bg-emerald-500 text-black' 
@@ -108,7 +110,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
           )}
           
           <button 
-            onClick={() => onAddSet(exerciseIndex, exercise.exerciseName)}
+            onClick={() => onAddSet(exerciseIndex, exercise.exerciseName || exercise.name)}
             className="w-full mt-4 py-3 rounded-lg border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
           >
             <Plus className="h-4 w-4" />
@@ -122,7 +124,13 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
 
 export const GymToday = () => {
   const { routines } = useRoutines();
+  const { addWorkout } = useWorkoutHistory();
+  const { exercises: allExercises } = useExercises();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
+  
   const [activeSession, setActiveSession] = useState(() => {
     const saved = localStorage.getItem('pulseV3-activeSession');
     return saved ? JSON.parse(saved) : null;
@@ -136,21 +144,79 @@ export const GymToday = () => {
     }
   }, [activeSession]);
 
-  const activeRoutine = activeSession 
-    ? routines.find(r => String(r.id) === String(activeSession.routineId))
-    : null;
-
-  const startRoutine = (id) => {
+  const startRoutine = (routineId) => {
+    const routine = routines.find(r => String(r.id) === String(routineId));
     setActiveSession({
-      routineId: id,
+      routineId: routineId,
+      routineName: routine ? routine.name : "Free Day",
       startTime: Date.now(),
+      exercises: routine && routine.exercises ? [...routine.exercises] : [],
       sets: {} // Maps exerciseIndex -> array of set objects
     });
     setIsModalOpen(false);
   };
 
+  const startFreeWorkout = () => {
+    setActiveSession({
+      routineId: 'free',
+      routineName: "Free Day",
+      startTime: Date.now(),
+      exercises: [],
+      sets: {}
+    });
+  };
+
+  const addCustomExercise = (exercise) => {
+    setActiveSession(prev => ({
+      ...prev,
+      exercises: [...prev.exercises, {
+        exerciseName: exercise.name,
+        muscleGroup: exercise.muscleGroup,
+        sets: '-',
+        reps: '-'
+      }]
+    }));
+    setIsExerciseModalOpen(false);
+    setExerciseSearchTerm('');
+  };
+
   const finishWorkout = () => {
-    if (window.confirm('Are you sure you want to finish and clear this workout?')) {
+    if (window.confirm('Are you sure you want to finish and save this workout?')) {
+      let totalVolume = 0;
+      let completedSetsCount = 0;
+      const completedExercises = [];
+
+      activeSession.exercises.forEach((exercise, i) => {
+        const exerciseSets = activeSession.sets[i] || [];
+        const validSets = exerciseSets.filter(s => s.completed);
+        
+        if (validSets.length > 0) {
+          completedExercises.push({
+            exerciseName: exercise.exerciseName || exercise.name,
+            sets: validSets
+          });
+          
+          validSets.forEach(set => {
+            completedSetsCount++;
+            const weight = parseFloat(set.weight) || 0;
+            const reps = parseInt(set.reps) || 0;
+            totalVolume += (weight * reps);
+          });
+        }
+      });
+
+      if (completedSetsCount > 0) {
+        addWorkout({
+          id: String(Date.now()),
+          routineName: activeSession.routineName || "Free Day",
+          date: new Date().toISOString(),
+          duration: Date.now() - activeSession.startTime,
+          completedSets: completedSetsCount,
+          totalVolume: totalVolume,
+          exerciseDetails: completedExercises
+        });
+      }
+
       setActiveSession(null);
     }
   };
@@ -183,10 +249,8 @@ export const GymToday = () => {
       
       let newSet;
       if (lastSet) {
-        // Auto-fill from previous set in this session
         newSet = { weight: lastSet.weight, reps: lastSet.reps, completed: false };
       } else {
-        // Auto-fill from historical memory for the first set
         const memory = getExerciseMemory(exerciseName);
         newSet = { weight: memory.weight, reps: memory.reps, completed: false };
       }
@@ -222,7 +286,6 @@ export const GymToday = () => {
         completed: isNowComplete
       };
 
-      // If we just completed a set, save it to memory so future workouts remember it
       if (isNowComplete) {
         saveExerciseMemory(
           exerciseName, 
@@ -249,15 +312,20 @@ export const GymToday = () => {
     });
   };
 
+  const filteredExercises = allExercises.filter(ex => 
+    ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()) || 
+    ex.muscleGroup.toLowerCase().includes(exerciseSearchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">
-            {activeRoutine ? activeRoutine.name : "Today's Workout"}
+            {activeSession ? activeSession.routineName : "Today's Workout"}
           </h2>
           <p className="text-rose-600/80 font-medium text-sm mt-1">
-            {activeRoutine ? activeRoutine.description : "Ready to crush it?"}
+            {activeSession ? "In Progress" : "Ready to crush it?"}
           </p>
         </div>
         <div className="h-12 w-12 rounded-full bg-rose-600/10 flex items-center justify-center border border-rose-600/20 shadow-[0_0_15px_rgba(225,29,72,0.15)]">
@@ -271,25 +339,47 @@ export const GymToday = () => {
             <Dumbbell className="h-10 w-10 text-gray-700" />
           </div>
           <p className="text-gray-500 text-center px-8">
-            You don't have an active workout for today. Select a routine to get started.
+            You don't have an active workout for today. Select a routine or start a free day to get started.
           </p>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(225,29,72,0.3)]"
-          >
-            <Play className="h-5 w-5 fill-current" />
-            <span>START ROUTINE</span>
-          </button>
+          <div className="w-full space-y-3">
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(225,29,72,0.3)]"
+            >
+              <Play className="h-5 w-5 fill-current" />
+              <span>START ROUTINE</span>
+            </button>
+            <button 
+              onClick={startFreeWorkout}
+              className="w-full bg-[#1a1a1a] hover:bg-[#222] active:scale-[0.98] transition-all text-gray-300 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-[#333]"
+            >
+              <Plus className="h-5 w-5" />
+              <span>FREE WORKOUT</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
-          <button 
-            onClick={finishWorkout}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-          >
-            <CheckCircle2 className="h-5 w-5" />
-            <span>FINISH WORKOUT</span>
-          </button>
+          <div className="flex space-x-3">
+            <button 
+              onClick={() => {
+                if(window.confirm('Are you sure you want to cancel? No data will be saved.')) {
+                  setActiveSession(null);
+                }
+              }}
+              className="flex-1 bg-black hover:bg-rose-950/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-rose-500/20"
+            >
+              <X className="h-5 w-5" />
+              <span>CANCEL</span>
+            </button>
+            <button 
+              onClick={finishWorkout}
+              className="flex-[2] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+            >
+              <CheckCircle2 className="h-5 w-5" />
+              <span>FINISH WORKOUT</span>
+            </button>
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -303,7 +393,7 @@ export const GymToday = () => {
             </div>
             
             <div className="space-y-3">
-              {activeRoutine?.exercises?.map((exercise, i) => (
+              {activeSession.exercises.map((exercise, i) => (
                 <ActiveExerciseCard 
                   key={i}
                   exercise={exercise}
@@ -315,6 +405,14 @@ export const GymToday = () => {
                   onRemoveSet={removeSet}
                 />
               ))}
+              
+              <button 
+                onClick={() => setIsExerciseModalOpen(true)}
+                className="w-full py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>ADD EXERCISE</span>
+              </button>
             </div>
           </div>
         </div>
@@ -356,15 +454,61 @@ export const GymToday = () => {
                 ))
               )}
             </div>
-            
-            <button 
-              className="w-full mt-6 py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors"
-              onClick={() => {
-                alert("Routine creator coming soon!");
-              }}
-            >
-              + CREATE NEW ROUTINE
-            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Exercise Selection Modal */}
+      {isExerciseModalOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end p-0 bg-black/80 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4">
+          <div className="w-full sm:max-w-md bg-[#111] border-t border-[#222] sm:border sm:rounded-3xl flex flex-col shadow-2xl relative h-[85vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
+            <div className="p-6 pb-4 shrink-0 border-b border-[#222]">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-black text-white tracking-wider">ADD EXERCISE</h3>
+                  <p className="text-xs text-gray-400 mt-1">Select an exercise to add to your workout.</p>
+                </div>
+                <button
+                  onClick={() => setIsExerciseModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
+                >
+                  <X className="h-4 w-4 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search exercises..."
+                  value={exerciseSearchTerm}
+                  onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                  className="w-full bg-[#0a0a0a] border border-[#222] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {filteredExercises.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No exercises found matching "{exerciseSearchTerm}"
+                </div>
+              ) : (
+                filteredExercises.map(ex => (
+                  <div 
+                    key={ex.id}
+                    onClick={() => addCustomExercise(ex)}
+                    className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl cursor-pointer hover:border-rose-600/50 transition-colors group"
+                  >
+                    <div>
+                      <h4 className="text-white font-medium text-sm group-hover:text-rose-500 transition-colors">{ex.name}</h4>
+                      <p className="text-xs text-gray-600 mt-0.5">{ex.muscleGroup}</p>
+                    </div>
+                    <Plus className="h-4 w-4 text-gray-600 group-hover:text-rose-500 transition-colors" />
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
