@@ -1,133 +1,114 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
-import { usePersistentState } from '../../../hooks/usePersistentState';
 
 export const useRoutines = () => {
-  const [routines, setRoutines] = usePersistentState('pulse_routines', []);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchRoutines();
-  }, []);
-
-  const fetchRoutines = async () => {
-    try {
-      setIsLoading(true);
+  const { data: routines = [], isLoading } = useQuery({
+    queryKey: ['routines'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('routines')
         .select('*')
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-      setRoutines(data || []);
-    } catch (error) {
-      console.error('Error fetching routines:', error);
-    } finally {
-      setIsLoading(false);
+      return data || [];
     }
-  };
+  });
 
-  const addRoutine = async (routine) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticRoutine = { ...routine, id: tempId };
-    
-    // --- OPTIMISTIC UPDATE ---
-    const previousRoutines = [...routines];
-    setRoutines(prev => [optimisticRoutine, ...prev]);
-
-    try {
-      if (!navigator.onLine) {
-        queueMutation('insert', 'routines', [routine], null, tempId);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('routines')
-        .insert([routine])
-        .select();
-
+  const { mutateAsync: addRoutine } = useMutation({
+    mutationFn: async (routine) => {
+      if (!navigator.onLine) throw new Error('NetworkError');
+      const { data, error } = await supabase.from('routines').insert([routine]).select();
       if (error) throw error;
-      if (data) {
-        // Swap temp ID for real ID silently
-        setRoutines(prev => prev.map(r => r.id === tempId ? data[0] : r));
-      }
-    } catch (error) {
-      console.error('Error adding routine:', error);
-      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
-        queueMutation('insert', 'routines', [routine], null, tempId);
+      return data[0];
+    },
+    onMutate: async (newRoutine) => {
+      await queryClient.cancelQueries({ queryKey: ['routines'] });
+      const previousRoutines = queryClient.getQueryData(['routines']);
+      
+      const tempId = `temp-${Date.now()}`;
+      const optimisticRoutine = { ...newRoutine, id: tempId };
+      
+      queryClient.setQueryData(['routines'], (old = []) => [optimisticRoutine, ...old]);
+      return { previousRoutines, tempId, newRoutine };
+    },
+    onError: (err, newRoutine, context) => {
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+        queueMutation('insert', 'routines', [newRoutine], null, context.tempId);
       } else {
         alert('Error saving routine. Reverting changes.');
-        setRoutines(previousRoutines);
+        queryClient.setQueryData(['routines'], context.previousRoutines);
       }
+    },
+    onSuccess: (data, variables, context) => {
+      queryClient.setQueryData(['routines'], (old = []) => 
+        old.map(r => r.id === context.tempId ? data : r)
+      );
     }
-  };
+  });
 
-  const updateRoutine = async (id, updatedRoutine) => {
-    // --- OPTIMISTIC UPDATE ---
-    const previousRoutines = [...routines];
-    setRoutines(prev => prev.map(r => String(r.id) === String(id) ? { ...r, ...updatedRoutine } : r));
-
-    try {
-      if (!navigator.onLine) {
-        queueMutation('update', 'routines', updatedRoutine, { id }, String(id).startsWith('temp-') ? id : null);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('routines')
-        .update(updatedRoutine)
-        .eq('id', id)
-        .select();
-
+  const { mutateAsync: updateRoutineMutation } = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      if (!navigator.onLine) throw new Error('NetworkError');
+      const { data, error } = await supabase.from('routines').update(updatedData).eq('id', id).select();
       if (error) throw error;
-      if (data) {
-        setRoutines(prev => prev.map(r => String(r.id) === String(id) ? data[0] : r));
-      }
-    } catch (error) {
-      console.error('Error updating routine:', error);
-      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
-        queueMutation('update', 'routines', updatedRoutine, { id }, String(id).startsWith('temp-') ? id : null);
+      return data[0];
+    },
+    onMutate: async ({ id, updatedData }) => {
+      await queryClient.cancelQueries({ queryKey: ['routines'] });
+      const previousRoutines = queryClient.getQueryData(['routines']);
+      queryClient.setQueryData(['routines'], (old = []) => 
+        old.map(r => String(r.id) === String(id) ? { ...r, ...updatedData } : r)
+      );
+      return { previousRoutines, id, updatedData };
+    },
+    onError: (err, { id, updatedData }, context) => {
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+        queueMutation('update', 'routines', updatedData, { id }, String(id).startsWith('temp-') ? id : null);
       } else {
         alert('Error updating routine. Reverting changes.');
-        setRoutines(previousRoutines);
+        queryClient.setQueryData(['routines'], context.previousRoutines);
       }
+    },
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(['routines'], (old = []) => 
+        old.map(r => String(r.id) === String(id) ? data : r)
+      );
     }
-  };
+  });
 
-  const removeRoutine = async (id) => {
-    // --- OPTIMISTIC UPDATE ---
-    const previousRoutines = [...routines];
-    setRoutines(prev => prev.filter(r => String(r.id) !== String(id)));
-
-    try {
-      if (!navigator.onLine) {
-        queueMutation('delete', 'routines', null, { id }, String(id).startsWith('temp-') ? id : null);
-        return;
-      }
-
-      const { error } = await supabase
-        .from('routines')
-        .delete()
-        .eq('id', id);
-
+  const { mutateAsync: removeRoutine } = useMutation({
+    mutationFn: async (id) => {
+      if (!navigator.onLine) throw new Error('NetworkError');
+      const { error } = await supabase.from('routines').delete().eq('id', id);
       if (error) throw error;
-    } catch (error) {
-      console.error('Error removing routine:', error);
-      if (error.message === 'Failed to fetch' || (error.message && error.message.includes('NetworkError'))) {
+      return id;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['routines'] });
+      const previousRoutines = queryClient.getQueryData(['routines']);
+      queryClient.setQueryData(['routines'], (old = []) => 
+        old.filter(r => String(r.id) !== String(id))
+      );
+      return { previousRoutines, id };
+    },
+    onError: (err, id, context) => {
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
         queueMutation('delete', 'routines', null, { id }, String(id).startsWith('temp-') ? id : null);
       } else {
         alert('Error deleting routine. Reverting changes.');
-        setRoutines(previousRoutines);
+        queryClient.setQueryData(['routines'], context.previousRoutines);
       }
     }
-  };
+  });
 
   return {
     routines,
     isLoading,
     addRoutine,
-    updateRoutine,
+    updateRoutine: (id, updatedData) => updateRoutineMutation({ id, updatedData }),
     removeRoutine
   };
 };

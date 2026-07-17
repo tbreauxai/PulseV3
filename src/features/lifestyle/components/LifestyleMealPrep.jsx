@@ -1,177 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus, X } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
-import { queueMutation } from '../../../lib/offlineSync';
-import { usePersistentState } from '../../../hooks/usePersistentState';
+import { useHydration } from '../hooks/useHydration';
+import { useMacros } from '../hooks/useMacros';
 import { MacroProgress } from './MacroProgress';
 import { LogMealModal } from './LogMealModal';
 
 export const LifestyleMealPrep = () => {
   const todayDate = new Date().toLocaleDateString('en-US');
 
-  // Hydration state
-  const [water, setWater] = usePersistentState(`pulse_water_${todayDate}`, 0);
-  const [loading, setLoading] = useState(false);
+  const { water, isLoading: loading, logWater } = useHydration(todayDate);
+  const { macroGoals, currentMacros, saveMacroGoals, logMeal } = useMacros(todayDate);
+
   const waterGoal = 8;
-
-  // Macros state
-  const [macroGoals, setMacroGoals] = usePersistentState('pulse_macro_goals', { calories: 2800, protein: 180, carbs: 300, fats: 85 });
-  const [currentMacros, setCurrentMacros] = usePersistentState(`pulse_current_macros_${todayDate}`, { calories: 0, protein: 0, carbs: 0, fats: 0 });
-
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editGoals, setEditGoals] = useState(macroGoals);
-
   const [showLogModal, setShowLogModal] = useState(false);
 
   useEffect(() => {
-    fetchHydration();
-    fetchMacroGoals();
-    fetchDailyMacros();
-  }, []);
-
-  const fetchHydration = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('hydration_logs')
-        .select('*')
-        .eq('date', todayDate)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      
-      if (data) {
-        setWater(data.water_glasses);
-      } else {
-        setWater(0);
-      }
-    } catch (e) {
-      console.error('Error fetching hydration:', e);
-    } finally {
-      setLoading(false);
+    if (isEditingMacros === false) {
+        setEditGoals(macroGoals);
     }
-  };
-
-  const fetchMacroGoals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('calories_goal, protein_goal, carbs_goal, fats_goal')
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        // Only log actual errors, not "table undefined" or "no rows" if they haven't run the SQL yet
-        if (error.code !== '42P01') console.error('Error fetching macro goals:', error);
-        return;
-      }
-      
-      if (data) {
-        const dbGoals = {
-          calories: data.calories_goal,
-          protein: data.protein_goal,
-          carbs: data.carbs_goal,
-          fats: data.fats_goal
-        };
-        setMacroGoals(dbGoals);
-        setEditGoals(dbGoals);
-      }
-    } catch (e) {
-      console.error('Error:', e);
-    }
-  };
-
-  const fetchDailyMacros = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('daily_macros')
-        .select('calories, protein, carbs, fats')
-        .eq('date', todayDate)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        if (error.code !== '42P01') console.error('Error fetching daily macros:', error);
-        return;
-      }
-      
-      if (data) {
-        setCurrentMacros(data);
-      }
-    } catch (e) {
-      console.error('Error:', e);
-    }
-  };
+  }, [macroGoals, isEditingMacros]);
 
   const handleLogWater = async () => {
     const newWater = Math.min(water + 1, waterGoal);
-    setWater(newWater);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user found");
-
-      if (!navigator.onLine) {
-        queueMutation('upsert', 'hydration_logs', {
-          user_id: user.id,
-          date: todayDate,
-          water_glasses: newWater
-        }, { onConflict: 'user_id, date' });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('hydration_logs')
-        .upsert({ 
-          user_id: user.id,
-          date: todayDate, 
-          water_glasses: newWater 
-        }, { onConflict: 'user_id, date' });
-
-      if (error) throw error;
-    } catch (e) {
-      console.error('Error logging water:', e);
-      if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
-        // Can't queue without user ID easily if user object fetch failed, but assume user object is cached
-        const cachedUser = supabase.auth.getUser(); // Assuming we already failed in upsert, user is known
-      } else {
-        setWater(water);
-      }
-    }
+    logWater(newWater);
   };
 
-  const saveMacroGoals = async () => {
-    setMacroGoals(editGoals);
+  const handleSaveMacroGoals = async () => {
+    saveMacroGoals(editGoals);
     setIsEditingMacros(false);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user found");
-
-      const payload = {
-        user_id: user.id,
-        calories_goal: editGoals.calories,
-        protein_goal: editGoals.protein,
-        carbs_goal: editGoals.carbs,
-        fats_goal: editGoals.fats
-      };
-
-      if (!navigator.onLine) {
-        queueMutation('upsert', 'user_settings', payload, { onConflict: 'user_id' });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert(payload, { onConflict: 'user_id' });
-
-      if (error) throw error;
-    } catch (e) {
-      console.error('Error saving macro goals:', e);
-      if (e.message !== 'Failed to fetch' && !(e.message && e.message.includes('NetworkError'))) {
-        alert('Error saving to database. Did you run the SQL script?');
-      }
-    }
   };
 
   const handleLogMeal = async (mealData) => {
@@ -181,39 +39,7 @@ export const LifestyleMealPrep = () => {
       carbs: currentMacros.carbs + Number(mealData.carbs),
       fats: currentMacros.fats + Number(mealData.fats),
     };
-    
-    setCurrentMacros(newMacros);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user found");
-
-      const payload = {
-        user_id: user.id,
-        date: todayDate,
-        calories: newMacros.calories,
-        protein: newMacros.protein,
-        carbs: newMacros.carbs,
-        fats: newMacros.fats
-      };
-
-      if (!navigator.onLine) {
-        queueMutation('upsert', 'daily_macros', payload, { onConflict: 'user_id, date' });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('daily_macros')
-        .upsert(payload, { onConflict: 'user_id, date' });
-
-      if (error) throw error;
-    } catch (e) {
-      console.error('Error saving daily macros:', e);
-      if (e.message !== 'Failed to fetch' && !(e.message && e.message.includes('NetworkError'))) {
-        alert('Error saving to database. Did you run the SQL script?');
-        setCurrentMacros(currentMacros);
-      }
-    }
+    logMeal(newMacros);
   };
 
   const calcPercent = (current, goal) => Math.min(100, Math.round((current / goal) * 100)) || 0;
@@ -235,7 +61,7 @@ export const LifestyleMealPrep = () => {
           <h3 className="text-sm font-bold text-gray-500 tracking-wider">MACROS</h3>
           <button 
             onClick={() => {
-              if (isEditingMacros) saveMacroGoals();
+              if (isEditingMacros) handleSaveMacroGoals();
               else {
                 setEditGoals(macroGoals);
                 setIsEditingMacros(true);
