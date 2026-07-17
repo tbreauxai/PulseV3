@@ -1,8 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { Virtuoso } from 'react-virtuoso';
+
+const WeighInRow = React.memo(({ log, index, isEditing, editWeight, onEditWeightChange, onSave, onCancel, onDelete, onStartEdit }) => {
+  return (
+    <div className="pb-3">
+      <div className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
+        <span className="text-white font-medium">{log.date}</span>
+        
+        {isEditing ? (
+          <div className="flex items-center space-x-2">
+            <input
+              type="number"
+              step="0.1"
+              value={editWeight}
+              onChange={(e) => onEditWeightChange(e.target.value)}
+              className="w-20 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-white text-right outline-none focus:border-emerald-500"
+              autoFocus
+            />
+            <button onClick={() => onSave(index)} className="text-emerald-500 p-1.5 hover:bg-emerald-500/20 rounded transition-colors">
+              <Check className="h-4 w-4" />
+            </button>
+            <button onClick={onCancel} className="text-gray-500 p-1.5 hover:bg-gray-800 rounded transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+            <button onClick={() => onDelete(log.id, index)} className="text-red-500 p-1.5 hover:bg-red-500/20 rounded transition-colors ml-1">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center space-x-3 group cursor-pointer"
+            onClick={() => onStartEdit(log.id, log.weight)}
+          >
+            <span className="text-white font-bold">{log.weight}</span>
+            <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
+              {log.diff}
+            </span>
+            <Pencil className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export const LifestyleWeighIn = () => {
   const [weight, setWeight] = usePersistentState('pulse_weight', 175.4);
@@ -250,49 +293,25 @@ export const LifestyleWeighIn = () => {
             <Virtuoso
               useWindowScroll
               data={logs}
-              itemContent={(i, log) => (
-                <div className="pb-3">
-                  <div className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
-                    <span className="text-white font-medium">{log.date}</span>
-                    
-                    {editingId === log.id ? (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={editWeight}
-                          onChange={(e) => setEditWeight(e.target.value)}
-                          className="w-20 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-white text-right outline-none focus:border-emerald-500"
-                          autoFocus
-                        />
-                        <button onClick={() => handleEditSave(i)} className="text-emerald-500 p-1.5 hover:bg-emerald-500/20 rounded transition-colors">
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="text-gray-500 p-1.5 hover:bg-gray-800 rounded transition-colors">
-                          <X className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleDeleteLog(log.id, i)} className="text-red-500 p-1.5 hover:bg-red-500/20 rounded transition-colors ml-1">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div 
-                        className="flex items-center space-x-3 group cursor-pointer"
-                        onClick={() => {
-                          setEditingId(log.id);
-                          setEditWeight(parseFloat(log.weight).toString());
-                        }}
-                      >
-                        <span className="text-white font-bold">{log.weight}</span>
-                        <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
-                          {log.diff}
-                        </span>
-                        <Pencil className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              itemContent={(i, log) => {
+                // Using inline functions here breaks memoization slightly, but is required for complex state interactions without massive hook refactors
+                return (
+                  <WeighInRow 
+                    log={log}
+                    index={i}
+                    isEditing={editingId === log.id}
+                    editWeight={editWeight}
+                    onEditWeightChange={setEditWeight}
+                    onSave={(index) => handleEditSave(index)}
+                    onCancel={() => setEditingId(null)}
+                    onDelete={(id, idx) => handleDeleteLog(id, idx)}
+                    onStartEdit={(id, w) => {
+                      setEditingId(id);
+                      setEditWeight(parseFloat(w).toString());
+                    }}
+                  />
+                );
+              }}
             />
           )}
         </div>

@@ -1,9 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useExercises } from '../../hooks/useExercises';
 import { Plus, Search, Dumbbell } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 
 const emptyFormState = { name: '', muscleGroup: '', weight: '', reps: '', equipment: '' };
+
+const ExerciseRow = React.memo(({ ex, onOpenForm }) => {
+  return (
+    <div className="pb-3">
+      <div 
+        onClick={() => onOpenForm(ex)}
+        className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between cursor-pointer hover:border-rose-600/30 transition-all active:scale-[0.98]"
+      >
+        <div className="flex items-center space-x-4">
+          <div className="h-10 w-10 bg-gray-900 rounded-lg flex items-center justify-center">
+            <Dumbbell className="h-5 w-5 text-rose-600/80" />
+          </div>
+          <div>
+            <h4 className="text-white font-medium">{ex.name}</h4>
+            <p className="text-xs text-gray-500 mt-0.5">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
+            {(ex.weight || ex.reps) && (
+              <p className="text-xs text-gray-500 mt-0.5">{ex.weight ? `${ex.weight} ` : ''}{ex.reps ? `• ${ex.reps} reps` : ''}</p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenForm(ex);
+          }}
+          className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center hover:bg-rose-600 transition-colors group"
+        >
+          <Plus className="h-4 w-4 text-gray-400 group-hover:text-white" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export const GymExercises = () => {
   const { exercises, addExercise, updateExercise } = useExercises();
@@ -11,11 +44,11 @@ export const GymExercises = () => {
   const [editingId, setEditingId] = useState(null);
   const [formState, setFormState] = useState(emptyFormState);
 
-  const openExerciseForm = (exercise = emptyFormState) => {
+  const openExerciseForm = useCallback((exercise = emptyFormState) => {
     setFormState({ ...emptyFormState, ...exercise });
     setEditingId(exercise.id || null);
     setIsFormOpen(true);
-  };
+  }, []);
 
   const closeExerciseForm = () => {
     setIsFormOpen(false);
@@ -157,34 +190,7 @@ export const GymExercises = () => {
           useWindowScroll
           data={exercises}
           itemContent={(index, ex) => (
-            <div className="pb-3">
-              <div 
-                onClick={() => openExerciseForm(ex)}
-                className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between cursor-pointer hover:border-rose-600/30 transition-all active:scale-[0.98]"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="h-10 w-10 bg-gray-900 rounded-lg flex items-center justify-center">
-                    <Dumbbell className="h-5 w-5 text-rose-600/80" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">{ex.name}</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
-                    {(ex.weight || ex.reps) && (
-                      <p className="text-xs text-gray-500 mt-0.5">{ex.weight ? `${ex.weight} ` : ''}{ex.reps ? `• ${ex.reps} reps` : ''}</p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openExerciseForm(ex);
-                  }}
-                  className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center hover:bg-rose-600 transition-colors group"
-                >
-                  <Plus className="h-4 w-4 text-gray-400 group-hover:text-white" />
-                </button>
-              </div>
-            </div>
+            <ExerciseRow ex={ex} onOpenForm={openExerciseForm} />
           )}
         />
       </div>
