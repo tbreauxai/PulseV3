@@ -1,6 +1,7 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { useAuth } from './features/auth/context/AuthContext';
 import { LogOut, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const AuthScreen = lazy(() => import('./features/auth/components/AuthScreen').then(module => ({ default: module.AuthScreen })));
 const GymView = lazy(() => import('./features/gym/GymView').then(module => ({ default: module.GymView })));
@@ -11,6 +12,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function App() {
   const [activeTab, setActiveTab] = useState('gym');
   const { session } = useAuth() as any;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (session) {
+      // Proactively fetch all major queries in the background so tabs load instantly
+      queryClient.prefetchQuery({ queryKey: ['routines'] });
+      queryClient.prefetchQuery({ queryKey: ['workoutHistory'] });
+      queryClient.prefetchQuery({ queryKey: ['weighIns'] });
+      queryClient.prefetchQuery({ queryKey: ['macroGoals'] });
+    }
+  }, [session, queryClient]);
 
   if (!session) {
     return (

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2, Check } from 'lucide-react';
 
-export const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap }) => {
+export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
 
@@ -197,4 +197,4 @@ export const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAdd
       </div>
     </div>
   );
-};
+});

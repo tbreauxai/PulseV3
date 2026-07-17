@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
@@ -31,8 +31,8 @@ export const GymToday = () => {
     }
   }, [activeSession]);
 
-  const startRoutine = (routineId) => {
-    const routine = routines.find(r => String(r.id) === String(routineId));
+  const startRoutine = useCallback((routineId: any) => {
+    const routine = routines.find((r: any) => String(r.id) === String(routineId));
     setActiveSession({
       routineId: routineId,
       routineName: routine ? routine.name : "Free Day",
@@ -41,9 +41,9 @@ export const GymToday = () => {
       sets: {} // Maps exerciseIndex -> array of set objects
     });
     setIsModalOpen(false);
-  };
+  }, [routines]);
 
-  const startFreeWorkout = () => {
+  const startFreeWorkout = useCallback(() => {
     setActiveSession({
       routineId: 'free',
       routineName: "Free Day",
@@ -51,15 +51,15 @@ export const GymToday = () => {
       exercises: [],
       sets: {}
     });
-  };
+  }, []);
 
-  const handleOpenExerciseModal = (swapIndex = null) => {
+  const handleOpenExerciseModal = useCallback((swapIndex: any = null) => {
     setSwapExerciseIndex(swapIndex);
     setIsExerciseModalOpen(true);
-  };
+  }, []);
 
-  const addOrSwapCustomExercise = (exercise) => {
-    setActiveSession(prev => {
+  const addOrSwapCustomExercise = useCallback((exercise: any) => {
+    setActiveSession((prev: any) => {
       const newExercises = [...prev.exercises];
       const newSets = { ...prev.sets };
 
@@ -91,9 +91,9 @@ export const GymToday = () => {
     
     setIsExerciseModalOpen(false);
     setSwapExerciseIndex(null);
-  };
+  }, [swapExerciseIndex]);
 
-  const finishWorkout = async () => {
+  const finishWorkout = useCallback(async () => {
     if (window.confirm('Are you sure you want to finish and save this workout?')) {
       let totalVolume = 0;
       let completedSetsCount = 0;
@@ -136,7 +136,7 @@ export const GymToday = () => {
 
       setActiveSession(null);
     }
-  };
+  }, [activeSession, addWorkout]);
 
   const [exerciseMemoryCache, setExerciseMemoryCache] = useState({});
 
@@ -154,12 +154,12 @@ export const GymToday = () => {
     fetchMemory();
   }, []);
 
-  const getExerciseMemory = (exerciseName) => {
-    return exerciseMemoryCache[exerciseName] || { weight: '', reps: '' };
-  };
+  const getExerciseMemory = useCallback((exerciseName: any) => {
+    return (exerciseMemoryCache as any)[exerciseName] || { weight: '', reps: '' };
+  }, [exerciseMemoryCache]);
 
-  const saveExerciseMemory = async (exerciseName, weight, reps) => {
-    setExerciseMemoryCache(prev => ({
+  const saveExerciseMemory = useCallback(async (exerciseName: any, weight: any, reps: any) => {
+    setExerciseMemoryCache((prev: any) => ({
       ...prev,
       [exerciseName]: { weight, reps }
     }));
@@ -194,10 +194,10 @@ export const GymToday = () => {
         console.error(e);
       }
     }
-  };
+  }, []);
 
-  const addSet = (exerciseIndex, exerciseName) => {
-    setActiveSession(prev => {
+  const addSet = useCallback((exerciseIndex: any, exerciseName: any) => {
+    setActiveSession((prev: any) => {
       const currentSets = prev.sets[exerciseIndex] || [];
       const lastSet = currentSets[currentSets.length - 1];
       
@@ -217,10 +217,10 @@ export const GymToday = () => {
         }
       };
     });
-  };
+  }, [getExerciseMemory]);
 
-  const updateSet = (exerciseIndex, setIndex, field, value) => {
-    setActiveSession(prev => {
+  const updateSet = useCallback((exerciseIndex: any, setIndex: any, field: any, value: any) => {
+    setActiveSession((prev: any) => {
       const updatedSets = [...(prev.sets[exerciseIndex] || [])];
       updatedSets[setIndex] = { ...updatedSets[setIndex], [field]: value };
       return {
@@ -228,10 +228,10 @@ export const GymToday = () => {
         sets: { ...prev.sets, [exerciseIndex]: updatedSets }
       };
     });
-  };
+  }, []);
 
-  const toggleSetComplete = (exerciseIndex, setIndex, exerciseName) => {
-    setActiveSession(prev => {
+  const toggleSetComplete = useCallback((exerciseIndex: any, setIndex: any, exerciseName: any) => {
+    setActiveSession((prev: any) => {
       const updatedSets = [...(prev.sets[exerciseIndex] || [])];
       const isNowComplete = !updatedSets[setIndex].completed;
       
@@ -253,10 +253,10 @@ export const GymToday = () => {
         sets: { ...prev.sets, [exerciseIndex]: updatedSets }
       };
     });
-  };
+  }, [saveExerciseMemory]);
   
-  const removeSet = (exerciseIndex, setIndex) => {
-    setActiveSession(prev => {
+  const removeSet = useCallback((exerciseIndex: any, setIndex: any) => {
+    setActiveSession((prev: any) => {
       const updatedSets = [...(prev.sets[exerciseIndex] || [])];
       updatedSets.splice(setIndex, 1);
       return {
@@ -264,7 +264,7 @@ export const GymToday = () => {
         sets: { ...prev.sets, [exerciseIndex]: updatedSets }
       };
     });
-  };
+  }, []);
 
 
 
