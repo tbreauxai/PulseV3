@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
 import { useExercises } from '../../hooks/useExercises';
@@ -325,20 +326,42 @@ export const GymToday = () => {
     }
   };
 
+  const [exerciseMemoryCache, setExerciseMemoryCache] = useState({});
+
+  useEffect(() => {
+    const fetchMemory = async () => {
+      const { data, error } = await supabase.from('exercise_memory').select('*');
+      if (data) {
+        const cache = {};
+        data.forEach(item => {
+          cache[item.exercise_name] = { weight: item.weight, reps: item.reps };
+        });
+        setExerciseMemoryCache(cache);
+      }
+    };
+    fetchMemory();
+  }, []);
+
   const getExerciseMemory = (exerciseName) => {
-    try {
-      const memory = JSON.parse(localStorage.getItem('pulseV3-exerciseMemory') || '{}');
-      return memory[exerciseName] || { weight: '', reps: '' };
-    } catch {
-      return { weight: '', reps: '' };
-    }
+    return exerciseMemoryCache[exerciseName] || { weight: '', reps: '' };
   };
 
-  const saveExerciseMemory = (exerciseName, weight, reps) => {
+  const saveExerciseMemory = async (exerciseName, weight, reps) => {
+    setExerciseMemoryCache(prev => ({
+      ...prev,
+      [exerciseName]: { weight, reps }
+    }));
+
     try {
-      const memory = JSON.parse(localStorage.getItem('pulseV3-exerciseMemory') || '{}');
-      memory[exerciseName] = { weight, reps };
-      localStorage.setItem('pulseV3-exerciseMemory', JSON.stringify(memory));
+      const { error } = await supabase
+        .from('exercise_memory')
+        .upsert({ 
+          exercise_name: exerciseName, 
+          weight: weight.toString(), 
+          reps: reps.toString(),
+          updated_at: new Date().toISOString()
+        });
+      if (error) console.error(error);
     } catch (e) {
       console.error(e);
     }

@@ -1,39 +1,81 @@
 import { useState, useEffect } from 'react';
-import { initialRoutines } from '../data/routines';
+import { supabase } from '../lib/supabase';
 
 export const useRoutines = () => {
-  const [routines, setRoutines] = useState(() => {
-    try {
-      const item = window.localStorage.getItem('pulseV3-routines');
-      return item ? JSON.parse(item) : initialRoutines;
-    } catch (error) {
-      console.warn('Error reading localStorage for routines', error);
-      return initialRoutines;
-    }
-  });
+  const [routines, setRoutines] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    fetchRoutines();
+  }, []);
+
+  const fetchRoutines = async () => {
     try {
-      window.localStorage.setItem('pulseV3-routines', JSON.stringify(routines));
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('routines')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRoutines(data || []);
     } catch (error) {
-      console.warn('Error setting localStorage for routines', error);
+      console.error('Error fetching routines:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [routines]);
-
-  const addRoutine = (routine) => {
-    setRoutines([...routines, { ...routine, id: String(Date.now()) }]);
   };
 
-  const updateRoutine = (id, updatedRoutine) => {
-    setRoutines(routines.map(r => String(r.id) === String(id) ? { ...r, ...updatedRoutine } : r));
+  const addRoutine = async (routine) => {
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .insert([routine])
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setRoutines(prev => [data[0], ...prev]);
+      }
+    } catch (error) {
+      console.error('Error adding routine:', error);
+    }
   };
 
-  const removeRoutine = (id) => {
-    setRoutines(routines.filter(r => String(r.id) !== String(id)));
+  const updateRoutine = async (id, updatedRoutine) => {
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .update(updatedRoutine)
+        .eq('id', id)
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setRoutines(prev => prev.map(r => String(r.id) === String(id) ? data[0] : r));
+      }
+    } catch (error) {
+      console.error('Error updating routine:', error);
+    }
+  };
+
+  const removeRoutine = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('routines')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setRoutines(prev => prev.filter(r => String(r.id) !== String(id)));
+    } catch (error) {
+      console.error('Error removing routine:', error);
+    }
   };
 
   return {
     routines,
+    isLoading,
     addRoutine,
     updateRoutine,
     removeRoutine
