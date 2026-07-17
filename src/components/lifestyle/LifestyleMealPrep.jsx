@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { usePersistentState } from '../../hooks/usePersistentState';
 
 export const LifestyleMealPrep = () => {
   const todayDate = new Date().toLocaleDateString('en-US');
 
   // Hydration state
-  const [water, setWater] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [water, setWater] = usePersistentState(`pulse_water_${todayDate}`, 0);
+  const [loading, setLoading] = useState(false);
   const waterGoal = 8;
 
   // Macros state
-  const [macroGoals, setMacroGoals] = useState({ calories: 2800, protein: 180, carbs: 300, fats: 85 });
-  const [currentMacros, setCurrentMacros] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
+  const [macroGoals, setMacroGoals] = usePersistentState('pulse_macro_goals', { calories: 2800, protein: 180, carbs: 300, fats: 85 });
+  const [currentMacros, setCurrentMacros] = usePersistentState(`pulse_current_macros_${todayDate}`, { calories: 0, protein: 0, carbs: 0, fats: 0 });
 
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editGoals, setEditGoals] = useState(macroGoals);

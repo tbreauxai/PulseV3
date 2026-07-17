@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { usePersistentState } from '../../hooks/usePersistentState';
 
 export const LifestyleWeighIn = () => {
-  const [weight, setWeight] = useState(175.4);
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [weight, setWeight] = usePersistentState('pulse_weight', 175.4);
+  const [logs, setLogs] = usePersistentState('pulse_weigh_logs', []);
+  const [loading, setLoading] = useState(false);
   
   const [editingId, setEditingId] = useState(null);
   const [editWeight, setEditWeight] = useState('');
