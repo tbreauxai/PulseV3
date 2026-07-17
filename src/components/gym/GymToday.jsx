@@ -9,7 +9,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
   const handleQuickAdd = (e) => {
     e.stopPropagation(); // Prevent card from toggling expand if it was collapsed
     if (!isExpanded) setIsExpanded(true);
-    onAddSet(exerciseIndex);
+    onAddSet(exerciseIndex, exercise.exerciseName);
   };
 
   return (
@@ -92,7 +92,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button 
-                      onClick={() => onToggleComplete(exerciseIndex, idx)}
+                      onClick={() => onToggleComplete(exerciseIndex, idx, exercise.exerciseName)}
                       className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
                         set.completed 
                           ? 'bg-emerald-500 text-black' 
@@ -108,7 +108,7 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
           )}
           
           <button 
-            onClick={() => onAddSet(exerciseIndex)}
+            onClick={() => onAddSet(exerciseIndex, exercise.exerciseName)}
             className="w-full mt-4 py-3 rounded-lg border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
           >
             <Plus className="h-4 w-4" />
@@ -150,21 +150,46 @@ export const GymToday = () => {
   };
 
   const finishWorkout = () => {
-    // Later we can save this to a workout history log
     if (window.confirm('Are you sure you want to finish and clear this workout?')) {
       setActiveSession(null);
     }
   };
 
+  // Helper to read/write exercise history
+  const getExerciseMemory = (exerciseName) => {
+    try {
+      const memory = JSON.parse(localStorage.getItem('pulseV3-exerciseMemory') || '{}');
+      return memory[exerciseName] || { weight: '', reps: '' };
+    } catch {
+      return { weight: '', reps: '' };
+    }
+  };
+
+  const saveExerciseMemory = (exerciseName, weight, reps) => {
+    try {
+      const memory = JSON.parse(localStorage.getItem('pulseV3-exerciseMemory') || '{}');
+      memory[exerciseName] = { weight, reps };
+      localStorage.setItem('pulseV3-exerciseMemory', JSON.stringify(memory));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // --- Set Tracking Logic ---
-  const addSet = (exerciseIndex) => {
+  const addSet = (exerciseIndex, exerciseName) => {
     setActiveSession(prev => {
       const currentSets = prev.sets[exerciseIndex] || [];
-      // Grab previous set's weight/reps if available to auto-fill (convenience feature)
       const lastSet = currentSets[currentSets.length - 1];
-      const newSet = lastSet 
-        ? { weight: lastSet.weight, reps: lastSet.reps, completed: false }
-        : { weight: '', reps: '', completed: false };
+      
+      let newSet;
+      if (lastSet) {
+        // Auto-fill from previous set in this session
+        newSet = { weight: lastSet.weight, reps: lastSet.reps, completed: false };
+      } else {
+        // Auto-fill from historical memory for the first set
+        const memory = getExerciseMemory(exerciseName);
+        newSet = { weight: memory.weight, reps: memory.reps, completed: false };
+      }
 
       return {
         ...prev,
@@ -187,13 +212,25 @@ export const GymToday = () => {
     });
   };
 
-  const toggleSetComplete = (exerciseIndex, setIndex) => {
+  const toggleSetComplete = (exerciseIndex, setIndex, exerciseName) => {
     setActiveSession(prev => {
       const updatedSets = [...(prev.sets[exerciseIndex] || [])];
+      const isNowComplete = !updatedSets[setIndex].completed;
+      
       updatedSets[setIndex] = { 
         ...updatedSets[setIndex], 
-        completed: !updatedSets[setIndex].completed 
+        completed: isNowComplete
       };
+
+      // If we just completed a set, save it to memory so future workouts remember it
+      if (isNowComplete) {
+        saveExerciseMemory(
+          exerciseName, 
+          updatedSets[setIndex].weight, 
+          updatedSets[setIndex].reps
+        );
+      }
+
       return {
         ...prev,
         sets: { ...prev.sets, [exerciseIndex]: updatedSets }
