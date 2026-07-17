@@ -1,0 +1,43 @@
+import React, { useState } from 'react';
+import { Scale, Utensils, LineChart } from 'lucide-react';
+import { LifestyleWeighIn } from '../components/lifestyle/LifestyleWeighIn';
+import { LifestyleMealPrep } from '../components/lifestyle/LifestyleMealPrep';
+import { LifestyleProgress } from '../components/lifestyle/LifestyleProgress';
+
+export const LifestyleView = () => {
+  const [lifeTab, setLifeTab] = useState('weigh-in');
+
+  return (
+    <div className="pb-24">
+      {lifeTab === 'weigh-in' && <LifestyleWeighIn />}
+      {lifeTab === 'meal-prep' && <LifestyleMealPrep />}
+      {lifeTab === 'progress' && <LifestyleProgress />}
+
+      <nav className="fixed bottom-0 left-0 right-0 w-full bg-black/90 backdrop-blur-xl border-t border-gray-900 z-40 pb-safe">
+        <div className="flex items-center justify-around px-6 py-4 max-w-md mx-auto">
+          <button
+            onClick={() => setLifeTab('weigh-in')}
+            className={`flex flex-col items-center space-y-1 transition-colors ${lifeTab === 'weigh-in' ? 'text-emerald-500' : 'text-gray-500 hover:text-gray-400'}`}
+          >
+            <Scale className="h-6 w-6" />
+            <span className="text-[10px] font-bold tracking-wider">WEIGH-IN</span>
+          </button>
+          <button
+            onClick={() => setLifeTab('meal-prep')}
+            className={`flex flex-col items-center space-y-1 transition-colors ${lifeTab === 'meal-prep' ? 'text-emerald-500' : 'text-gray-500 hover:text-gray-400'}`}
+          >
+            <Utensils className="h-6 w-6" />
+            <span className="text-[10px] font-bold tracking-wider">MEAL-PREP</span>
+          </button>
+          <button
+            onClick={() => setLifeTab('progress')}
+            className={`flex flex-col items-center space-y-1 transition-colors ${lifeTab === 'progress' ? 'text-emerald-500' : 'text-gray-500 hover:text-gray-400'}`}
+          >
+            <LineChart className="h-6 w-6" />
+            <span className="text-[10px] font-bold tracking-wider">PROGRESS</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  );
+};

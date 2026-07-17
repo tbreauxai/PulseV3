@@ -1,0 +1,336 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2 } from 'lucide-react';
+import { useRoutines } from '../../hooks/useRoutines';
+
+const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const sets = sessionSets || [];
+
+  const handleQuickAdd = (e) => {
+    e.stopPropagation(); // Prevent card from toggling expand if it was collapsed
+    if (!isExpanded) setIsExpanded(true);
+    onAddSet(exerciseIndex);
+  };
+
+  return (
+    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden transition-all duration-300">
+      {/* Card Header (Click to Expand) */}
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors group"
+      >
+        <div className="flex items-center space-x-4">
+          <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-rose-600/10 transition-colors">
+            <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
+          </div>
+          <div>
+            <h4 className="text-white font-medium">{exercise.exerciseName}</h4>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Target: {exercise.sets} Sets • {exercise.reps}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={handleQuickAdd}
+            className="h-8 w-8 rounded-full bg-rose-600/10 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          {isExpanded ? (
+            <ChevronDown className="h-5 w-5 text-gray-700" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-gray-700 group-hover:text-rose-600 transition-colors" />
+          )}
+        </div>
+      </div>
+
+      {/* Expanded Sets List */}
+      {isExpanded && (
+        <div className="p-4 pt-0 border-t border-[#1a1a1a] bg-black/20">
+          {sets.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No sets logged yet.
+            </div>
+          ) : (
+            <div className="space-y-2 mt-4">
+              <div className="flex text-xs font-bold text-gray-600 px-2 pb-1">
+                <div className="w-10 text-center">SET</div>
+                <div className="flex-1 text-center">LBS</div>
+                <div className="flex-1 text-center">REPS</div>
+                <div className="w-20"></div>
+              </div>
+              
+              {sets.map((set, idx) => (
+                <div 
+                  key={idx} 
+                  className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${set.completed ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-gray-900'}`}
+                >
+                  <div className="w-10 text-center font-bold text-gray-400 text-sm">
+                    {idx + 1}
+                  </div>
+                  <input 
+                    type="number" 
+                    placeholder="--"
+                    value={set.weight}
+                    onChange={(e) => onUpdateSet(exerciseIndex, idx, 'weight', e.target.value)}
+                    className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="--"
+                    value={set.reps}
+                    onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
+                    className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                  />
+                  <div className="w-20 flex space-x-1 justify-end">
+                    <button 
+                      onClick={() => onRemoveSet(exerciseIndex, idx)}
+                      className="w-9 h-9 rounded-md flex items-center justify-center bg-gray-800/80 text-rose-500 hover:bg-rose-600 hover:text-white transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => onToggleComplete(exerciseIndex, idx)}
+                      className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
+                        set.completed 
+                          ? 'bg-emerald-500 text-black' 
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      }`}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <button 
+            onClick={() => onAddSet(exerciseIndex)}
+            className="w-full mt-4 py-3 rounded-lg border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span>ADD SET</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const GymToday = () => {
+  const { routines } = useRoutines();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeSession, setActiveSession] = useState(() => {
+    const saved = localStorage.getItem('pulseV3-activeSession');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  useEffect(() => {
+    if (activeSession) {
+      localStorage.setItem('pulseV3-activeSession', JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem('pulseV3-activeSession');
+    }
+  }, [activeSession]);
+
+  const activeRoutine = activeSession 
+    ? routines.find(r => String(r.id) === String(activeSession.routineId))
+    : null;
+
+  const startRoutine = (id) => {
+    setActiveSession({
+      routineId: id,
+      startTime: Date.now(),
+      sets: {} // Maps exerciseIndex -> array of set objects
+    });
+    setIsModalOpen(false);
+  };
+
+  const finishWorkout = () => {
+    // Later we can save this to a workout history log
+    if (window.confirm('Are you sure you want to finish and clear this workout?')) {
+      setActiveSession(null);
+    }
+  };
+
+  // --- Set Tracking Logic ---
+  const addSet = (exerciseIndex) => {
+    setActiveSession(prev => {
+      const currentSets = prev.sets[exerciseIndex] || [];
+      // Grab previous set's weight/reps if available to auto-fill (convenience feature)
+      const lastSet = currentSets[currentSets.length - 1];
+      const newSet = lastSet 
+        ? { weight: lastSet.weight, reps: lastSet.reps, completed: false }
+        : { weight: '', reps: '', completed: false };
+
+      return {
+        ...prev,
+        sets: {
+          ...prev.sets,
+          [exerciseIndex]: [...currentSets, newSet]
+        }
+      };
+    });
+  };
+
+  const updateSet = (exerciseIndex, setIndex, field, value) => {
+    setActiveSession(prev => {
+      const updatedSets = [...(prev.sets[exerciseIndex] || [])];
+      updatedSets[setIndex] = { ...updatedSets[setIndex], [field]: value };
+      return {
+        ...prev,
+        sets: { ...prev.sets, [exerciseIndex]: updatedSets }
+      };
+    });
+  };
+
+  const toggleSetComplete = (exerciseIndex, setIndex) => {
+    setActiveSession(prev => {
+      const updatedSets = [...(prev.sets[exerciseIndex] || [])];
+      updatedSets[setIndex] = { 
+        ...updatedSets[setIndex], 
+        completed: !updatedSets[setIndex].completed 
+      };
+      return {
+        ...prev,
+        sets: { ...prev.sets, [exerciseIndex]: updatedSets }
+      };
+    });
+  };
+  
+  const removeSet = (exerciseIndex, setIndex) => {
+    setActiveSession(prev => {
+      const updatedSets = [...(prev.sets[exerciseIndex] || [])];
+      updatedSets.splice(setIndex, 1);
+      return {
+        ...prev,
+        sets: { ...prev.sets, [exerciseIndex]: updatedSets }
+      };
+    });
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            {activeRoutine ? activeRoutine.name : "Today's Workout"}
+          </h2>
+          <p className="text-rose-600/80 font-medium text-sm mt-1">
+            {activeRoutine ? activeRoutine.description : "Ready to crush it?"}
+          </p>
+        </div>
+        <div className="h-12 w-12 rounded-full bg-rose-600/10 flex items-center justify-center border border-rose-600/20 shadow-[0_0_15px_rgba(225,29,72,0.15)]">
+          <Calendar className="text-rose-600 h-6 w-6" />
+        </div>
+      </div>
+
+      {!activeSession ? (
+        <div className="mt-8 flex flex-col items-center justify-center space-y-6 py-12">
+          <div className="h-24 w-24 rounded-full bg-[#111] border border-[#222] flex items-center justify-center">
+            <Dumbbell className="h-10 w-10 text-gray-700" />
+          </div>
+          <p className="text-gray-500 text-center px-8">
+            You don't have an active workout for today. Select a routine to get started.
+          </p>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(225,29,72,0.3)]"
+          >
+            <Play className="h-5 w-5 fill-current" />
+            <span>START ROUTINE</span>
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <button 
+            onClick={finishWorkout}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+          >
+            <CheckCircle2 className="h-5 w-5" />
+            <span>FINISH WORKOUT</span>
+          </button>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-gray-500 tracking-wider">EXERCISES</h3>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="text-xs font-bold text-rose-600 hover:text-rose-500 transition-colors"
+              >
+                CHANGE ROUTINE
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {activeRoutine?.exercises?.map((exercise, i) => (
+                <ActiveExerciseCard 
+                  key={i}
+                  exercise={exercise}
+                  exerciseIndex={i}
+                  sessionSets={activeSession.sets[i]}
+                  onAddSet={addSet}
+                  onUpdateSet={updateSet}
+                  onToggleComplete={toggleSetComplete}
+                  onRemoveSet={removeSet}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Routine Selection Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end p-0 bg-black/80 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4">
+          <div className="w-full sm:max-w-md bg-[#111] border-t border-[#222] sm:border sm:rounded-3xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto rounded-t-3xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-black text-white tracking-wider">SELECT ROUTINE</h3>
+                <p className="text-xs text-gray-400 mt-1">Choose a saved workout to begin.</p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
+              >
+                <X className="h-4 w-4 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {routines.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-4">No routines found.</p>
+              ) : (
+                routines.map(routine => (
+                  <div 
+                    key={routine.id}
+                    onClick={() => startRoutine(routine.id)}
+                    className={`p-4 bg-[#0a0a0a] border ${activeSession?.routineId === routine.id ? 'border-rose-600' : 'border-[#1a1a1a]'} rounded-xl cursor-pointer hover:border-rose-600/50 transition-all active:scale-[0.98]`}
+                  >
+                    <h4 className="text-white font-bold">{routine.name}</h4>
+                    <p className="text-xs text-gray-500 mt-1">{routine.description}</p>
+                    <p className="text-xs text-rose-600/80 mt-2 font-medium">
+                      {routine.exercises?.length || 0} exercises
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <button 
+              className="w-full mt-6 py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors"
+              onClick={() => {
+                alert("Routine creator coming soon!");
+              }}
+            >
+              + CREATE NEW ROUTINE
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
