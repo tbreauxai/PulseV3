@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useExercises } from '../../hooks/useExercises';
 import { Plus, Search, Dumbbell } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const emptyFormState = { name: '', muscleGroup: '', weight: '', reps: '', equipment: '' };
 
@@ -43,6 +44,18 @@ export const GymExercises = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formState, setFormState] = useState(emptyFormState);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
+
+  const filteredExercises = useMemo(() => {
+    if (!debouncedSearchTerm.trim()) return exercises;
+    const lowerSearch = debouncedSearchTerm.toLowerCase();
+    return exercises.filter(ex => 
+      ex.name.toLowerCase().includes(lowerSearch) || 
+      (ex.muscleGroup && ex.muscleGroup.toLowerCase().includes(lowerSearch))
+    );
+  }, [exercises, debouncedSearchTerm]);
 
   const openExerciseForm = useCallback((exercise = emptyFormState) => {
     setFormState({ ...emptyFormState, ...exercise });
@@ -91,6 +104,8 @@ export const GymExercises = () => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
         <input 
           type="text" 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search exercises..." 
           className="w-full bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-rose-600/50 transition-colors placeholder:text-gray-600"
         />
@@ -188,7 +203,7 @@ export const GymExercises = () => {
       <div>
         <Virtuoso
           useWindowScroll
-          data={exercises}
+          data={filteredExercises}
           itemContent={(index, ex) => (
             <ExerciseRow ex={ex} onOpenForm={openExerciseForm} />
           )}
