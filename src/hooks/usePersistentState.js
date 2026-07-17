@@ -1,27 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { get, set } from 'idb-keyval';
 
 export function usePersistentState(key, initialValue) {
-  const [state, setInternalState] = useState(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      if (item !== null) {
-        return JSON.parse(item);
+  const [state, setInternalState] = useState(
+    typeof initialValue === 'function' ? initialValue() : initialValue
+  );
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadState = async () => {
+      try {
+        const item = await get(key);
+        if (item !== undefined && item !== null) {
+          setInternalState(item);
+        }
+      } catch (error) {
+        console.error(`Error reading indexedDB key "${key}":`, error);
+      } finally {
+        setIsLoaded(true);
       }
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
-    }
-    return typeof initialValue === 'function' ? initialValue() : initialValue;
-  });
+    };
+    loadState();
+  }, [key]);
 
   const setState = (value) => {
     try {
       const valueToStore = value instanceof Function ? value(state) : value;
       setInternalState(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      set(key, valueToStore).catch(error => {
+        console.error(`Error writing indexedDB key "${key}":`, error);
+      });
     } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
+      console.error(`Error setting indexedDB key "${key}":`, error);
     }
   };
 
-  return [state, setState];
+  return [state, setState, isLoaded];
 }

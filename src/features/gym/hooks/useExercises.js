@@ -1,30 +1,10 @@
-import { useState, useEffect } from 'react';
+import { usePersistentState } from '../../../hooks/usePersistentState';
 import { exercises as defaultExercises } from '../data/exercises';
 
 const STORAGE_KEY = 'pulse_app_exercises';
 
 export const useExercises = () => {
-  // Initialize state with local storage data if it exists, otherwise fallback to default list
-  const [exercises, setExercises] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Error reading exercises from local storage:', error);
-    }
-    return defaultExercises;
-  });
-
-  // Whenever the exercises list changes, save it back to local storage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(exercises));
-    } catch (error) {
-      console.error('Error saving exercises to local storage:', error);
-    }
-  }, [exercises]);
+  const [exercises, setExercises, isLoaded] = usePersistentState(STORAGE_KEY, defaultExercises);
 
   // Add a new exercise to the list
   const addExercise = (newExercise) => {
@@ -57,6 +37,7 @@ export const useExercises = () => {
 
   return {
     exercises,
+    isLoaded,
     addExercise,
     removeExercise,
     updateExercise,

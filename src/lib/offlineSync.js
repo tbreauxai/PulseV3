@@ -1,9 +1,11 @@
 import { supabase } from './supabase';
+import { get, set } from 'idb-keyval';
 
 const QUEUE_KEY = 'pulse_offline_queue';
 
-export const queueMutation = (action, table, payload, matchCriteria = null, tempId = null) => {
-  const queue = JSON.parse(window.localStorage.getItem(QUEUE_KEY) || '[]');
+export const queueMutation = async (action, table, payload, matchCriteria = null, tempId = null) => {
+  let queue = await get(QUEUE_KEY);
+  if (!queue) queue = [];
   
   if (tempId) {
     // Check if there is already a pending insert for this tempId
@@ -24,12 +26,12 @@ export const queueMutation = (action, table, payload, matchCriteria = null, temp
                 ...payload
             };
         }
-        window.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        await set(QUEUE_KEY, queue);
         return;
       } else if (action === 'delete') {
         // If it's a delete for a pending insert, just remove the insert from the queue
         queue.splice(pendingInsertIndex, 1);
-        window.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        await set(QUEUE_KEY, queue);
         return;
       }
     }
@@ -45,14 +47,14 @@ export const queueMutation = (action, table, payload, matchCriteria = null, temp
     timestamp: new Date().toISOString()
   });
   
-  window.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  await set(QUEUE_KEY, queue);
 };
 
 export const syncOfflineQueue = async () => {
   if (!navigator.onLine) return;
 
-  const queue = JSON.parse(window.localStorage.getItem(QUEUE_KEY) || '[]');
-  if (queue.length === 0) return;
+  let queue = await get(QUEUE_KEY);
+  if (!queue || queue.length === 0) return;
 
   const remainingQueue = [];
 
@@ -102,5 +104,5 @@ export const syncOfflineQueue = async () => {
     }
   }
 
-  window.localStorage.setItem(QUEUE_KEY, JSON.stringify(remainingQueue));
+  await set(QUEUE_KEY, remainingQueue);
 };

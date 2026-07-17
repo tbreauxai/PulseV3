@@ -4,7 +4,8 @@ import App from './App';
 import { AuthProvider } from './features/auth/context/AuthContext';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { get, set, del } from 'idb-keyval';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
@@ -21,8 +22,12 @@ const queryClient = new QueryClient({
   },
 });
 
-const persister = createSyncStoragePersister({
-  storage: window.localStorage,
+const persister = createAsyncStoragePersister({
+  storage: {
+    getItem: async (key) => await get(key),
+    setItem: async (key, value) => await set(key, value),
+    removeItem: async (key) => await del(key),
+  },
 });
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
