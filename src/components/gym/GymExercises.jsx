@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useExercises } from '../../hooks/useExercises';
-import { Plus, Search, Dumbbell } from 'lucide-react';
+import { Plus, Search, Dumbbell, Activity } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { useDebounce } from '../../hooks/useDebounce';
 
-const emptyFormState = { name: '', muscleGroup: '', weight: '', reps: '', equipment: '' };
+const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 
 const ExerciseRow = React.memo(({ ex, onOpenForm }) => {
   return (
@@ -14,14 +14,28 @@ const ExerciseRow = React.memo(({ ex, onOpenForm }) => {
         className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between cursor-pointer hover:border-rose-600/30 transition-all active:scale-[0.98]"
       >
         <div className="flex items-center space-x-4">
-          <div className="h-10 w-10 bg-gray-900 rounded-lg flex items-center justify-center">
-            <Dumbbell className="h-5 w-5 text-rose-600/80" />
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${ex.type === 'cardio' ? 'bg-emerald-900' : 'bg-gray-900'}`}>
+            {ex.type === 'cardio' ? (
+              <Activity className="h-5 w-5 text-emerald-500/80" />
+            ) : (
+              <Dumbbell className="h-5 w-5 text-rose-600/80" />
+            )}
           </div>
           <div>
             <h4 className="text-white font-medium">{ex.name}</h4>
             <p className="text-xs text-gray-500 mt-0.5">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
-            {(ex.weight || ex.reps) && (
-              <p className="text-xs text-gray-500 mt-0.5">{ex.weight ? `${ex.weight} ` : ''}{ex.reps ? `• ${ex.reps} reps` : ''}</p>
+            {ex.type === 'cardio' ? (
+              (ex.time || ex.distance) && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {ex.time ? `${ex.time} ` : ''}{ex.distance ? `• ${ex.distance}` : ''}
+                </p>
+              )
+            ) : (
+              (ex.weight || ex.reps) && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {ex.weight ? `${ex.weight} ` : ''}{ex.reps ? `• ${ex.reps} reps` : ''}
+                </p>
+              )
             )}
           </div>
         </div>
@@ -127,52 +141,113 @@ export const GymExercises = () => {
               </button>
             </div>
 
+            <div className="flex bg-[#1a1a1a] rounded-xl p-1 mt-4 mb-4">
+              <button
+                onClick={() => setFormState(s => ({ ...s, type: 'strength' }))}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formState.type === 'strength' || !formState.type ? 'bg-rose-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                STRENGTH
+              </button>
+              <button
+                onClick={() => setFormState(s => ({ ...s, type: 'cardio', muscleGroup: 'Cardio' }))}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formState.type === 'cardio' ? 'bg-rose-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                CARDIO
+              </button>
+            </div>
+
             <div className="grid gap-4">
               <label className="space-y-2 text-sm font-bold text-gray-300">
                 NAME
-                <input
-                  value={formState.name || ''}
-                  onChange={handleChange('name')}
-                  placeholder="Exercise name"
-                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-                />
+                {formState.type === 'cardio' ? (
+                  <select
+                    value={formState.name || ''}
+                    onChange={handleChange('name')}
+                    className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-emerald-600/50"
+                  >
+                    <option value="" disabled className="text-gray-500">Select cardio type...</option>
+                    <option value="Treadmill Running">Treadmill Running</option>
+                    <option value="Stairclimber">Stairclimber</option>
+                    <option value="Free Running">Free Running</option>
+                    <option value="Walking">Walking</option>
+                    <option value="Rowing Machine">Rowing Machine</option>
+                    <option value="Cycling (Stationary)">Cycling (Stationary)</option>
+                    <option value="Elliptical">Elliptical</option>
+                    <option value="Swimming">Swimming</option>
+                    <option value="Jump Rope">Jump Rope</option>
+                  </select>
+                ) : (
+                  <input
+                    value={formState.name || ''}
+                    onChange={handleChange('name')}
+                    placeholder="Exercise name"
+                    className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                  />
+                )}
               </label>
-              <label className="space-y-2 text-sm font-bold text-gray-300">
-                MUSCLE GROUP
-                <select
-                  value={formState.muscleGroup || ''}
-                  onChange={handleChange('muscleGroup')}
-                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-                >
-                  <option value="" disabled className="text-gray-500">Select muscle group...</option>
-                  <option value="Chest">Chest</option>
-                  <option value="Back">Back</option>
-                  <option value="Legs">Legs</option>
-                  <option value="Shoulders">Shoulders</option>
-                  <option value="Arms">Arms</option>
-                  <option value="Core">Core</option>
-                  <option value="Cardio">Cardio</option>
-                  <option value="Full Body">Full Body</option>
-                </select>
-              </label>
-              <label className="space-y-2 text-sm font-bold text-gray-300">
-                WEIGHT
-                <input
-                  value={formState.weight || ''}
-                  onChange={handleChange('weight')}
-                  placeholder="225 lbs"
-                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-                />
-              </label>
-              <label className="space-y-2 text-sm font-bold text-gray-300">
-                REPS
-                <input
-                  value={formState.reps || ''}
-                  onChange={handleChange('reps')}
-                  placeholder="8-12"
-                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-                />
-              </label>
+              
+              {(formState.type === 'strength' || !formState.type) && (
+                <label className="space-y-2 text-sm font-bold text-gray-300">
+                  MUSCLE GROUP
+                  <select
+                    value={formState.muscleGroup || ''}
+                    onChange={handleChange('muscleGroup')}
+                    className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                  >
+                    <option value="" disabled className="text-gray-500">Select muscle group...</option>
+                    <option value="Chest">Chest</option>
+                    <option value="Back">Back</option>
+                    <option value="Legs">Legs</option>
+                    <option value="Shoulders">Shoulders</option>
+                    <option value="Arms">Arms</option>
+                    <option value="Core">Core</option>
+                    <option value="Full Body">Full Body</option>
+                  </select>
+                </label>
+              )}
+              {(formState.type === 'strength' || !formState.type) ? (
+                <>
+                  <label className="space-y-2 text-sm font-bold text-gray-300">
+                    WEIGHT
+                    <input
+                      value={formState.weight || ''}
+                      onChange={handleChange('weight')}
+                      placeholder="225 lbs"
+                      className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm font-bold text-gray-300">
+                    REPS
+                    <input
+                      value={formState.reps || ''}
+                      onChange={handleChange('reps')}
+                      placeholder="8-12"
+                      className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="space-y-2 text-sm font-bold text-gray-300">
+                    DEFAULT TIME
+                    <input
+                      value={formState.time || ''}
+                      onChange={handleChange('time')}
+                      placeholder="e.g. 30:00"
+                      className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-emerald-600/50"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm font-bold text-gray-300">
+                    DEFAULT DISTANCE
+                    <input
+                      value={formState.distance || ''}
+                      onChange={handleChange('distance')}
+                      placeholder="e.g. 3.0"
+                      className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-emerald-600/50"
+                    />
+                  </label>
+                </>
+              )}
               <label className="space-y-2 text-sm font-bold text-gray-300">
                 MODE (EQUIPMENT)
                 <select

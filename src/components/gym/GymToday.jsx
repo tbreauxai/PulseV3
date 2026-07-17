@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
@@ -96,13 +96,19 @@ const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, on
           className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors group select-none"
         >
           <div className="flex items-center space-x-4">
-            <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-rose-600/10 transition-colors shrink-0">
-              <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
+            <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${exercise.type === 'cardio' ? 'bg-emerald-900 group-hover:bg-emerald-800' : 'bg-gray-900 group-hover:bg-rose-600/10'}`}>
+              {exercise.type === 'cardio' ? (
+                <Activity className="h-5 w-5 text-emerald-500 group-hover:text-emerald-400" />
+              ) : (
+                <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
+              )}
             </div>
             <div>
               <h4 className="text-white font-medium line-clamp-1">{exercise.exerciseName || exercise.name}</h4>
               <p className="text-xs text-gray-500 mt-0.5">
-                Target: {exercise.sets || '-'} Sets • {exercise.reps || '-'}
+                Target: {exercise.type === 'cardio' 
+                  ? `${exercise.time || '-'} mins • ${exercise.distance || '-'} mi`
+                  : `${exercise.sets || '-'} Sets • ${exercise.reps || '-'}`}
               </p>
             </div>
           </div>
@@ -298,6 +304,7 @@ export const GymToday = () => {
         if (validSets.length > 0) {
           completedExercises.push({
             exerciseName: exercise.exerciseName || exercise.name,
+            type: exercise.type || 'strength',
             sets: validSets
           });
           

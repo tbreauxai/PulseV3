@@ -53,7 +53,17 @@ const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }) => {
                     <div key={j} className="flex justify-between items-center text-xs pl-3 border-l-2 border-[#333]">
                       <span className="text-gray-500 font-medium">Set {j + 1}</span>
                       <span className="text-white font-medium bg-black px-2 py-1 rounded-md border border-gray-800">
-                        {set.weight} <span className="text-gray-500">lbs</span> × {set.reps} <span className="text-gray-500">reps</span>
+                        {ex.type === 'cardio' ? (
+                          <>
+                            {set.time ? <>{set.time} <span className="text-gray-500">mins</span></> : ''}
+                            {set.time && set.distance ? ' × ' : ''}
+                            {set.distance ? <>{set.distance} <span className="text-gray-500">mi</span></> : ''}
+                          </>
+                        ) : (
+                          <>
+                            {set.weight} <span className="text-gray-500">lbs</span> × {set.reps} <span className="text-gray-500">reps</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   ))}

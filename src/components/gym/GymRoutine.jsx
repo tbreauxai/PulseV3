@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Plus, Dumbbell, X, Search, ChevronDown, Trash2, Save, ArrowLeft, Edit2 } from 'lucide-react';
+import { Flame, Plus, Dumbbell, Activity, X, Search, ChevronDown, Trash2, Save, ArrowLeft, Edit2 } from 'lucide-react';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useExercises } from '../../hooks/useExercises';
 
@@ -37,8 +37,11 @@ export const GymRoutine = () => {
       id: ex.id,
       name: ex.name,
       muscleGroup: ex.muscleGroup,
-      sets: '3',
-      reps: '10'
+      type: ex.type || 'strength',
+      sets: ex.type === 'cardio' ? '1' : '3',
+      reps: ex.type === 'cardio' ? '-' : '10',
+      time: ex.time || (ex.type === 'cardio' ? '30:00' : ''),
+      distance: ex.distance || (ex.type === 'cardio' ? '3.0' : '')
     }]);
     setIsExerciseModalOpen(false);
     setExerciseSearchTerm('');
@@ -68,8 +71,11 @@ export const GymRoutine = () => {
         id: originalEx ? originalEx.id : Date.now(),
         name: ex.exerciseName,
         muscleGroup: originalEx ? originalEx.muscleGroup : 'Custom',
-        sets: ex.sets || '3',
-        reps: ex.reps || '10'
+        type: originalEx ? (originalEx.type || 'strength') : 'strength',
+        sets: ex.sets || (originalEx?.type === 'cardio' ? '1' : '3'),
+        reps: ex.reps || (originalEx?.type === 'cardio' ? '-' : '10'),
+        time: ex.time || '',
+        distance: ex.distance || ''
       };
     }));
     setIsCreating(true);
@@ -88,7 +94,9 @@ export const GymRoutine = () => {
         exercises: draftExercises.map(ex => ({
           exerciseName: ex.name,
           sets: ex.sets,
-          reps: ex.reps
+          reps: ex.reps,
+          time: ex.time,
+          distance: ex.distance
         }))
       };
 
@@ -245,10 +253,14 @@ export const GymRoutine = () => {
             ) : (
               draftExercises.map((ex, i) => (
                 <div key={i} className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl relative overflow-hidden group">
-                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 rounded-lg bg-gray-900 flex items-center justify-center">
-                        <Dumbbell className="h-4 w-4 text-gray-400" />
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${ex.type === 'cardio' ? 'bg-emerald-900/50' : 'bg-gray-900'}`}>
+                        {ex.type === 'cardio' ? (
+                          <Activity className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Dumbbell className="h-4 w-4 text-gray-400" />
+                        )}
                       </div>
                       <div>
                         <h4 className="text-white font-medium text-sm">{ex.name}</h4>
@@ -263,24 +275,49 @@ export const GymRoutine = () => {
                     </button>
                   </div>
                   <div className="flex space-x-3">
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">SETS</label>
-                      <input 
-                        type="number" 
-                        value={ex.sets}
-                        onChange={e => updateDraftExercise(i, 'sets', e.target.value)}
-                        className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">REPS</label>
-                      <input 
-                        type="text" 
-                        value={ex.reps}
-                        onChange={e => updateDraftExercise(i, 'reps', e.target.value)}
-                        className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
-                      />
-                    </div>
+                    {ex.type === 'cardio' ? (
+                      <>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">TIME (MIN)</label>
+                          <input 
+                            type="text" 
+                            value={ex.time || ''}
+                            onChange={e => updateDraftExercise(i, 'time', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">DISTANCE (MI)</label>
+                          <input 
+                            type="text" 
+                            value={ex.distance || ''}
+                            onChange={e => updateDraftExercise(i, 'distance', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">SETS</label>
+                          <input 
+                            type="number" 
+                            value={ex.sets}
+                            onChange={e => updateDraftExercise(i, 'sets', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">REPS</label>
+                          <input 
+                            type="text" 
+                            value={ex.reps}
+                            onChange={e => updateDraftExercise(i, 'reps', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))
