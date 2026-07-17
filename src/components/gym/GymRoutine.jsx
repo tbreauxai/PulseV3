@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Play, Trophy, Timer, Dumbbell, ChevronRight } from 'lucide-react';
+import { Flame, Plus, Trophy, Timer, Dumbbell, ChevronRight } from 'lucide-react';
 
 export const GymRoutine = () => (
   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -14,8 +14,8 @@ export const GymRoutine = () => (
     </div>
 
     <button className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(225,29,72,0.3)]">
-      <Play className="h-5 w-5 fill-current" />
-      <span>START WORKOUT</span>
+      <Plus className="h-5 w-5 stroke-[3]" />
+      <span>CREATE ROUTINE</span>
     </button>
 
     <div className="grid grid-cols-2 gap-4">

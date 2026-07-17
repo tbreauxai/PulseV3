@@ -1,123 +1,197 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
 import { useExercises } from '../../hooks/useExercises';
 
-const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet }) => {
+const ActiveExerciseCard = ({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
 
+  // Swipe logic
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startX = useRef(0);
+
+  const handleStart = (clientX) => {
+    startX.current = clientX;
+    setIsDragging(true);
+  };
+
+  const handleMove = (clientX) => {
+    if (!isDragging) return;
+    const deltaX = clientX - startX.current;
+    if (deltaX < 0) { // Only swipe left
+      setSwipeOffset(Math.max(deltaX, -100)); // Max drag visual 100px
+    } else if (deltaX > 0 && swipeOffset < 0) {
+      setSwipeOffset(Math.min(0, -80 + deltaX)); // Allow dragging back if open
+    }
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+    if (swipeOffset < -40) {
+      setSwipeOffset(-80); // Snap open to reveal Swap button
+    } else {
+      setSwipeOffset(0); // Snap closed
+    }
+  };
+
+  const onTouchStart = e => handleStart(e.touches[0].clientX);
+  const onTouchMove = e => handleMove(e.touches[0].clientX);
+  const onTouchEnd = () => handleEnd();
+
+  const onMouseDown = e => handleStart(e.clientX);
+  const onMouseMove = e => handleMove(e.clientX);
+  const onMouseUp = () => handleEnd();
+  const onMouseLeave = () => { if(isDragging) handleEnd() };
+
+  const handleHeaderClick = (e) => {
+    if (Math.abs(swipeOffset) > 10) return; // Prevent click if we were swiping
+    if (swipeOffset === -80) {
+      setSwipeOffset(0); // Clicking while open closes it
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
+
   const handleQuickAdd = (e) => {
-    e.stopPropagation(); // Prevent card from toggling expand if it was collapsed
+    e.stopPropagation();
     if (!isExpanded) setIsExpanded(true);
     onAddSet(exerciseIndex, exercise.exerciseName || exercise.name);
   };
 
   return (
-    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden transition-all duration-300">
-      {/* Card Header (Click to Expand) */}
-      <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors group"
-      >
-        <div className="flex items-center space-x-4">
-          <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-rose-600/10 transition-colors">
-            <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
-          </div>
-          <div>
-            <h4 className="text-white font-medium">{exercise.exerciseName || exercise.name}</h4>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Target: {exercise.sets || '-'} Sets • {exercise.reps || '-'}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <button 
-            onClick={handleQuickAdd}
-            className="h-8 w-8 rounded-full bg-rose-600/10 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-          {isExpanded ? (
-            <ChevronDown className="h-5 w-5 text-gray-700" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-gray-700 group-hover:text-rose-600 transition-colors" />
-          )}
-        </div>
+    <div className="relative rounded-xl overflow-hidden">
+      {/* Hidden Action Button */}
+      <div className="absolute inset-y-0 right-0 flex items-center justify-end w-20 pr-4 bg-rose-600 rounded-xl">
+        <button 
+          onClick={() => {
+            setSwipeOffset(0);
+            onSwap(exerciseIndex);
+          }} 
+          className="text-white font-bold text-xs flex flex-col items-center hover:scale-110 transition-transform active:scale-95"
+        >
+          <RefreshCw className="h-5 w-5 mb-1" />
+          SWAP
+        </button>
       </div>
 
-      {/* Expanded Sets List */}
-      {isExpanded && (
-        <div className="p-4 pt-0 border-t border-[#1a1a1a] bg-black/20">
-          {sets.length === 0 ? (
-            <div className="text-center py-4 text-gray-500 text-sm">
-              No sets logged yet.
+      {/* Main Card Content */}
+      <div 
+        style={{ transform: `translateX(${swipeOffset}px)` }}
+        className={`relative bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
+      >
+        {/* Card Header (Swipeable and Clickable) */}
+        <div 
+          onClick={handleHeaderClick}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseLeave}
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors group select-none"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-rose-600/10 transition-colors shrink-0">
+              <Dumbbell className="h-5 w-5 text-gray-400 group-hover:text-rose-600" />
             </div>
-          ) : (
-            <div className="space-y-2 mt-4">
-              <div className="flex text-xs font-bold text-gray-600 px-2 pb-1">
-                <div className="w-10 text-center">SET</div>
-                <div className="flex-1 text-center">LBS</div>
-                <div className="flex-1 text-center">REPS</div>
-                <div className="w-20"></div>
-              </div>
-              
-              {sets.map((set, idx) => (
-                <div 
-                  key={idx} 
-                  className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${set.completed ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-gray-900'}`}
-                >
-                  <div className="w-10 text-center font-bold text-gray-400 text-sm">
-                    {idx + 1}
-                  </div>
-                  <input 
-                    type="number" 
-                    placeholder="--"
-                    value={set.weight}
-                    onChange={(e) => onUpdateSet(exerciseIndex, idx, 'weight', e.target.value)}
-                    className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="--"
-                    value={set.reps}
-                    onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
-                    className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
-                  />
-                  <div className="w-20 flex space-x-1 justify-end">
-                    <button 
-                      onClick={() => onRemoveSet(exerciseIndex, idx)}
-                      className="w-9 h-9 rounded-md flex items-center justify-center bg-gray-800/80 text-rose-500 hover:bg-rose-600 hover:text-white transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => onToggleComplete(exerciseIndex, idx, exercise.exerciseName || exercise.name)}
-                      className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
-                        set.completed 
-                          ? 'bg-emerald-500 text-black' 
-                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                      }`}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <h4 className="text-white font-medium line-clamp-1">{exercise.exerciseName || exercise.name}</h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Target: {exercise.sets || '-'} Sets • {exercise.reps || '-'}
+              </p>
             </div>
-          )}
+          </div>
           
-          <button 
-            onClick={() => onAddSet(exerciseIndex, exercise.exerciseName || exercise.name)}
-            className="w-full mt-4 py-3 rounded-lg border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
-          >
-            <Plus className="h-4 w-4" />
-            <span>ADD SET</span>
-          </button>
+          <div className="flex items-center space-x-2 shrink-0 pl-2">
+            <button 
+              onClick={handleQuickAdd}
+              className="h-8 w-8 rounded-full bg-rose-600/10 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            {isExpanded ? (
+              <ChevronDown className="h-5 w-5 text-gray-700" />
+            ) : (
+              <ChevronRight className="h-5 w-5 text-gray-700 group-hover:text-rose-600 transition-colors" />
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Expanded Sets List */}
+        {isExpanded && (
+          <div className="p-4 pt-0 border-t border-[#1a1a1a] bg-black/20">
+            {sets.length === 0 ? (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No sets logged yet.
+              </div>
+            ) : (
+              <div className="space-y-2 mt-4">
+                <div className="flex text-xs font-bold text-gray-600 px-2 pb-1">
+                  <div className="w-10 text-center">SET</div>
+                  <div className="flex-1 text-center">LBS</div>
+                  <div className="flex-1 text-center">REPS</div>
+                  <div className="w-20"></div>
+                </div>
+                
+                {sets.map((set, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${set.completed ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-gray-900'}`}
+                  >
+                    <div className="w-10 text-center font-bold text-gray-400 text-sm">
+                      {idx + 1}
+                    </div>
+                    <input 
+                      type="number" 
+                      placeholder="--"
+                      value={set.weight}
+                      onChange={(e) => onUpdateSet(exerciseIndex, idx, 'weight', e.target.value)}
+                      className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="--"
+                      value={set.reps}
+                      onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
+                      className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                    />
+                    <div className="w-20 flex space-x-1 justify-end">
+                      <button 
+                        onClick={() => onRemoveSet(exerciseIndex, idx)}
+                        className="w-9 h-9 rounded-md flex items-center justify-center bg-gray-800/80 text-rose-500 hover:bg-rose-600 hover:text-white transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => onToggleComplete(exerciseIndex, idx, exercise.exerciseName || exercise.name)}
+                        className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
+                          set.completed 
+                            ? 'bg-emerald-500 text-black' 
+                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        }`}
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <button 
+              onClick={() => onAddSet(exerciseIndex, exercise.exerciseName || exercise.name)}
+              className="w-full mt-4 py-3 rounded-lg border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
+            >
+              <Plus className="h-4 w-4" />
+              <span>ADD SET</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -130,6 +204,9 @@ export const GymToday = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
+  const [filterMuscleGroup, setFilterMuscleGroup] = useState('All');
+  const [filterEquipment, setFilterEquipment] = useState('All');
+  const [swapExerciseIndex, setSwapExerciseIndex] = useState(null); // Track which exercise is being swapped
   
   const [activeSession, setActiveSession] = useState(() => {
     const saved = localStorage.getItem('pulseV3-activeSession');
@@ -166,17 +243,44 @@ export const GymToday = () => {
     });
   };
 
-  const addCustomExercise = (exercise) => {
-    setActiveSession(prev => ({
-      ...prev,
-      exercises: [...prev.exercises, {
-        exerciseName: exercise.name,
-        muscleGroup: exercise.muscleGroup,
-        sets: '-',
-        reps: '-'
-      }]
-    }));
+  const handleOpenExerciseModal = (swapIndex = null) => {
+    setSwapExerciseIndex(swapIndex);
+    setIsExerciseModalOpen(true);
+  };
+
+  const addOrSwapCustomExercise = (exercise) => {
+    setActiveSession(prev => {
+      const newExercises = [...prev.exercises];
+      const newSets = { ...prev.sets };
+
+      if (swapExerciseIndex !== null) {
+        // Swapping an existing exercise
+        newExercises[swapExerciseIndex] = {
+          exerciseName: exercise.name,
+          muscleGroup: exercise.muscleGroup,
+          sets: '-',
+          reps: '-'
+        };
+        newSets[swapExerciseIndex] = []; // Clear out sets for the new exercise
+      } else {
+        // Appending a new exercise
+        newExercises.push({
+          exerciseName: exercise.name,
+          muscleGroup: exercise.muscleGroup,
+          sets: '-',
+          reps: '-'
+        });
+      }
+
+      return {
+        ...prev,
+        exercises: newExercises,
+        sets: newSets
+      };
+    });
+    
     setIsExerciseModalOpen(false);
+    setSwapExerciseIndex(null);
     setExerciseSearchTerm('');
   };
 
@@ -221,7 +325,6 @@ export const GymToday = () => {
     }
   };
 
-  // Helper to read/write exercise history
   const getExerciseMemory = (exerciseName) => {
     try {
       const memory = JSON.parse(localStorage.getItem('pulseV3-exerciseMemory') || '{}');
@@ -241,7 +344,6 @@ export const GymToday = () => {
     }
   };
 
-  // --- Set Tracking Logic ---
   const addSet = (exerciseIndex, exerciseName) => {
     setActiveSession(prev => {
       const currentSets = prev.sets[exerciseIndex] || [];
@@ -312,10 +414,16 @@ export const GymToday = () => {
     });
   };
 
-  const filteredExercises = allExercises.filter(ex => 
-    ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()) || 
-    ex.muscleGroup.toLowerCase().includes(exerciseSearchTerm.toLowerCase())
-  );
+  const filteredExercises = allExercises.filter(ex => {
+    const matchesSearch = ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()) || 
+                          ex.muscleGroup.toLowerCase().includes(exerciseSearchTerm.toLowerCase());
+    const matchesMuscle = filterMuscleGroup === 'All' || ex.muscleGroup === filterMuscleGroup;
+    const matchesEquipment = filterEquipment === 'All' || ex.equipment === filterEquipment;
+    return matchesSearch && matchesMuscle && matchesEquipment;
+  });
+
+  const muscleGroupOptions = ['All', ...Array.from(new Set(allExercises.map(ex => ex.muscleGroup))).sort()];
+  const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map(ex => ex.equipment))).sort()];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -403,11 +511,12 @@ export const GymToday = () => {
                   onUpdateSet={updateSet}
                   onToggleComplete={toggleSetComplete}
                   onRemoveSet={removeSet}
+                  onSwap={handleOpenExerciseModal}
                 />
               ))}
               
               <button 
-                onClick={() => setIsExerciseModalOpen(true)}
+                onClick={() => handleOpenExerciseModal(null)}
                 className="w-full py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
               >
                 <Plus className="h-4 w-4" />
@@ -458,25 +567,30 @@ export const GymToday = () => {
         </div>
       )}
 
-      {/* Exercise Selection Modal */}
+      {/* Exercise Selection Modal (Used for Adding OR Swapping) */}
       {isExerciseModalOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end p-0 bg-black/80 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4">
           <div className="w-full sm:max-w-md bg-[#111] border-t border-[#222] sm:border sm:rounded-3xl flex flex-col shadow-2xl relative h-[85vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-4 duration-300">
             <div className="p-6 pb-4 shrink-0 border-b border-[#222]">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-black text-white tracking-wider">ADD EXERCISE</h3>
-                  <p className="text-xs text-gray-400 mt-1">Select an exercise to add to your workout.</p>
+                  <h3 className="text-lg font-black text-white tracking-wider">
+                    {swapExerciseIndex !== null ? "SWAP EXERCISE" : "ADD EXERCISE"}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">Select an exercise from your library.</p>
                 </div>
                 <button
-                  onClick={() => setIsExerciseModalOpen(false)}
+                  onClick={() => {
+                    setIsExerciseModalOpen(false);
+                    setSwapExerciseIndex(null);
+                  }}
                   className="h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
                 >
                   <X className="h-4 w-4 text-gray-400" />
                 </button>
               </div>
 
-              <div className="relative">
+              <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <input
                   type="text"
@@ -486,25 +600,52 @@ export const GymToday = () => {
                   className="w-full bg-[#0a0a0a] border border-[#222] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all"
                 />
               </div>
+
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <select 
+                    value={filterMuscleGroup}
+                    onChange={e => setFilterMuscleGroup(e.target.value)}
+                    className="w-full bg-[#0a0a0a] border border-[#222] rounded-xl py-2 pl-3 pr-8 text-sm text-gray-300 focus:outline-none focus:border-rose-600 transition-all appearance-none"
+                  >
+                    {muscleGroupOptions.map(mg => <option key={mg} value={mg}>{mg === 'All' ? 'All Muscles' : mg}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+                <div className="flex-1 relative">
+                  <select 
+                    value={filterEquipment}
+                    onChange={e => setFilterEquipment(e.target.value)}
+                    className="w-full bg-[#0a0a0a] border border-[#222] rounded-xl py-2 pl-3 pr-8 text-sm text-gray-300 focus:outline-none focus:border-rose-600 transition-all appearance-none"
+                  >
+                    {equipmentOptions.map(eq => <option key={eq} value={eq}>{eq === 'All' ? 'All Equipment' : eq}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {filteredExercises.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
-                  No exercises found matching "{exerciseSearchTerm}"
+                  No exercises found matching your filters.
                 </div>
               ) : (
                 filteredExercises.map(ex => (
                   <div 
                     key={ex.id}
-                    onClick={() => addCustomExercise(ex)}
+                    onClick={() => addOrSwapCustomExercise(ex)}
                     className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl cursor-pointer hover:border-rose-600/50 transition-colors group"
                   >
                     <div>
                       <h4 className="text-white font-medium text-sm group-hover:text-rose-500 transition-colors">{ex.name}</h4>
-                      <p className="text-xs text-gray-600 mt-0.5">{ex.muscleGroup}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{ex.muscleGroup} • {ex.equipment}</p>
                     </div>
-                    <Plus className="h-4 w-4 text-gray-600 group-hover:text-rose-500 transition-colors" />
+                    {swapExerciseIndex !== null ? (
+                      <RefreshCw className="h-4 w-4 text-gray-600 group-hover:text-rose-500 transition-colors" />
+                    ) : (
+                      <Plus className="h-4 w-4 text-gray-600 group-hover:text-rose-500 transition-colors" />
+                    )}
                   </div>
                 ))
               )}
