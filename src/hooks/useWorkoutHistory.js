@@ -38,6 +38,20 @@ export const useWorkoutHistory = () => {
   };
 
   const addWorkout = async (workout) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticWorkout = {
+      id: tempId,
+      routineName: workout.routineName,
+      date: new Date().toISOString(),
+      duration: workout.duration,
+      completedSets: workout.completedSets,
+      totalVolume: workout.totalVolume,
+      exerciseDetails: workout.exerciseDetails
+    };
+
+    const previousHistory = [...history];
+    setHistory(prev => [optimisticWorkout, ...prev]);
+
     try {
       const dbWorkout = {
         routine_name: workout.routineName,
@@ -63,15 +77,19 @@ export const useWorkoutHistory = () => {
           totalVolume: data[0].total_volume,
           exerciseDetails: data[0].exercise_details
         };
-        setHistory(prev => [mappedData, ...prev]);
+        setHistory(prev => prev.map(w => w.id === tempId ? mappedData : w));
       }
     } catch (e) {
       console.error('Error adding workout:', e);
-      throw e;
+      alert('Error saving workout. Reverting changes.');
+      setHistory(previousHistory);
     }
   };
 
   const removeWorkout = async (id) => {
+    const previousHistory = [...history];
+    setHistory(prev => prev.filter(w => w.id !== id));
+
     try {
       const { error } = await supabase
         .from('workout_history')
@@ -79,9 +97,10 @@ export const useWorkoutHistory = () => {
         .eq('id', id);
 
       if (error) throw error;
-      setHistory(prev => prev.filter(w => w.id !== id));
     } catch (e) {
       console.error('Error removing workout:', e);
+      alert('Error deleting workout. Reverting changes.');
+      setHistory(previousHistory);
     }
   };
 

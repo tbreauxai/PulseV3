@@ -28,6 +28,13 @@ export const useRoutines = () => {
   };
 
   const addRoutine = async (routine) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticRoutine = { ...routine, id: tempId };
+    
+    // --- OPTIMISTIC UPDATE ---
+    const previousRoutines = [...routines];
+    setRoutines(prev => [optimisticRoutine, ...prev]);
+
     try {
       const { data, error } = await supabase
         .from('routines')
@@ -36,15 +43,21 @@ export const useRoutines = () => {
 
       if (error) throw error;
       if (data) {
-        setRoutines(prev => [data[0], ...prev]);
+        // Swap temp ID for real ID silently
+        setRoutines(prev => prev.map(r => r.id === tempId ? data[0] : r));
       }
     } catch (error) {
       console.error('Error adding routine:', error);
-      throw error;
+      alert('Error saving routine. Reverting changes.');
+      setRoutines(previousRoutines);
     }
   };
 
   const updateRoutine = async (id, updatedRoutine) => {
+    // --- OPTIMISTIC UPDATE ---
+    const previousRoutines = [...routines];
+    setRoutines(prev => prev.map(r => String(r.id) === String(id) ? { ...r, ...updatedRoutine } : r));
+
     try {
       const { data, error } = await supabase
         .from('routines')
@@ -58,10 +71,16 @@ export const useRoutines = () => {
       }
     } catch (error) {
       console.error('Error updating routine:', error);
+      alert('Error updating routine. Reverting changes.');
+      setRoutines(previousRoutines);
     }
   };
 
   const removeRoutine = async (id) => {
+    // --- OPTIMISTIC UPDATE ---
+    const previousRoutines = [...routines];
+    setRoutines(prev => prev.filter(r => String(r.id) !== String(id)));
+
     try {
       const { error } = await supabase
         .from('routines')
@@ -69,9 +88,10 @@ export const useRoutines = () => {
         .eq('id', id);
 
       if (error) throw error;
-      setRoutines(prev => prev.filter(r => String(r.id) !== String(id)));
     } catch (error) {
       console.error('Error removing routine:', error);
+      alert('Error deleting routine. Reverting changes.');
+      setRoutines(previousRoutines);
     }
   };
 

@@ -58,6 +58,21 @@ export const LifestyleWeighIn = () => {
     const diff = weight - lastWeight;
     const diffStr = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
 
+    // --- OPTIMISTIC UPDATE ---
+    const newLogEntry = {
+      id: existingLogIndex !== -1 ? logs[existingLogIndex].id : `temp-${Date.now()}`,
+      date: todayStr,
+      weight: `${weight.toFixed(1)} lbs`,
+      diff: diffStr
+    };
+
+    let previousLogs = [...logs];
+    if (existingLogIndex !== -1) {
+      setLogs(logs.map((log, i) => i === existingLogIndex ? newLogEntry : log));
+    } else {
+      setLogs([newLogEntry, ...logs]);
+    }
+
     try {
       const dbEntry = {
         date: todayStr,
@@ -75,18 +90,22 @@ export const LifestyleWeighIn = () => {
         if (error) throw error;
       } else {
         // Insert new log
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('weigh_ins')
-          .insert([dbEntry]);
+          .insert([dbEntry])
+          .select();
           
         if (error) throw error;
+        
+        // Swap temp ID with real ID silently
+        if (data && data[0]) {
+          setLogs(currentLogs => currentLogs.map(log => log.id === newLogEntry.id ? { ...log, id: data[0].id } : log));
+        }
       }
-
-      // Re-fetch to get the exact state from DB
-      fetchWeighIns();
     } catch (e) {
       console.error('Error logging weight:', e);
-      alert('Error logging weight: ' + e.message);
+      alert('Error logging weight. Reverting changes.');
+      setLogs(previousLogs);
     }
   };
 
@@ -95,55 +114,83 @@ export const LifestyleWeighIn = () => {
     const newWeight = parseFloat(editWeight);
     if (isNaN(newWeight)) return;
 
-    try {
-      setLoading(true);
-      
-      let diffStr = log.diff;
-      if (index < logs.length - 1) {
-        const prevWeight = parseFloat(logs[index + 1].weight);
-        const diff = newWeight - prevWeight;
-        diffStr = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
-      }
+    // --- OPTIMISTIC UPDATE ---
+    let diffStr = log.diff;
+    if (index < logs.length - 1) {
+      const prevWeight = parseFloat(logs[index + 1].weight);
+      const diff = newWeight - prevWeight;
+      diffStr = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
+    }
 
+    const previousLogs = [...logs];
+    const updatedLogs = [...logs];
+    updatedLogs[index] = { ...log, weight: `${newWeight.toFixed(1)} lbs`, diff: diffStr };
+    
+    let nextLogToUpdate = null;
+    if (index > 0) {
+      nextLogToUpdate = { ...logs[index - 1] };
+      const nextWeight = parseFloat(nextLogToUpdate.weight);
+      const nextDiff = nextWeight - newWeight;
+      nextLogToUpdate.diff = `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}`;
+      updatedLogs[index - 1] = nextLogToUpdate;
+    }
+
+    setLogs(updatedLogs);
+    setEditingId(null);
+    if (index === 0) setWeight(newWeight);
+
+    // --- DB SYNC ---
+    try {
       await supabase.from('weigh_ins').update({ weight_lbs: newWeight, diff_str: diffStr }).eq('id', log.id);
       
-      if (index > 0) {
-        const nextLog = logs[index - 1];
-        const nextWeight = parseFloat(nextLog.weight);
-        const nextDiff = nextWeight - newWeight;
-        await supabase.from('weigh_ins').update({ diff_str: `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}` }).eq('id', nextLog.id);
+      if (index > 0 && nextLogToUpdate) {
+        await supabase.from('weigh_ins').update({ diff_str: nextLogToUpdate.diff }).eq('id', nextLogToUpdate.id);
       }
-
-      setEditingId(null);
-      fetchWeighIns();
     } catch (e) {
       console.error('Error updating log:', e);
-      alert('Error updating log: ' + e.message);
-      setLoading(false);
+      alert('Error updating log. Reverting changes.');
+      setLogs(previousLogs);
     }
   };
 
   const handleDeleteLog = async (id, index) => {
     if (!window.confirm('Delete this weigh-in?')) return;
+    
+    // --- OPTIMISTIC UPDATE ---
+    const previousLogs = [...logs];
+    const updatedLogs = logs.filter(log => log.id !== id);
+
+    let nextLogToUpdate = null;
+    if (index > 0 && index < logs.length - 1) {
+      const nextLog = logs[index - 1];
+      const prevLog = logs[index + 1];
+      const nextWeight = parseFloat(nextLog.weight);
+      const prevWeight = parseFloat(prevLog.weight);
+      const nextDiff = nextWeight - prevWeight;
+      
+      nextLogToUpdate = { ...nextLog, diff: `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}` };
+      updatedLogs[index - 1] = nextLogToUpdate;
+    }
+
+    setLogs(updatedLogs);
+    setEditingId(null);
+    if (index === 0 && updatedLogs.length > 0) {
+        setWeight(parseFloat(updatedLogs[0].weight));
+    } else if (updatedLogs.length === 0) {
+        // If they delete all logs, let's keep the current weight as is.
+    }
+
+    // --- DB SYNC ---
     try {
-      setLoading(true);
       await supabase.from('weigh_ins').delete().eq('id', id);
       
-      if (index > 0 && index < logs.length - 1) {
-        const nextLog = logs[index - 1];
-        const prevLog = logs[index + 1];
-        const nextWeight = parseFloat(nextLog.weight);
-        const prevWeight = parseFloat(prevLog.weight);
-        const nextDiff = nextWeight - prevWeight;
-        await supabase.from('weigh_ins').update({ diff_str: `${nextDiff >= 0 ? '+' : ''}${nextDiff.toFixed(1)}` }).eq('id', nextLog.id);
+      if (nextLogToUpdate) {
+        await supabase.from('weigh_ins').update({ diff_str: nextLogToUpdate.diff }).eq('id', nextLogToUpdate.id);
       }
-
-      setEditingId(null);
-      fetchWeighIns();
     } catch (e) {
       console.error('Error deleting log:', e);
-      alert('Error deleting log: ' + e.message);
-      setLoading(false);
+      alert('Error deleting log. Reverting changes.');
+      setLogs(previousLogs);
     }
   };
 
