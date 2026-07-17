@@ -11,15 +11,8 @@ export const LifestyleMealPrep = () => {
   const waterGoal = 8;
 
   // Macros state
-  const [macroGoals, setMacroGoals] = useState(() => {
-    const saved = localStorage.getItem('pulse_macro_goals');
-    return saved ? JSON.parse(saved) : { calories: 2800, protein: 180, carbs: 300, fats: 85 };
-  });
-
-  const [currentMacros, setCurrentMacros] = useState(() => {
-    const saved = localStorage.getItem(`pulse_current_macros_${todayDate}`);
-    return saved ? JSON.parse(saved) : { calories: 2150, protein: 145, carbs: 210, fats: 65 }; // Default dummy data for now
-  });
+  const [macroGoals, setMacroGoals] = useState({ calories: 2800, protein: 180, carbs: 300, fats: 85 });
+  const [currentMacros, setCurrentMacros] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
 
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editGoals, setEditGoals] = useState(macroGoals);
@@ -29,6 +22,8 @@ export const LifestyleMealPrep = () => {
 
   useEffect(() => {
     fetchHydration();
+    fetchMacroGoals();
+    fetchDailyMacros();
   }, []);
 
   const fetchHydration = async () => {
@@ -56,14 +51,67 @@ export const LifestyleMealPrep = () => {
     }
   };
 
+  const fetchMacroGoals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('calories_goal, protein_goal, carbs_goal, fats_goal')
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        // Only log actual errors, not "table undefined" or "no rows" if they haven't run the SQL yet
+        if (error.code !== '42P01') console.error('Error fetching macro goals:', error);
+        return;
+      }
+      
+      if (data) {
+        const dbGoals = {
+          calories: data.calories_goal,
+          protein: data.protein_goal,
+          carbs: data.carbs_goal,
+          fats: data.fats_goal
+        };
+        setMacroGoals(dbGoals);
+        setEditGoals(dbGoals);
+      }
+    } catch (e) {
+      console.error('Error:', e);
+    }
+  };
+
+  const fetchDailyMacros = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_macros')
+        .select('calories, protein, carbs, fats')
+        .eq('date', todayDate)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        if (error.code !== '42P01') console.error('Error fetching daily macros:', error);
+        return;
+      }
+      
+      if (data) {
+        setCurrentMacros(data);
+      }
+    } catch (e) {
+      console.error('Error:', e);
+    }
+  };
+
   const handleLogWater = async () => {
     const newWater = Math.min(water + 1, waterGoal);
     setWater(newWater);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const { error } = await supabase
         .from('hydration_logs')
         .upsert({ 
+          user_id: user.id,
           date: todayDate, 
           water_glasses: newWater 
         }, { onConflict: 'user_id, date' });
@@ -75,23 +123,64 @@ export const LifestyleMealPrep = () => {
     }
   };
 
-  const saveMacroGoals = () => {
+  const saveMacroGoals = async () => {
     setMacroGoals(editGoals);
-    localStorage.setItem('pulse_macro_goals', JSON.stringify(editGoals));
     setIsEditingMacros(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          calories_goal: editGoals.calories,
+          protein_goal: editGoals.protein,
+          carbs_goal: editGoals.carbs,
+          fats_goal: editGoals.fats
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+    } catch (e) {
+      console.error('Error saving macro goals:', e);
+      alert('Error saving to database. Did you run the SQL script?');
+    }
   };
 
-  const handleLogMeal = () => {
+  const handleLogMeal = async () => {
     const newMacros = {
       calories: currentMacros.calories + Number(mealInput.calories),
       protein: currentMacros.protein + Number(mealInput.protein),
       carbs: currentMacros.carbs + Number(mealInput.carbs),
       fats: currentMacros.fats + Number(mealInput.fats),
     };
+    
     setCurrentMacros(newMacros);
-    localStorage.setItem(`pulse_current_macros_${todayDate}`, JSON.stringify(newMacros));
     setShowLogModal(false);
     setMealInput({ calories: 0, protein: 0, carbs: 0, fats: 0 });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const { error } = await supabase
+        .from('daily_macros')
+        .upsert({
+          user_id: user.id,
+          date: todayDate,
+          calories: newMacros.calories,
+          protein: newMacros.protein,
+          carbs: newMacros.carbs,
+          fats: newMacros.fats
+        }, { onConflict: 'user_id, date' });
+
+      if (error) throw error;
+    } catch (e) {
+      console.error('Error saving daily macros:', e);
+      alert('Error saving to database. Did you run the SQL script?');
+      setCurrentMacros(currentMacros);
+    }
   };
 
   const calcPercent = (current, goal) => Math.min(100, Math.round((current / goal) * 100)) || 0;
