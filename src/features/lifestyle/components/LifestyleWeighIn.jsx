@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { queueMutation } from '../../lib/offlineSync';
-import { usePersistentState } from '../../hooks/usePersistentState';
+import { supabase } from '../../../lib/supabase';
+import { queueMutation } from '../../../lib/offlineSync';
+import { usePersistentState } from '../../../hooks/usePersistentState';
 import { Virtuoso } from 'react-virtuoso';
 
 const WeighInRow = React.memo(({ log, index, isEditing, editWeight, onEditWeightChange, onSave, onCancel, onDelete, onStartEdit }) => {

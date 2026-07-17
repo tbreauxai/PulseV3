@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { queueMutation } from '../lib/offlineSync';
-import { usePersistentState } from './usePersistentState';
+import { supabase } from '../../../lib/supabase';
+import { queueMutation } from '../../../lib/offlineSync';
+import { usePersistentState } from '../../../hooks/usePersistentState';
 
 export const useRoutines = () => {
   const [routines, setRoutines] = usePersistentState('pulse_routines', []);

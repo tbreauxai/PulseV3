@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useExercises } from '../../hooks/useExercises';
+import { useExercises } from '../hooks/useExercises';
 import { Plus, Search, Dumbbell, Activity } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 

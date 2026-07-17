@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from '../../ui/Modal';
+import { Modal } from '../../../components/ui/Modal';
 
 export const RoutineSelectorModal = ({ isOpen, onClose, routines, onSelect, activeRoutineId }) => {
   return (

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Scale, Utensils, LineChart } from 'lucide-react';
-import { LifestyleWeighIn } from '../components/lifestyle/LifestyleWeighIn';
-import { LifestyleMealPrep } from '../components/lifestyle/LifestyleMealPrep';
-import { LifestyleProgress } from '../components/lifestyle/LifestyleProgress';
+import { LifestyleWeighIn } from './components/LifestyleWeighIn';
+import { LifestyleMealPrep } from './components/LifestyleMealPrep';
+import { LifestyleProgress } from './components/LifestyleProgress';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const LifestyleView = () => {

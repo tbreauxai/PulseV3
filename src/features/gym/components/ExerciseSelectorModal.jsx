@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
-import { useExercises } from '../../hooks/useExercises';
+import { useExercises } from '../hooks/useExercises';
 
 export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false }) => {
   const { exercises: allExercises } = useExercises();

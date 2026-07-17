@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ClipboardList, Dumbbell, TrendingUp, Calendar } from 'lucide-react';
-import { GymRoutine } from '../components/gym/GymRoutine';
-import { GymExercises } from '../components/gym/GymExercises';
-import { GymProgress } from '../components/gym/GymProgress';
-import { GymToday } from '../components/gym/GymToday';
+import { GymRoutine } from './components/GymRoutine';
+import { GymExercises } from './components/GymExercises';
+import { GymProgress } from './components/GymProgress';
+import { GymToday } from './components/GymToday';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const GymView = () => {

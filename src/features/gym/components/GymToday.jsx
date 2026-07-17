@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { queueMutation } from '../../lib/offlineSync';
-import { useRoutines } from '../../hooks/useRoutines';
-import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
-import { useExercises } from '../../hooks/useExercises';
-import { ActiveExerciseCard } from './components/ActiveExerciseCard';
-import { RoutineSelectorModal } from './components/RoutineSelectorModal';
-import { ExerciseSelectorModal } from '../ui/ExerciseSelectorModal';
+import { supabase } from '../../../lib/supabase';
+import { queueMutation } from '../../../lib/offlineSync';
+import { useRoutines } from '../hooks/useRoutines';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
+import { useExercises } from '../hooks/useExercises';
+import { ActiveExerciseCard } from './ActiveExerciseCard';
+import { RoutineSelectorModal } from './RoutineSelectorModal';
+import { ExerciseSelectorModal } from './ExerciseSelectorModal';
 
 export const GymToday = () => {
   const { routines } = useRoutines();

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Flame, Plus, Dumbbell, Activity, X, Search, ChevronDown, Trash2, Save, ArrowLeft, Edit2 } from 'lucide-react';
-import { useRoutines } from '../../hooks/useRoutines';
-import { useExercises } from '../../hooks/useExercises';
-import { ExerciseSelectorModal } from '../ui/ExerciseSelectorModal';
+import { useRoutines } from '../hooks/useRoutines';
+import { useExercises } from '../hooks/useExercises';
+import { ExerciseSelectorModal } from './ExerciseSelectorModal';
 
 export const GymRoutine = () => {
   const { routines, addRoutine, updateRoutine, removeRoutine } = useRoutines();

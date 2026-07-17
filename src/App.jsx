@@ -1,10 +1,10 @@
 import React, { useState, Suspense, lazy } from 'react';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './features/auth/context/AuthContext';
 import { LogOut, Loader2 } from 'lucide-react';
 
-const AuthScreen = lazy(() => import('./components/auth/AuthScreen').then(module => ({ default: module.AuthScreen })));
-const GymView = lazy(() => import('./views/GymView').then(module => ({ default: module.GymView })));
-const LifestyleView = lazy(() => import('./views/LifestyleView').then(module => ({ default: module.LifestyleView })));
+const AuthScreen = lazy(() => import('./features/auth/components/AuthScreen').then(module => ({ default: module.AuthScreen })));
+const GymView = lazy(() => import('./features/gym/GymView').then(module => ({ default: module.GymView })));
+const LifestyleView = lazy(() => import('./features/lifestyle/LifestyleView').then(module => ({ default: module.LifestyleView })));
 import { supabase } from './lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Trophy, CalendarCheck, Activity, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { Virtuoso } from 'react-virtuoso';
 
 const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }) => {

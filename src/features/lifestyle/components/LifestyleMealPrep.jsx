@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { queueMutation } from '../../lib/offlineSync';
-import { usePersistentState } from '../../hooks/usePersistentState';
-import { MacroProgress } from './components/MacroProgress';
-import { LogMealModal } from './components/LogMealModal';
+import { supabase } from '../../../lib/supabase';
+import { queueMutation } from '../../../lib/offlineSync';
+import { usePersistentState } from '../../../hooks/usePersistentState';
+import { MacroProgress } from './MacroProgress';
+import { LogMealModal } from './LogMealModal';
 
 export const LifestyleMealPrep = () => {
   const todayDate = new Date().toLocaleDateString('en-US');
