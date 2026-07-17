@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { usePersistentState } from '../../hooks/usePersistentState';
+import { Virtuoso } from 'react-virtuoso';
 
 export const LifestyleWeighIn = () => {
   const [weight, setWeight] = usePersistentState('pulse_weight', 175.4);
@@ -241,51 +242,59 @@ export const LifestyleWeighIn = () => {
 
       <div>
         <h3 className="text-sm font-bold text-gray-500 tracking-wider mb-3">RECENT LOGS</h3>
-        <div className="space-y-3">
+        <div>
           {logs.length === 0 && !loading && (
             <p className="text-gray-500 text-sm text-center py-4">No weigh-ins logged yet.</p>
           )}
-          {logs.map((log, i) => (
-            <div key={log.id} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
-              <span className="text-white font-medium">{log.date}</span>
-              
-              {editingId === log.id ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editWeight}
-                    onChange={(e) => setEditWeight(e.target.value)}
-                    className="w-20 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-white text-right outline-none focus:border-emerald-500"
-                    autoFocus
-                  />
-                  <button onClick={() => handleEditSave(i)} className="text-emerald-500 p-1.5 hover:bg-emerald-500/20 rounded transition-colors">
-                    <Check className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => setEditingId(null)} className="text-gray-500 p-1.5 hover:bg-gray-800 rounded transition-colors">
-                    <X className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => handleDeleteLog(log.id, i)} className="text-red-500 p-1.5 hover:bg-red-500/20 rounded transition-colors ml-1">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div 
-                  className="flex items-center space-x-3 group cursor-pointer"
-                  onClick={() => {
-                    setEditingId(log.id);
-                    setEditWeight(parseFloat(log.weight).toString());
-                  }}
-                >
-                  <span className="text-white font-bold">{log.weight}</span>
-                  <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
-                    {log.diff}
-                  </span>
-                  <Pencil className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+          {logs.length > 0 && (
+            <Virtuoso
+              useWindowScroll
+              data={logs}
+              itemContent={(i, log) => (
+                <div className="pb-3">
+                  <div className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
+                    <span className="text-white font-medium">{log.date}</span>
+                    
+                    {editingId === log.id ? (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={editWeight}
+                          onChange={(e) => setEditWeight(e.target.value)}
+                          className="w-20 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-white text-right outline-none focus:border-emerald-500"
+                          autoFocus
+                        />
+                        <button onClick={() => handleEditSave(i)} className="text-emerald-500 p-1.5 hover:bg-emerald-500/20 rounded transition-colors">
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="text-gray-500 p-1.5 hover:bg-gray-800 rounded transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleDeleteLog(log.id, i)} className="text-red-500 p-1.5 hover:bg-red-500/20 rounded transition-colors ml-1">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center space-x-3 group cursor-pointer"
+                        onClick={() => {
+                          setEditingId(log.id);
+                          setEditWeight(parseFloat(log.weight).toString());
+                        }}
+                      >
+                        <span className="text-white font-bold">{log.weight}</span>
+                        <span className={`text-xs font-bold w-12 text-right ${log.diff.startsWith('+') ? 'text-emerald-500' : 'text-gray-500'}`}>
+                          {log.diff}
+                        </span>
+                        <Pencil className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-          ))}
+            />
+          )}
         </div>
       </div>
     </div>
