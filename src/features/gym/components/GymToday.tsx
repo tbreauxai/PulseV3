@@ -381,7 +381,10 @@ export const GymToday = () => {
                   className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
                 >
                   <option value="All">All Muscles</option>
-                  {Array.from(new Set(activeSession.exercises.flatMap((e: any) => e.muscleGroup?.split(',').map((s: string) => s.trim()) || []))).filter(Boolean).map(m => (
+                  {Array.from(new Set(activeSession.exercises.flatMap((e: any) => {
+                    const libraryEx = allExercises.find((libEx: any) => libEx.name === e.exerciseName);
+                    return libraryEx?.muscleGroup?.split(',').map((s: string) => s.trim()) || [];
+                  }))).filter(Boolean).map(m => (
                     <option key={m as string} value={m as string}>{m as string}</option>
                   ))}
                 </select>
@@ -391,11 +394,12 @@ export const GymToday = () => {
                   className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
                 >
                   <option value="All">All Modes</option>
-                  <option value="Barbell">Barbell</option>
-                  <option value="Dumbbell">Dumbbell</option>
-                  <option value="Machine">Machine</option>
-                  <option value="Cable">Cable</option>
-                  <option value="Bodyweight">Bodyweight</option>
+                  {Array.from(new Set(activeSession.exercises.map((e: any) => {
+                    const libraryEx = allExercises.find((libEx: any) => libEx.name === e.exerciseName);
+                    return libraryEx?.equipment;
+                  }))).filter(Boolean).sort().map(eq => (
+                    <option key={eq as string} value={eq as string}>{eq as string}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -407,7 +411,8 @@ export const GymToday = () => {
                 
                 let matchMuscle = true;
                 if (selectedMuscleGroup !== 'All') {
-                  const muscles = ex.muscleGroup ? ex.muscleGroup.split(',').map((s: string) => s.trim()) : [];
+                  const libraryEx = allExercises.find((libEx: any) => libEx.name === ex.exerciseName);
+                  const muscles = libraryEx?.muscleGroup ? libraryEx.muscleGroup.split(',').map((s: string) => s.trim()) : [];
                   matchMuscle = muscles.includes(selectedMuscleGroup);
                 }
                 

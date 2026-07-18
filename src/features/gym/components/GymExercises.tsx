@@ -86,17 +86,35 @@ export const GymExercises = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState(emptyFormState);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All');
+  const [selectedMode, setSelectedMode] = useState('All');
   
   const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
   const filteredExercises = useMemo(() => {
-    if (!debouncedSearchTerm.trim()) return exercises;
-    const lowerSearch = debouncedSearchTerm.toLowerCase();
-    return exercises.filter((ex: any) => 
-      ex.name.toLowerCase().includes(lowerSearch) || 
-      (ex.muscleGroup && ex.muscleGroup.toLowerCase().includes(lowerSearch))
-    );
-  }, [exercises, debouncedSearchTerm]);
+    let result = exercises;
+
+    if (debouncedSearchTerm.trim()) {
+      const lowerSearch = debouncedSearchTerm.toLowerCase();
+      result = result.filter((ex: any) => 
+        ex.name.toLowerCase().includes(lowerSearch) || 
+        (ex.muscleGroup && ex.muscleGroup.toLowerCase().includes(lowerSearch))
+      );
+    }
+
+    if (selectedMuscleGroup !== 'All') {
+      result = result.filter((ex: any) => {
+        const muscles = ex.muscleGroup ? ex.muscleGroup.split(',').map((s: string) => s.trim()) : [];
+        return muscles.includes(selectedMuscleGroup);
+      });
+    }
+
+    if (selectedMode !== 'All') {
+      result = result.filter((ex: any) => ex.equipment === selectedMode);
+    }
+
+    return result;
+  }, [exercises, debouncedSearchTerm, selectedMuscleGroup, selectedMode]);
 
   const openExerciseForm = useCallback((exercise: any = emptyFormState) => {
     setFormState({ ...emptyFormState, ...exercise });
@@ -137,15 +155,39 @@ export const GymExercises = () => {
         </button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
-        <input 
-          type="text" 
-          value={searchTerm}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-          placeholder="Search exercises..." 
-          className="w-full bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-rose-600/50 transition-colors placeholder:text-gray-600"
-        />
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 space-y-3">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+          <input 
+            type="text" 
+            value={searchTerm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+            placeholder="Search exercises..." 
+            className="w-full bg-black border border-[#222] rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-rose-600/50 transition-colors placeholder:text-gray-600"
+          />
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={selectedMuscleGroup}
+            onChange={(e) => setSelectedMuscleGroup(e.target.value)}
+            className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+          >
+            <option value="All">All Muscles</option>
+            {Array.from(new Set(exercises.flatMap((e: any) => e.muscleGroup?.split(',').map((s: string) => s.trim()) || []))).filter(Boolean).map(m => (
+              <option key={m as string} value={m as string}>{m as string}</option>
+            ))}
+          </select>
+          <select
+            value={selectedMode}
+            onChange={(e) => setSelectedMode(e.target.value)}
+            className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+          >
+            <option value="All">All Modes</option>
+            {Array.from(new Set(exercises.map((e: any) => e.equipment).filter(Boolean))).sort().map((eq: any) => (
+              <option key={eq} value={eq}>{eq}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <ExerciseEditorModal 
