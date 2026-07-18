@@ -25,7 +25,9 @@ export const useExercises = () => {
 
       // Auto-restore missing custom exercises from routines if they were lost
       try {
-        const { data: routinesData } = await supabase.from('routines').select('exercises').eq('user_id', user.id);
+        const { data: routinesData, error: routinesError } = await supabase.from('routines').select('exercises');
+        if (routinesError) console.error("Routines query error:", routinesError);
+        
         if (routinesData) {
           const uniqueMissingExercises = new Map();
           routinesData.forEach(r => {
