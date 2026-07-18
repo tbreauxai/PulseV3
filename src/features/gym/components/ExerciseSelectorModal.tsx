@@ -10,16 +10,33 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
 
   useEffect(() => {
     if (isOpen) {
-      setFilterMuscleGroup(initialMuscleGroup);
+      if (isSwap && targetSwapExercise) {
+        const GENERAL_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Full Body'];
+        const targetMuscles = (targetSwapExercise.muscleGroup || '').split(',').map((s: string) => s.trim());
+        const generalMatch = targetMuscles.find((m: string) => GENERAL_GROUPS.includes(m));
+        
+        if (generalMatch) {
+          setFilterMuscleGroup(generalMatch);
+        } else if (targetMuscles.length > 0) {
+          setFilterMuscleGroup(targetMuscles[0]);
+        } else {
+          const allMuscles = Array.from(new Set(
+            allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
+          )).sort();
+          setFilterMuscleGroup(allMuscles.length > 0 ? allMuscles[0] : 'All');
+        }
+      } else {
+        setFilterMuscleGroup(initialMuscleGroup);
+      }
     }
-  }, [isOpen, initialMuscleGroup]);
+  }, [isOpen, initialMuscleGroup, isSwap, targetSwapExercise, allExercises]);
 
   if (!isOpen) return null;
 
   const uniqueMuscles = Array.from(new Set(
     allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
   )).sort();
-  const muscleGroupOptions = ['All', ...uniqueMuscles];
+  const muscleGroupOptions = isSwap ? uniqueMuscles : ['All', ...uniqueMuscles];
   
   const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map((ex: any) => ex.equipment).filter(Boolean))).sort()];
 
