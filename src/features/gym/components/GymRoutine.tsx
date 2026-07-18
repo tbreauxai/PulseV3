@@ -223,16 +223,26 @@ export const GymRoutine = () => {
                         <div className="flex-1">
                           <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">TIME (MIN)</label>
                           <input 
-                            type="text" 
+                            type="number" 
                             value={ex.time || ''}
                             onChange={e => updateDraftExercise(i, 'time', e.target.value)}
                             className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"
                           />
                         </div>
                         <div className="flex-1">
-                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">DISTANCE (MI)</label>
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">CALORIES</label>
                           <input 
-                            type="text" 
+                            type="number" 
+                            value={ex.calories || ''}
+                            onChange={e => updateDraftExercise(i, 'calories', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">DIST (MI)</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
                             value={ex.distance || ''}
                             onChange={e => updateDraftExercise(i, 'distance', e.target.value)}
                             className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"

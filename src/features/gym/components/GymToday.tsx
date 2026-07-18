@@ -8,6 +8,7 @@ import { useExercises } from '../hooks/useExercises';
 import { ActiveExerciseCard } from './ActiveExerciseCard';
 import { RoutineSelectorModal } from './RoutineSelectorModal';
 import { ExerciseSelectorModal } from './ExerciseSelectorModal';
+import { CardioEntryModal } from './CardioEntryModal';
 import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 export const GymToday = () => {
@@ -17,6 +18,7 @@ export const GymToday = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [isCardioModalOpen, setIsCardioModalOpen] = useState(false);
   const [swapExerciseIndex, setSwapExerciseIndex] = useState(null); // Track which exercise is being swapped
   
   const [activeSession, setActiveSession] = useState(() => {
@@ -61,10 +63,42 @@ export const GymToday = () => {
   const [modalInitialFilter, setModalInitialFilter] = useState('All');
 
   const handleOpenExerciseModal = useCallback((swapIndex: any = null, filter: string = 'All') => {
-    setSwapExerciseIndex(swapIndex);
-    setModalInitialFilter(filter);
-    setIsExerciseModalOpen(true);
+    if (filter === 'Cardio') {
+      setIsCardioModalOpen(true);
+    } else {
+      setSwapExerciseIndex(swapIndex);
+      setModalInitialFilter(filter);
+      setIsExerciseModalOpen(true);
+    }
   }, []);
+
+  const handleSaveCardio = (cardioData: any) => {
+    setActiveSession((prev: any) => {
+      const newExerciseIndex = prev.exercises.length;
+      return {
+        ...prev,
+        exercises: [
+          ...prev.exercises,
+          {
+            exerciseName: cardioData.type,
+            type: 'cardio',
+            equipment: 'Cardio',
+            muscleGroup: 'Cardio'
+          }
+        ],
+        sets: {
+          ...prev.sets,
+          [newExerciseIndex]: [{
+            time: cardioData.time,
+            calories: cardioData.calories,
+            distance: cardioData.distance,
+            completed: true
+          }]
+        }
+      };
+    });
+    setIsCardioModalOpen(false);
+  };
 
   const addOrSwapCustomExercise = useCallback((exercise: any) => {
     setActiveSession((prev: any) => {
@@ -109,9 +143,9 @@ export const GymToday = () => {
       let completedSetsCount = 0;
       const completedExercises = [];
 
-      activeSession.exercises.forEach((exercise, i) => {
+      activeSession.exercises.forEach((exercise: any, i: number) => {
         const exerciseSets = activeSession.sets[i] || [];
-        const validSets = exerciseSets.filter(s => s.completed);
+        const validSets = exerciseSets.filter((s: any) => s.completed);
         
         if (validSets.length > 0) {
           completedExercises.push({
@@ -154,7 +188,7 @@ export const GymToday = () => {
     const fetchMemory = async () => {
       const { data, error } = await supabase.from('exercise_memory').select('*');
       if (data) {
-        const cache = {};
+        const cache: any = {};
         data.forEach(item => {
           cache[item.exercise_name] = { weight: item.weight, reps: item.reps };
         });
@@ -191,7 +225,7 @@ export const GymToday = () => {
         .from('exercise_memory')
         .upsert(payload);
       if (error) console.error(error);
-    } catch (e) {
+    } catch (e: any) {
       if (e.message === 'Failed to fetch' || (e.message && e.message.includes('NetworkError'))) {
         const payload = { 
           exercise_name: exerciseName, 
@@ -454,15 +488,15 @@ export const GymToday = () => {
                     key={originalIndex}
                     exercise={exercise}
                     exerciseIndex={originalIndex}
-                  sessionSets={activeSession.sets[originalIndex]}
-                  onAddSet={addSet}
-                  onUpdateSet={updateSet}
-                  onToggleComplete={toggleSetComplete}
-                  onRemoveSet={removeSet}
-                  onSwap={handleOpenExerciseModal}
-                />
-              );
-            })}
+                    sessionSets={activeSession.sets[originalIndex]}
+                    onAddSet={addSet}
+                    onUpdateSet={updateSet}
+                    onToggleComplete={toggleSetComplete}
+                    onRemoveSet={removeSet}
+                    onSwap={handleOpenExerciseModal}
+                  />
+                );
+              })}
               
             <div className="flex space-x-3">
               <button 
@@ -507,6 +541,12 @@ export const GymToday = () => {
         targetSwapExercise={swapExerciseIndex !== null && activeSession ? activeSession.exercises[swapExerciseIndex] : null}
         initialMuscleGroup={modalInitialFilter}
         excludeExercises={activeSession?.exercises.map((e: any) => e.exerciseName) || []}
+      />
+
+      <CardioEntryModal
+        isOpen={isCardioModalOpen}
+        onClose={() => setIsCardioModalOpen(false)}
+        onSave={handleSaveCardio}
       />
     </div>
   );

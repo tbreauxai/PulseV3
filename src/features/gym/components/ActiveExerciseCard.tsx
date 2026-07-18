@@ -103,7 +103,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               <h4 className="text-white font-medium line-clamp-1">{exercise.exerciseName || exercise.name}</h4>
               <p className="text-xs text-gray-500 mt-0.5">
                 Target: {exercise.type === 'cardio' 
-                  ? `${exercise.time || '-'} mins • ${exercise.distance || '-'} mi`
+                  ? `${exercise.time || '-'} mins • ${exercise.calories || '-'} cal`
                   : `${exercise.sets || '-'} Sets • ${exercise.reps || '-'}`}
               </p>
             </div>
@@ -133,10 +133,11 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               </div>
             ) : (
               <div className="space-y-2 mt-4">
-                <div className="flex text-xs font-bold text-gray-600 px-2 pb-1">
+                <div className="flex text-xs font-bold text-gray-600 px-2 pb-1 space-x-2">
                   <div className="w-10 text-center">SET</div>
                   <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'TIME (MIN)' : 'LBS'}</div>
-                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'DISTANCE (MI)' : 'REPS'}</div>
+                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'CALORIES' : 'REPS'}</div>
+                  {exercise.type === 'cardio' && <div className="flex-1 text-center">DIST (MI)</div>}
                   <div className="w-20"></div>
                 </div>
                 
@@ -149,20 +150,30 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       {idx + 1}
                     </div>
                     <input 
-                      type={exercise.type === 'cardio' ? 'text' : 'number'}
+                      type={exercise.type === 'cardio' ? 'number' : 'number'}
                       placeholder="--"
                       value={exercise.type === 'cardio' ? set.time : set.weight}
                       onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
                       className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                     />
                     <input 
-                      type={exercise.type === 'cardio' ? 'text' : 'number'}
+                      type={exercise.type === 'cardio' ? 'number' : 'number'}
                       placeholder="--"
-                      value={exercise.type === 'cardio' ? set.distance : set.reps}
-                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'distance' : 'reps', e.target.value)}
+                      value={exercise.type === 'cardio' ? set.calories : set.reps}
+                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'calories' : 'reps', e.target.value)}
                       className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                     />
-                    <div className="w-20 flex space-x-1 justify-end">
+                    {exercise.type === 'cardio' && (
+                      <input 
+                        type="number"
+                        step="0.01"
+                        placeholder="--"
+                        value={set.distance}
+                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'distance', e.target.value)}
+                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                      />
+                    )}
+                    <div className="w-20 flex space-x-1 justify-end shrink-0">
                       <button 
                         onClick={() => onRemoveSet(exerciseIndex, idx)}
                         className="w-9 h-9 rounded-md flex items-center justify-center bg-gray-800/80 text-rose-500 hover:bg-rose-600 hover:text-white transition-colors"
