@@ -179,7 +179,7 @@ export const useExercises = () => {
   });
 
   const { mutateAsync: updateExercise } = useMutation({
-    mutationFn: async ({ id, updatedData }: any) => {
+    mutationFn: async ({ id, updatedData, oldName }: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
@@ -199,7 +199,28 @@ export const useExercises = () => {
       const { error } = await supabase.from('user_exercises').update(payload).eq('exercise_id', id).eq('user_id', user.id);
       if (error) throw error;
       
-      return { id, updatedData };
+      let cascadeOccurred = false;
+      if (oldName && oldName !== updatedData.name) {
+        const { data: routines } = await supabase.from('routines').select('*').eq('user_id', user.id);
+        if (routines) {
+          for (const routine of routines) {
+            let modified = false;
+            const updatedExercises = routine.exercises.map((ex: any) => {
+              if (ex.exerciseName === oldName) {
+                modified = true;
+                return { ...ex, exerciseName: updatedData.name };
+              }
+              return ex;
+            });
+            if (modified) {
+              await supabase.from('routines').update({ exercises: updatedExercises }).eq('id', routine.id);
+              cascadeOccurred = true;
+            }
+          }
+        }
+      }
+
+      return { id, updatedData, cascadeOccurred };
     },
     onMutate: async ({ id, updatedData }: any) => {
       await queryClient.cancelQueries({ queryKey: ['exercises'] });
@@ -226,6 +247,11 @@ export const useExercises = () => {
       } else {
         alert('Error updating exercise. Reverting changes.');
         queryClient.setQueryData(['exercises'], context.previousExercises);
+      }
+    },
+    onSuccess: (data: any) => {
+      if (data && data.cascadeOccurred) {
+        queryClient.invalidateQueries({ queryKey: ['routines'] });
       }
     }
   });
@@ -274,7 +300,12 @@ export const useExercises = () => {
     isLoaded: !isLoading,
     addExercise,
     removeExercise,
-    updateExercise: (id: any, updatedData: any) => updateExercise({ id, updatedData }),
+    updateExercise: (id: any, updatedData: any) => {
+      const previousExercises: any = queryClient.getQueryData(['exercises']) || [];
+      const oldExercise = previousExercises.find((e: any) => String(e.id) === String(id));
+      const oldName = oldExercise ? oldExercise.name : null;
+      return updateExercise({ id, updatedData, oldName });
+    },
     getExercisesByMuscleGroup,
     getExerciseById
   };
