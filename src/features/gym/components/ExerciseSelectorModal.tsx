@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
 import { useExercises } from '../hooks/useExercises';
+import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, targetSwapExercise = null, initialMuscleGroup = 'All', excludeExercises = [] }: any) => {
   const { exercises: allExercises } = useExercises();
@@ -126,7 +127,31 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
                 onChange={e => setFilterMuscleGroup(e.target.value)}
                 className="w-full bg-[#0a0a0a] border border-[#222] rounded-xl py-2 pl-3 pr-8 text-sm text-gray-300 focus:outline-none focus:border-rose-600 transition-all appearance-none"
               >
-                {muscleGroupOptions.map((mg: any) => <option key={mg} value={mg}>{mg === 'All' ? 'All Muscles' : mg}</option>)}
+                {(() => {
+                  const hasAll = muscleGroupOptions.includes('All');
+                  const optionsToGroup = muscleGroupOptions.filter(m => m !== 'All');
+                  const { grouped, uncategorized } = groupMusclesByCategory(optionsToGroup);
+                  
+                  return (
+                    <>
+                      {hasAll && <option value="All">All Muscles</option>}
+                      {grouped.map(g => (
+                        <optgroup key={g.category} label={g.category.toUpperCase()}>
+                          {g.muscles.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                      {uncategorized.length > 0 && (
+                        <optgroup label="OTHER">
+                          {uncategorized.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </>
+                  );
+                })()}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
             </div>

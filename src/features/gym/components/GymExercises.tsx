@@ -5,6 +5,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { motion, useAnimation } from 'framer-motion';
 import { ExerciseEditorModal } from './ExerciseEditorModal';
+import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 
@@ -173,9 +174,28 @@ export const GymExercises = () => {
             className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
           >
             <option value="All">All Muscles</option>
-            {Array.from(new Set(exercises.flatMap((e: any) => e.muscleGroup?.split(',').map((s: string) => s.trim()) || []))).filter(Boolean).map(m => (
-              <option key={m as string} value={m as string}>{m as string}</option>
-            ))}
+            {(() => {
+              const unique = Array.from(new Set(exercises.flatMap((e: any) => e.muscleGroup?.split(',').map((s: string) => s.trim()) || []))).filter(Boolean) as string[];
+              const { grouped, uncategorized } = groupMusclesByCategory(unique);
+              return (
+                <>
+                  {grouped.map(g => (
+                    <optgroup key={g.category} label={g.category.toUpperCase()}>
+                      {g.muscles.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  {uncategorized.length > 0 && (
+                    <optgroup label="OTHER">
+                      {uncategorized.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
+              );
+            })()}
           </select>
           <select
             value={selectedMode}

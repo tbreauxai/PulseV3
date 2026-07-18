@@ -13,6 +13,27 @@ export const muscleCategories = [
   { name: 'Full Body', subMuscles: ['Full Body'] },
 ];
 
+export const groupMusclesByCategory = (muscles: string[]) => {
+  const grouped: { category: string, muscles: string[] }[] = [];
+  const uncategorized: string[] = [];
+
+  const musclesSet = new Set(muscles);
+
+  muscleCategories.forEach(category => {
+    const found = category.subMuscles.filter(m => musclesSet.has(m)).sort();
+    if (found.length > 0) {
+      grouped.push({ category: category.name, muscles: found });
+      found.forEach(m => musclesSet.delete(m));
+    }
+  });
+
+  if (musclesSet.size > 0) {
+    uncategorized.push(...Array.from(musclesSet).sort());
+  }
+
+  return { grouped, uncategorized };
+};
+
 export const MuscleGroupSelectorModal = ({ isOpen, onClose, selectedString, onSave }: any) => {
   const [selected, setSelected] = useState<string[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
