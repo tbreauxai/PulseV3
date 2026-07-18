@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
 import { useExercises } from '../hooks/useExercises';
 
-export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, initialMuscleGroup = 'All' }) => {
+export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, targetSwapExercise = null, initialMuscleGroup = 'All' }: any) => {
   const { exercises: allExercises } = useExercises();
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [filterMuscleGroup, setFilterMuscleGroup] = useState('All');
@@ -23,6 +23,18 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
   
   const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map((ex: any) => ex.equipment).filter(Boolean))).sort()];
 
+  const getMatchScore = (ex: any, target: any) => {
+    if (!target) return 0;
+    const targetMuscles = (target.muscleGroup || '').toLowerCase().split(',').map((m: string) => m.trim()).filter(Boolean);
+    const exMuscles = (ex.muscleGroup || '').toLowerCase().split(',').map((m: string) => m.trim()).filter(Boolean);
+    
+    if (targetMuscles.length === 0 || exMuscles.length === 0) return 0;
+    
+    // Count exact intersections
+    const intersection = exMuscles.filter((m: string) => targetMuscles.includes(m));
+    return intersection.length;
+  };
+
   const filteredExercises = allExercises.filter((ex: any) => {
     const search = exerciseSearchTerm.toLowerCase();
     const matchesSearch = ex.name.toLowerCase().includes(search) || 
@@ -33,6 +45,16 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
     
     const matchesEquipment = filterEquipment === 'All' || ex.equipment === filterEquipment;
     return matchesSearch && matchesMuscle && matchesEquipment;
+  }).sort((a: any, b: any) => {
+    if (isSwap && targetSwapExercise) {
+      const scoreA = getMatchScore(a, targetSwapExercise);
+      const scoreB = getMatchScore(b, targetSwapExercise);
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA; // Descending order (highest matches first)
+      }
+    }
+    // Alphabetical fallback
+    return a.name.localeCompare(b.name);
   });
 
   const handleSelect = (ex) => {

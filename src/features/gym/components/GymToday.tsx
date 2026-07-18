@@ -414,6 +414,7 @@ export const GymToday = () => {
         }}
         title={swapExerciseIndex !== null ? "SWAP EXERCISE" : "ADD EXERCISE"}
         isSwap={swapExerciseIndex !== null}
+        targetSwapExercise={swapExerciseIndex !== null && activeSession ? activeSession.exercises[swapExerciseIndex] : null}
         initialMuscleGroup={modalInitialFilter}
       />
     </div>
