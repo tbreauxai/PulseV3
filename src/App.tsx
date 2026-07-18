@@ -66,7 +66,7 @@ export default function App() {
         </button>
       </nav>
 
-      <main className="pt-24 px-6 max-w-md mx-auto">
+      <main className="pt-24 px-6 pb-8 pb-safe max-w-md mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-black italic tracking-tighter text-white flex items-center">
             PULSE
