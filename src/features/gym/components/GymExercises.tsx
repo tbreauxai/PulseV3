@@ -1,17 +1,43 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useExercises } from '../hooks/useExercises';
-import { Plus, Search, Dumbbell, Activity } from 'lucide-react';
+import { Plus, Search, Dumbbell, Activity, Trash2 } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { useDebounce } from '../../../hooks/useDebounce';
+import { motion, useAnimation } from 'framer-motion';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 
-const ExerciseRow = React.memo(({ ex, onOpenForm }: any) => {
+const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
+  const controls = useAnimation();
+  
+  const handleDragEnd = (event: any, info: any) => {
+    if (info.offset.x < -60) {
+      controls.start({ x: -80 });
+    } else {
+      controls.start({ x: 0 });
+    }
+  };
+
   return (
-    <div className="pb-3">
-      <div 
-        onClick={() => onOpenForm(ex)}
-        className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between cursor-pointer hover:border-rose-600/30 transition-all active:scale-[0.98]"
+    <div className="pb-3 relative">
+      <div className="absolute inset-0 pb-3 z-0">
+        <div className="w-full h-full bg-red-900/20 border border-red-900/30 rounded-xl flex items-center justify-end px-6">
+          <button onClick={() => onDelete(ex.id)} className="text-red-500 hover:text-red-400 p-2 active:scale-95 transition-transform">
+            <Trash2 className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      <motion.div 
+        drag="x"
+        dragConstraints={{ right: 0, left: -80 }}
+        dragElastic={0.1}
+        animate={controls}
+        onDragEnd={handleDragEnd}
+        onClick={() => {
+          controls.start({ x: 0 });
+          onOpenForm(ex);
+        }}
+        className="relative bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between p-4 cursor-pointer hover:border-rose-600/30 transition-colors z-10 touch-pan-y"
       >
         <div className="flex items-center space-x-4">
           <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${ex.type === 'cardio' ? 'bg-emerald-900' : 'bg-gray-900'}`}>
@@ -44,17 +70,17 @@ const ExerciseRow = React.memo(({ ex, onOpenForm }: any) => {
             e.stopPropagation();
             onOpenForm(ex);
           }}
-          className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center hover:bg-rose-600 transition-colors group"
+          className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center hover:bg-rose-600 transition-colors group flex-shrink-0"
         >
           <Plus className="h-4 w-4 text-gray-400 group-hover:text-white" />
         </button>
-      </div>
+      </motion.div>
     </div>
   );
 });
 
 export const GymExercises = () => {
-  const { exercises, addExercise, updateExercise } = useExercises();
+  const { exercises, addExercise, updateExercise, removeExercise } = useExercises();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState(emptyFormState);
@@ -207,12 +233,25 @@ export const GymExercises = () => {
               </label>
             </div>
 
-            <button
-              onClick={handleSaveExercise}
-              className="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-black tracking-widest py-4 rounded-2xl mt-4"
-            >
-              {editingId === null ? 'ADD EXERCISE' : 'SAVE CHANGES'}
-            </button>
+            <div className="flex gap-3 mt-4">
+              {editingId !== null && (
+                <button
+                  onClick={() => {
+                    removeExercise(editingId);
+                    closeExerciseForm();
+                  }}
+                  className="bg-red-900/20 text-red-500 hover:bg-red-900/40 border border-red-900/30 active:scale-[0.98] transition-all font-black tracking-widest py-4 px-6 rounded-2xl flex-shrink-0 flex items-center justify-center"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
+              <button
+                onClick={handleSaveExercise}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all text-white font-black tracking-widest py-4 rounded-2xl"
+              >
+                {editingId === null ? 'ADD EXERCISE' : 'SAVE CHANGES'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -222,7 +261,7 @@ export const GymExercises = () => {
           useWindowScroll
           data={filteredExercises}
           itemContent={(index, ex) => (
-            <ExerciseRow ex={ex} onOpenForm={openExerciseForm} />
+            <ExerciseRow ex={ex} onOpenForm={openExerciseForm} onDelete={removeExercise} />
           )}
         />
       </div>
