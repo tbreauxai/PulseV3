@@ -4,6 +4,7 @@ import { Plus, Search, Dumbbell, Activity, Trash2 } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { motion, useAnimation } from 'framer-motion';
+import { MuscleGroupSelectorModal } from './MuscleGroupSelectorModal';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 
@@ -49,7 +50,7 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
           </div>
           <div>
             <h4 className="text-white font-medium">{ex.name}</h4>
-            <p className="text-xs text-gray-500 mt-0.5">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 pr-2">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
             {ex.type === 'cardio' ? (
               (ex.time || ex.distance) && (
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -82,6 +83,7 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
 export const GymExercises = () => {
   const { exercises, addExercise, updateExercise, removeExercise } = useExercises();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState(emptyFormState);
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,23 +180,18 @@ export const GymExercises = () => {
                 />
               </label>
               
-              <label className="space-y-2 text-sm font-bold text-gray-300">
+              <div className="space-y-2 text-sm font-bold text-gray-300">
                 MUSCLE GROUP
-                <select
-                  value={formState.muscleGroup || ''}
-                  onChange={handleChange('muscleGroup')}
-                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                <button
+                  type="button"
+                  onClick={() => setIsMuscleModalOpen(true)}
+                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50 flex items-center justify-between transition-colors hover:border-gray-700 text-left"
                 >
-                  <option value="" disabled className="text-gray-500">Select muscle group...</option>
-                  <option value="Chest">Chest</option>
-                  <option value="Back">Back</option>
-                  <option value="Legs">Legs</option>
-                  <option value="Shoulders">Shoulders</option>
-                  <option value="Arms">Arms</option>
-                  <option value="Core">Core</option>
-                  <option value="Full Body">Full Body</option>
-                </select>
-              </label>
+                  <span className={formState.muscleGroup ? "line-clamp-1 pr-2" : "text-gray-500"}>
+                    {formState.muscleGroup || "Select muscle groups..."}
+                  </span>
+                </button>
+              </div>
 
               <label className="space-y-2 text-sm font-bold text-gray-300">
                 WEIGHT
@@ -255,6 +252,15 @@ export const GymExercises = () => {
           </div>
         </div>
       )}
+
+      <MuscleGroupSelectorModal 
+        isOpen={isMuscleModalOpen}
+        onClose={() => setIsMuscleModalOpen(false)}
+        selectedString={formState.muscleGroup}
+        onSave={(selectedStr: string) => {
+          setFormState(prev => ({ ...prev, muscleGroup: selectedStr }));
+        }}
+      />
 
       <div>
         <Virtuoso

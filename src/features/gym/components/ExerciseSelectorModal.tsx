@@ -16,13 +16,21 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
 
   if (!isOpen) return null;
 
-  const muscleGroupOptions = ['All', ...Array.from(new Set(allExercises.map(ex => ex.muscleGroup))).sort()];
-  const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map(ex => ex.equipment))).sort()];
+  const uniqueMuscles = Array.from(new Set(
+    allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
+  )).sort();
+  const muscleGroupOptions = ['All', ...uniqueMuscles];
+  
+  const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map((ex: any) => ex.equipment).filter(Boolean))).sort()];
 
-  const filteredExercises = allExercises.filter(ex => {
-    const matchesSearch = ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()) || 
-                          ex.muscleGroup.toLowerCase().includes(exerciseSearchTerm.toLowerCase());
-    const matchesMuscle = filterMuscleGroup === 'All' || ex.muscleGroup === filterMuscleGroup;
+  const filteredExercises = allExercises.filter((ex: any) => {
+    const search = exerciseSearchTerm.toLowerCase();
+    const matchesSearch = ex.name.toLowerCase().includes(search) || 
+                          (ex.muscleGroup || '').toLowerCase().includes(search);
+                          
+    const muscleGroups = (ex.muscleGroup || '').split(',').map((m: string) => m.trim().toLowerCase());
+    const matchesMuscle = filterMuscleGroup === 'All' || muscleGroups.includes(filterMuscleGroup.toLowerCase());
+    
     const matchesEquipment = filterEquipment === 'All' || ex.equipment === filterEquipment;
     return matchesSearch && matchesMuscle && matchesEquipment;
   });
