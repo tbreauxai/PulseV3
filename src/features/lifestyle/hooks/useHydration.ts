@@ -1,9 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
+import { useState } from 'react';
 
 export const useHydration = (todayDate) => {
   const queryClient = useQueryClient();
+
+  const [waterGoal, setWaterGoal] = useState(() => {
+    return parseInt(localStorage.getItem('water_goal') || '8');
+  });
+
+  const saveWaterGoal = (newGoal: number) => {
+    setWaterGoal(newGoal);
+    localStorage.setItem('water_goal', newGoal.toString());
+  };
 
   const { data: water = 0, isLoading } = useQuery({
     queryKey: ['hydration', todayDate],
@@ -63,5 +73,5 @@ export const useHydration = (todayDate) => {
     }
   });
 
-  return { water, isLoading, logWater };
+  return { water, isLoading, logWater, waterGoal, saveWaterGoal };
 };

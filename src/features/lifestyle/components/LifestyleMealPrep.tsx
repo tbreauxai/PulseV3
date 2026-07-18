@@ -8,12 +8,13 @@ import { LogMealModal } from './LogMealModal';
 export const LifestyleMealPrep = () => {
   const todayDate = new Date().toLocaleDateString('en-US');
 
-  const { water, isLoading: loading, logWater } = useHydration(todayDate);
+  const { water, isLoading: loading, logWater, waterGoal, saveWaterGoal } = useHydration(todayDate);
   const { macroGoals, currentMacros, saveMacroGoals, logMeal } = useMacros(todayDate);
 
-  const waterGoal = 8;
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editGoals, setEditGoals] = useState(macroGoals);
+  const [editWaterGoal, setEditWaterGoal] = useState(waterGoal);
+  const [isEditingWater, setIsEditingWater] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
 
   useEffect(() => {
@@ -106,9 +107,33 @@ export const LifestyleMealPrep = () => {
             <div className="flex items-center space-x-2 mb-1">
               <Droplets className="h-4 w-4 text-emerald-500" />
               <span className="text-xs font-bold text-gray-500 tracking-wider">HYDRATION</span>
+              <button 
+                onClick={() => {
+                  if (isEditingWater) {
+                    saveWaterGoal(editWaterGoal);
+                    setIsEditingWater(false);
+                  } else {
+                    setEditWaterGoal(waterGoal);
+                    setIsEditingWater(true);
+                  }
+                }} 
+                className="text-xs font-bold text-emerald-500 hover:text-emerald-400 ml-2"
+              >
+                {isEditingWater ? 'SAVE' : 'EDIT'}
+              </button>
             </div>
             <div className="text-3xl font-black text-white">
-              {loading ? '-' : water}<span className="text-lg text-gray-600">/{waterGoal}</span>
+              {loading ? '-' : water}
+              {isEditingWater ? (
+                <input 
+                  type="number" 
+                  value={editWaterGoal} 
+                  onChange={e => setEditWaterGoal(Number(e.target.value))} 
+                  className="w-16 ml-1 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-lg text-white text-center outline-none focus:border-emerald-500 transition-colors inline-block align-middle"
+                />
+              ) : (
+                <span className="text-lg text-gray-600">/{waterGoal}</span>
+              )}
             </div>
             <p className="text-xs font-medium text-emerald-500/80 mt-1">Glasses today</p>
           </div>
