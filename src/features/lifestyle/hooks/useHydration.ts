@@ -6,14 +6,63 @@ import { useState } from 'react';
 export const useHydration = (todayDate) => {
   const queryClient = useQueryClient();
 
-  const [waterGoal, setWaterGoal] = useState(() => {
-    return parseInt(localStorage.getItem('water_goal') || '8');
+  const { data: waterGoal = parseInt(localStorage.getItem('water_goal') || '8') } = useQuery({
+    queryKey: ['waterGoal'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('water_goal')
+        .single();
+      
+      if (error && error.code !== 'PGRST116' && error.code !== '42703' && error.code !== '42P01') {
+        throw error;
+      }
+      
+      const goal = data?.water_goal || parseInt(localStorage.getItem('water_goal') || '8');
+      if (data?.water_goal) {
+        localStorage.setItem('water_goal', data.water_goal.toString());
+      }
+      return goal;
+    }
   });
 
-  const saveWaterGoal = (newGoal: number) => {
-    setWaterGoal(newGoal);
-    localStorage.setItem('water_goal', newGoal.toString());
-  };
+  const { mutateAsync: saveWaterGoal } = useMutation({
+    mutationFn: async (newGoal: number) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      if (!navigator.onLine) throw new Error('NetworkError');
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({ user_id: user.id, water_goal: newGoal }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+      return newGoal;
+    },
+    onMutate: async (newGoal: number) => {
+      await queryClient.cancelQueries({ queryKey: ['waterGoal'] });
+      const previousGoal = queryClient.getQueryData(['waterGoal']);
+      queryClient.setQueryData(['waterGoal'], newGoal);
+      localStorage.setItem('water_goal', newGoal.toString());
+      return { previousGoal };
+    },
+    onError: (err: any, newGoal: number, context: any) => {
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            queueMutation('upsert', 'user_settings', {
+              user_id: user.id,
+              water_goal: newGoal
+            }, { onConflict: 'user_id' });
+          }
+        });
+      } else {
+        queryClient.setQueryData(['waterGoal'], context.previousGoal);
+        localStorage.setItem('water_goal', (context.previousGoal || 8).toString());
+      }
+    }
+  });
 
   const { data: water = 0, isLoading } = useQuery({
     queryKey: ['hydration', todayDate],
