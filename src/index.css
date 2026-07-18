@@ -25,7 +25,16 @@ button, input {
 }
 
 @layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-nav {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe-main {
+    padding-top: calc(6rem + env(safe-area-inset-top));
   }
 }

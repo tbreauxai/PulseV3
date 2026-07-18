@@ -29,7 +29,7 @@ export const GymView = () => {
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 w-full bg-black/90 backdrop-blur-xl border-t border-gray-900 z-40">
-        <div className="flex items-center justify-around px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-w-md mx-auto">
+        <div className="flex items-center justify-around px-6 pt-4 pb-safe-nav max-w-md mx-auto">
           <button
             onClick={() => setGymTab('today')}
             className={`flex flex-col items-center space-y-1 transition-colors ${gymTab === 'today' ? 'text-rose-600' : 'text-gray-500 hover:text-gray-400'}`}

@@ -34,7 +34,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-gray-800">
-      <nav className="fixed top-0 w-full flex bg-black/90 backdrop-blur-lg z-50 border-b border-gray-900 pt-[env(safe-area-inset-top)]">
+      <nav className="fixed top-0 w-full flex bg-black/90 backdrop-blur-lg z-50 border-b border-gray-900 pt-safe">
         <button
           onClick={() => setActiveTab('gym')}
           className={`flex-1 py-5 text-center font-black tracking-widest text-sm transition-all duration-300 relative ${
@@ -66,7 +66,7 @@ export default function App() {
         </button>
       </nav>
 
-      <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 pb-8 max-w-md mx-auto">
+      <main className="pt-safe-main px-6 pb-8 max-w-md mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-black italic tracking-tighter text-white flex items-center">
             PULSE
