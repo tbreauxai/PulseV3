@@ -23,6 +23,44 @@ export const useExercises = () => {
         throw error;
       }
 
+      // Auto-restore missing custom exercises from routines if they were lost
+      try {
+        const { data: routinesData } = await supabase.from('routines').select('exercises').eq('user_id', user.id);
+        if (routinesData) {
+          const uniqueMissingExercises = new Map();
+          routinesData.forEach(r => {
+            if (r.exercises && Array.isArray(r.exercises)) {
+              r.exercises.forEach(ex => {
+                const isCustom = !defaultExercises.some(d => d.name.toLowerCase() === ex.exerciseName.toLowerCase());
+                const isSaved = data && data.some(d => d.name.toLowerCase() === ex.exerciseName.toLowerCase());
+                if (ex.exerciseName && isCustom && !isSaved) {
+                  uniqueMissingExercises.set(ex.exerciseName, {
+                    user_id: user.id,
+                    exercise_id: String(Date.now() + Math.random()),
+                    name: ex.exerciseName,
+                    type: ex.type || 'strength',
+                    muscle_group: 'Restored',
+                    weight: '', reps: '', equipment: '', time: '', distance: ''
+                  });
+                }
+              });
+            }
+          });
+          
+          if (uniqueMissingExercises.size > 0) {
+            const payloads = Array.from(uniqueMissingExercises.values());
+            await supabase.from('user_exercises').insert(payloads);
+            if (data) {
+              data.push(...payloads.map((p: any) => ({
+                exercise_id: p.exercise_id, name: p.name, type: p.type, muscle_group: p.muscle_group, weight: p.weight, reps: p.reps, equipment: p.equipment, time: p.time, distance: p.distance
+              })));
+            }
+          }
+        }
+      } catch (err) { 
+        console.error("Error restoring missing exercises", err); 
+      }
+
       // If we have exercises in Supabase, format and return them
       if (data && data.length > 0) {
         const formatted = data.map(ex => ({

@@ -298,9 +298,13 @@ export const GymRoutine = () => {
             </p>
           ) : (
             routines.map(routine => (
-              <div key={routine.id} className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-start justify-between group hover:border-[#333] transition-colors">
+              <div 
+                key={routine.id} 
+                onClick={() => handleEditRoutine(routine)}
+                className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-start justify-between group hover:border-[#333] transition-colors cursor-pointer active:scale-[0.98]"
+              >
                 <div>
-                  <h4 className="text-white font-bold">{routine.name}</h4>
+                  <h4 className="text-white font-bold group-hover:text-rose-500 transition-colors">{routine.name}</h4>
                   {routine.description && (
                     <p className="text-xs text-gray-500 mt-1">{routine.description}</p>
                   )}
@@ -311,15 +315,10 @@ export const GymRoutine = () => {
                   </div>
                 </div>
                 
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 shrink-0">
                   <button 
-                    onClick={() => handleEditRoutine(routine)}
-                    className="h-8 w-8 rounded-lg bg-[#111] flex items-center justify-center text-gray-600 hover:text-emerald-500 hover:bg-emerald-950/20 transition-colors"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (window.confirm('Delete this routine?')) {
                         removeRoutine(routine.id);
                       }
