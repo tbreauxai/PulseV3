@@ -3,13 +3,15 @@ import { Flame, Plus, Dumbbell, Activity, X, Search, ChevronDown, Trash2, Save, 
 import { useRoutines } from '../hooks/useRoutines';
 import { useExercises } from '../hooks/useExercises';
 import { ExerciseSelectorModal } from './ExerciseSelectorModal';
+import { ExerciseEditorModal } from './ExerciseEditorModal';
 
 export const GymRoutine = () => {
   const { routines, addRoutine, updateRoutine, removeRoutine } = useRoutines();
-  const { exercises: allExercises } = useExercises();
+  const { exercises: allExercises, updateExercise } = useExercises();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
+  const [editingExercise, setEditingExercise] = useState<any>(null);
   
   // Builder state
   const [draftName, setDraftName] = useState('');
@@ -43,6 +45,22 @@ export const GymRoutine = () => {
     const updated = [...draftExercises];
     updated.splice(index, 1);
     setDraftExercises(updated);
+  };
+
+  const handleOpenExerciseEditor = (ex) => {
+    const originalEx = allExercises.find((e: any) => e.name === ex.name);
+    if (originalEx) {
+      setEditingExercise(originalEx);
+    } else {
+      // Fallback if somehow missing
+      setEditingExercise({
+        id: ex.id,
+        name: ex.name,
+        muscleGroup: ex.muscleGroup,
+        type: ex.type,
+        equipment: 'Barbell' // default fallback
+      });
+    }
   };
 
   const handleEditRoutine = (routine) => {
@@ -183,12 +201,20 @@ export const GymRoutine = () => {
                         <p className="text-xs text-gray-500">{ex.muscleGroup}</p>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => removeDraftExercise(i)}
-                      className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-rose-500 transition-colors bg-[#111] rounded-lg"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => handleOpenExerciseEditor(ex)}
+                        className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-white transition-colors bg-[#111] rounded-lg"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => removeDraftExercise(i)}
+                        className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-rose-500 transition-colors bg-[#111] rounded-lg"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex space-x-3">
                     {ex.type === 'cardio' ? (
@@ -258,6 +284,28 @@ export const GymRoutine = () => {
         </button>
 
         {renderExerciseSelectorModal()}
+        <ExerciseEditorModal
+          isOpen={!!editingExercise}
+          onClose={() => setEditingExercise(null)}
+          initialData={editingExercise}
+          onSave={(updatedEx) => {
+            updateExercise(editingExercise.id, updatedEx);
+            
+            setDraftExercises(prev => prev.map((ex: any) => {
+              if (ex.name === editingExercise.name) {
+                return {
+                  ...ex,
+                  name: updatedEx.name,
+                  muscleGroup: updatedEx.muscleGroup,
+                  type: updatedEx.type
+                };
+              }
+              return ex;
+            }));
+            
+            setEditingExercise(null);
+          }}
+        />
       </div>
     );
   }
