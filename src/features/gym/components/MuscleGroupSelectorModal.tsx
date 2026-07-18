@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const muscleCategories = [
   { name: 'Chest', subMuscles: ['Chest', 'Upper Chest', 'Mid Chest', 'Lower Chest', 'Inner Chest'] },
-  { name: 'Back', subMuscles: ['Back', 'Lats', 'Mid Back', 'Rear Delts', 'Traps', 'Lower Back', 'Rhomboids'] },
+  { name: 'Back', subMuscles: ['Back', 'Lats', 'Upper Lats', 'Mid Back', 'Rear Delts', 'Traps', 'Upper Traps', 'Mid Traps', 'Lower Traps', 'Lower Back', 'Rhomboids', 'Levator Scapulae'] },
   { name: 'Legs', subMuscles: ['Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Adductors', 'Abductors'] },
   { name: 'Shoulders', subMuscles: ['Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts'] },
   { name: 'Arms', subMuscles: ['Arms', 'Biceps', 'Triceps', 'Forearms', 'Brachialis', 'Brachioradialis', 'Long Head Emphasis', 'Short Head Emphasis'] },

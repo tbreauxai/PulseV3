@@ -23,6 +23,10 @@ export const GymToday = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMode, setSelectedMode] = useState('All');
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All');
+
   useEffect(() => {
     if (activeSession) {
       localStorage.setItem('pulseV3-activeSession', JSON.stringify(activeSession));
@@ -359,20 +363,81 @@ export const GymToday = () => {
               </button>
             </div>
             
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 mb-4 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search exercises..." 
+                  className="w-full bg-black border border-[#222] rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-rose-600/50"
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={selectedMuscleGroup}
+                  onChange={(e) => setSelectedMuscleGroup(e.target.value)}
+                  className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+                >
+                  <option value="All">All Muscles</option>
+                  {Array.from(new Set(activeSession.exercises.flatMap((e: any) => e.muscleGroup?.split(',').map((s: string) => s.trim()) || []))).filter(Boolean).map(m => (
+                    <option key={m as string} value={m as string}>{m as string}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedMode}
+                  onChange={(e) => setSelectedMode(e.target.value)}
+                  className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+                >
+                  <option value="All">All Modes</option>
+                  <option value="Barbell">Barbell</option>
+                  <option value="Dumbbell">Dumbbell</option>
+                  <option value="Machine">Machine</option>
+                  <option value="Cable">Cable</option>
+                  <option value="Bodyweight">Bodyweight</option>
+                </select>
+              </div>
+            </div>
+            
             <div className="space-y-3">
-              {activeSession.exercises.map((exercise, i) => (
-                <ActiveExerciseCard 
-                  key={i}
-                  exercise={exercise}
-                  exerciseIndex={i}
-                  sessionSets={activeSession.sets[i]}
+              {activeSession.exercises.map((exercise: any, i: number) => i).filter((i: number) => {
+                const ex = activeSession.exercises[i];
+                const matchSearch = ex.exerciseName.toLowerCase().includes(searchTerm.toLowerCase());
+                
+                let matchMuscle = true;
+                if (selectedMuscleGroup !== 'All') {
+                  const muscles = ex.muscleGroup ? ex.muscleGroup.split(',').map((s: string) => s.trim()) : [];
+                  matchMuscle = muscles.includes(selectedMuscleGroup);
+                }
+                
+                let matchMode = true;
+                if (selectedMode !== 'All') {
+                  const libraryEx = allExercises.find((e: any) => e.name === ex.exerciseName);
+                  if (libraryEx) {
+                    matchMode = libraryEx.equipment === selectedMode;
+                  } else {
+                    matchMode = false;
+                  }
+                }
+                
+                return matchSearch && matchMuscle && matchMode;
+              }).map((originalIndex: number) => {
+                const exercise = activeSession.exercises[originalIndex];
+                return (
+                  <ActiveExerciseCard 
+                    key={originalIndex}
+                    exercise={exercise}
+                    exerciseIndex={originalIndex}
+                  sessionSets={activeSession.sets[originalIndex]}
                   onAddSet={addSet}
                   onUpdateSet={updateSet}
                   onToggleComplete={toggleSetComplete}
                   onRemoveSet={removeSet}
                   onSwap={handleOpenExerciseModal}
                 />
-              ))}
+              );
+            })}
               
             <div className="flex space-x-3">
               <button 
