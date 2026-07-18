@@ -481,6 +481,7 @@ export const GymToday = () => {
         isSwap={swapExerciseIndex !== null}
         targetSwapExercise={swapExerciseIndex !== null && activeSession ? activeSession.exercises[swapExerciseIndex] : null}
         initialMuscleGroup={modalInitialFilter}
+        excludeExercises={activeSession?.exercises.map((e: any) => e.exerciseName) || []}
       />
     </div>
   );

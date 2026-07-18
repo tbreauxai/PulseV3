@@ -135,6 +135,7 @@ export const GymRoutine = () => {
       onClose={() => setIsExerciseModalOpen(false)}
       onSelect={handleAddCustomExercise}
       title="ADD EXERCISE"
+      excludeExercises={draftExercises.map((e: any) => e.name)}
     />
   );
 

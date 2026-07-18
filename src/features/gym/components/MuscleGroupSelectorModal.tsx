@@ -20,7 +20,7 @@ export const MuscleGroupSelectorModal = ({ isOpen, onClose, selectedString, onSa
   useEffect(() => {
     if (isOpen) {
       if (selectedString) {
-        setSelected(selectedString.split(',').map((s: string) => s.trim()).filter(Boolean));
+        setSelected(selectedString.split(',').map((s: string) => s.trim()).filter((s: string) => Boolean(s) && s !== 'Restored'));
       } else {
         setSelected([]);
       }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
 import { useExercises } from '../hooks/useExercises';
 
-export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, targetSwapExercise = null, initialMuscleGroup = 'All' }: any) => {
+export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD EXERCISE", isSwap = false, targetSwapExercise = null, initialMuscleGroup = 'All', excludeExercises = [] }: any) => {
   const { exercises: allExercises } = useExercises();
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [filterMuscleGroup, setFilterMuscleGroup] = useState('All');
@@ -44,7 +44,8 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
     const matchesMuscle = filterMuscleGroup === 'All' || muscleGroups.includes(filterMuscleGroup.toLowerCase());
     
     const matchesEquipment = filterEquipment === 'All' || ex.equipment === filterEquipment;
-    return matchesSearch && matchesMuscle && matchesEquipment;
+    const isExcluded = excludeExercises.includes(ex.name);
+    return matchesSearch && matchesMuscle && matchesEquipment && !isExcluded;
   }).sort((a: any, b: any) => {
     if (isSwap && targetSwapExercise) {
       const scoreA = getMatchScore(a, targetSwapExercise);
