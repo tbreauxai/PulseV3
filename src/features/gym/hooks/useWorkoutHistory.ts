@@ -32,12 +32,11 @@ export const useWorkoutHistory = () => {
       if (!navigator.onLine) throw new Error('NetworkError');
 
       const dbWorkout = {
-        routineName: newWorkout.routineName,
+        routine_name: newWorkout.routineName,
         duration: newWorkout.duration,
-        completedSets: newWorkout.completedSets,
-        totalVolume: newWorkout.totalVolume,
-        exerciseDetails: newWorkout.exerciseDetails,
-        date: new Date().toISOString()
+        completed_sets: newWorkout.completedSets,
+        total_volume: newWorkout.totalVolume,
+        exercise_details: newWorkout.exerciseDetails
       };
 
       const { data, error } = await supabase
@@ -78,12 +77,11 @@ export const useWorkoutHistory = () => {
     onError: (err: any, newWorkout: any, context: any) => {
       if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
         const dbWorkout = {
-          routineName: newWorkout.routineName,
+          routine_name: newWorkout.routineName,
           duration: newWorkout.duration,
-          completedSets: newWorkout.completedSets,
-          totalVolume: newWorkout.totalVolume,
-          exerciseDetails: newWorkout.exerciseDetails,
-          date: new Date().toISOString()
+          completed_sets: newWorkout.completedSets,
+          total_volume: newWorkout.totalVolume,
+          exercise_details: newWorkout.exerciseDetails
         };
         queueMutation('insert', 'workout_history', [dbWorkout], null, context.tempId);
       } else {
