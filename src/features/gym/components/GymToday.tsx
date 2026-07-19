@@ -632,7 +632,13 @@ export const GymToday = () => {
                 
                 return matchSearch && matchMuscle && matchMode;
               }).map((originalIndex: number) => {
-                const exercise = activeSession.exercises[originalIndex];
+                const baseExercise = activeSession.exercises[originalIndex];
+                const globalEx = allExercises.find((g: any) => g.name === baseExercise.exerciseName || g.name === baseExercise.name);
+                const exercise = {
+                  ...baseExercise,
+                  muscleGroup: baseExercise.muscleGroup || globalEx?.muscleGroup || '',
+                  equipment: baseExercise.equipment || globalEx?.equipment || ''
+                };
                 return (
                   <ActiveExerciseCard 
                     key={originalIndex}

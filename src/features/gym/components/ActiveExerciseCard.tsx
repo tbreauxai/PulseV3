@@ -101,10 +101,11 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
             </div>
             <div>
               <h4 className="text-white font-medium line-clamp-1">{exercise.exerciseName || exercise.name}</h4>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Target: {exercise.type === 'cardio' 
-                  ? `${exercise.time || '-'} mins • ${exercise.calories || '-'} cal`
-                  : `${exercise.sets || '-'} Sets • ${exercise.reps || '-'}`}
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 pr-2">
+                {exercise.type === 'cardio'
+                  ? `${sets[0]?.time || '-'} mins • ${sets[0]?.distance || '-'} mi`
+                  : `${sets[0]?.weight || '-'} lbs • ${sets[0]?.reps || '-'} reps`}
+                {exercise.muscleGroup ? ` • ${exercise.muscleGroup}` : ''}
               </p>
             </div>
           </div>
