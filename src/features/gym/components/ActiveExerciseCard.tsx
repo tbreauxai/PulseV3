@@ -136,9 +136,15 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               <div className="space-y-2 mt-4">
                 <div className="flex text-xs font-bold text-gray-600 px-2 pb-1 space-x-2">
                   <div className="w-10 text-center">SET</div>
-                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'TIME (MIN)' : 'LBS'}</div>
-                  <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'CALORIES' : 'REPS'}</div>
-                  {exercise.type === 'cardio' && <div className="flex-1 text-center">DIST (MI)</div>}
+                  {exercise.type === 'timed' ? (
+                    <div className="flex-1 text-center">DURATION (SEC)</div>
+                  ) : (
+                    <>
+                      <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'TIME (MIN)' : 'WEIGHT (LBS)'}</div>
+                      <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'CALORIES' : 'REPS'}</div>
+                      {exercise.type === 'cardio' && <div className="flex-1 text-center">DIST (MI)</div>}
+                    </>
+                  )}
                   <div className="w-20"></div>
                 </div>
                 
@@ -161,42 +167,54 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                     <div className="w-10 text-center font-bold text-gray-400 text-sm">
                       {idx + 1}
                     </div>
-                    <input 
-                      type={exercise.type === 'cardio' ? 'number' : 'number'}
-                      placeholder="--"
-                      value={exercise.type === 'cardio' ? set.time : set.weight}
-                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
-                      className={`flex-1 min-w-0 bg-black border ${isWeightRed && exercise.type !== 'cardio' ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700`}
-                    />
-                    {exercise.type === 'cardio' ? (
+                    {exercise.type === 'timed' ? (
                       <input 
                         type="number"
-                        placeholder="--"
-                        value={set.calories}
-                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'calories', e.target.value)}
+                        placeholder="60"
+                        value={set.time || ''}
+                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'time', e.target.value)}
                         className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                       />
                     ) : (
-                      <select
-                        value={set.reps || ""}
-                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
-                        className={`flex-1 min-w-0 bg-black border ${isRepsRed ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all`}
-                      >
-                        <option value="">--</option>
-                        <option value="8">8</option>
-                        <option value="10">10</option>
-                        <option value="12">12</option>
-                      </select>
-                    )}
-                    {exercise.type === 'cardio' && (
-                      <input 
-                        type="number"
-                        step="0.01"
-                        placeholder="--"
-                        value={set.distance}
-                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'distance', e.target.value)}
-                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
-                      />
+                      <>
+                        <input 
+                          type={exercise.type === 'cardio' ? 'number' : 'number'}
+                          placeholder="--"
+                          value={exercise.type === 'cardio' ? set.time : set.weight}
+                          onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
+                          className={`flex-1 min-w-0 bg-black border ${isWeightRed && exercise.type !== 'cardio' ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700`}
+                        />
+                        {exercise.type === 'cardio' ? (
+                          <input 
+                            type="number"
+                            placeholder="--"
+                            value={set.calories}
+                            onChange={(e) => onUpdateSet(exerciseIndex, idx, 'calories', e.target.value)}
+                            className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                          />
+                        ) : (
+                          <select
+                            value={set.reps || ""}
+                            onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
+                            className={`flex-1 min-w-0 bg-black border ${isRepsRed ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all`}
+                          >
+                            <option value="">--</option>
+                            <option value="8">8</option>
+                            <option value="10">10</option>
+                            <option value="12">12</option>
+                          </select>
+                        )}
+                        {exercise.type === 'cardio' && (
+                          <input 
+                            type="number"
+                            step="0.01"
+                            placeholder="--"
+                            value={set.distance}
+                            onChange={(e) => onUpdateSet(exerciseIndex, idx, 'distance', e.target.value)}
+                            className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                          />
+                        )}
+                      </>
                     )}
                     <div className="w-20 flex space-x-1 justify-end shrink-0">
                       <button 

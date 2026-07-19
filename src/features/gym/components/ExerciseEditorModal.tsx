@@ -58,6 +58,19 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
                 className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
               />
             </label>
+
+            <label className="space-y-2 text-sm font-bold text-gray-300">
+              TYPE
+              <select
+                value={formState.type || 'strength'}
+                onChange={handleChange('type')}
+                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+              >
+                <option value="strength">Strength (Weight / Reps)</option>
+                <option value="timed">Timed Hold (Duration)</option>
+                <option value="cardio">Cardio (Time / Calories)</option>
+              </select>
+            </label>
             
             <div className="space-y-2 text-sm font-bold text-gray-300">
               MUSCLE GROUP
@@ -72,25 +85,29 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
               </button>
             </div>
 
-            <label className="space-y-2 text-sm font-bold text-gray-300">
-              WEIGHT
-              <input
-                value={formState.weight || ''}
-                onChange={handleChange('weight')}
-                placeholder="225 lbs"
-                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-              />
-            </label>
-            
-            <label className="space-y-2 text-sm font-bold text-gray-300">
-              REPS
-              <input
-                value={formState.reps || ''}
-                onChange={handleChange('reps')}
-                placeholder="8-12"
-                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-              />
-            </label>
+            {(!formState.type || formState.type === 'strength') && (
+              <>
+                <label className="space-y-2 text-sm font-bold text-gray-300">
+                  WEIGHT
+                  <input
+                    value={formState.weight || ''}
+                    onChange={handleChange('weight')}
+                    placeholder="225 lbs"
+                    className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                  />
+                </label>
+                
+                <label className="space-y-2 text-sm font-bold text-gray-300">
+                  REPS
+                  <input
+                    value={formState.reps || ''}
+                    onChange={handleChange('reps')}
+                    placeholder="8-12"
+                    className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                  />
+                </label>
+              </>
+            )}
 
             <label className="space-y-2 text-sm font-bold text-gray-300">
               MODE (EQUIPMENT)

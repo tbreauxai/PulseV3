@@ -55,6 +55,11 @@ export const GymToday = () => {
             distance: globalEx?.distance || ex.distance || '',
             completed: false
           }];
+        } else if (ex.type === 'timed') {
+          initialSets[idx] = [{
+            time: globalEx?.time || ex.time || '',
+            completed: false
+          }];
         } else {
           initialSets[idx] = [{
             weight: globalEx?.weight || '',
@@ -139,11 +144,11 @@ export const GymToday = () => {
           reps: '-'
         };
         const globalEx = allExercises.find((g: any) => g.name === exercise.name);
-        newSets[swapExerciseIndex] = [{
-          weight: globalEx?.weight || '',
-          reps: globalEx?.reps || '',
-          completed: false
-        }];
+        if (exercise.type === 'timed') {
+          newSets[swapExerciseIndex] = [{ time: globalEx?.time || '', completed: false }];
+        } else {
+          newSets[swapExerciseIndex] = [{ weight: globalEx?.weight || '', reps: globalEx?.reps || '', completed: false }];
+        }
       } else {
         newExercises.push({
           exerciseName: exercise.name,
@@ -153,11 +158,11 @@ export const GymToday = () => {
           reps: '-'
         });
         const globalEx = allExercises.find((g: any) => g.name === exercise.name);
-        newSets[newExercises.length - 1] = [{
-          weight: globalEx?.weight || '',
-          reps: globalEx?.reps || '',
-          completed: false
-        }];
+        if (exercise.type === 'timed') {
+          newSets[newExercises.length - 1] = [{ time: globalEx?.time || '', completed: false }];
+        } else {
+          newSets[newExercises.length - 1] = [{ weight: globalEx?.weight || '', reps: globalEx?.reps || '', completed: false }];
+        }
       }
 
       return {
@@ -249,7 +254,7 @@ export const GymToday = () => {
       setsCount++;
       const weight = parseFloat(set.weight) || 0;
       const reps = parseInt(set.reps) || 0;
-      if (exercise.type !== 'cardio') {
+      if (exercise.type !== 'cardio' && exercise.type !== 'timed') {
         volume += (weight * reps);
         if (weight > maxWeight) {
           maxWeight = weight;
@@ -258,7 +263,7 @@ export const GymToday = () => {
       }
     });
 
-    if (exercise.type !== 'cardio' && maxWeight > 0) {
+    if (exercise.type !== 'cardio' && exercise.type !== 'timed' && maxWeight > 0) {
       const memory = getExerciseMemory(exercise.exerciseName || exercise.name);
       if (maxWeight > parseFloat(memory.weight || 0) || (maxWeight === parseFloat(memory.weight || 0) && maxReps > parseInt(memory.reps || 0))) {
         saveExerciseMemory(exercise.exerciseName || exercise.name, maxWeight, maxReps);
@@ -373,9 +378,11 @@ export const GymToday = () => {
           
           validSets.forEach(set => {
             completedSetsCount++;
-            const weight = parseFloat(set.weight) || 0;
-            const reps = parseInt(set.reps) || 0;
-            totalVolume += (weight * reps);
+            if (exercise.type !== 'cardio' && exercise.type !== 'timed') {
+              const weight = parseFloat(set.weight) || 0;
+              const reps = parseInt(set.reps) || 0;
+              totalVolume += (weight * reps);
+            }
           });
         }
       });
@@ -417,6 +424,8 @@ export const GymToday = () => {
         const exercise = prev.exercises[exerciseIndex];
         if (exercise && exercise.type === 'cardio') {
           newSet = { weight: '', reps: '', time: memory.time || '30:00', distance: memory.distance || '3.0', completed: false };
+        } else if (exercise && exercise.type === 'timed') {
+          newSet = { time: memory.time || '', completed: false };
         } else {
           newSet = { weight: memory.weight || '', reps: memory.reps || '', completed: false };
         }
