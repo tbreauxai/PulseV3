@@ -157,13 +157,26 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
                       className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                     />
-                    <input 
-                      type={exercise.type === 'cardio' ? 'number' : 'number'}
-                      placeholder="--"
-                      value={exercise.type === 'cardio' ? set.calories : set.reps}
-                      onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'calories' : 'reps', e.target.value)}
-                      className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
-                    />
+                    {exercise.type === 'cardio' ? (
+                      <input 
+                        type="number"
+                        placeholder="--"
+                        value={set.calories}
+                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'calories', e.target.value)}
+                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                      />
+                    ) : (
+                      <select
+                        value={set.reps || ""}
+                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
+                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all"
+                      >
+                        <option value="">--</option>
+                        <option value="8">8</option>
+                        <option value="10">10</option>
+                        <option value="12">12</option>
+                      </select>
+                    )}
                     {exercise.type === 'cardio' && (
                       <input 
                         type="number"
