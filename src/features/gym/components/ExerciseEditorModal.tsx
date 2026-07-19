@@ -109,6 +109,19 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
               </>
             )}
 
+            {formState.type === 'timed' && (
+              <label className="space-y-2 text-sm font-bold text-gray-300">
+                DURATION (SEC)
+                <input
+                  type="number"
+                  value={formState.time || ''}
+                  onChange={handleChange('time')}
+                  placeholder="60"
+                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                />
+              </label>
+            )}
+
             <label className="space-y-2 text-sm font-bold text-gray-300">
               MODE (EQUIPMENT)
               <select

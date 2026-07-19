@@ -280,6 +280,14 @@ export const GymToday = () => {
             { ...globalEx, time: firstSet.time, distance: firstSet.distance, calories: firstSet.calories }
           ).catch(console.error);
         }
+      } else if (exercise.type === 'timed') {
+        const lastSet = validSets[validSets.length - 1];
+        if (lastSet && lastSet.time && lastSet.time.toString() !== globalEx.time) {
+          updateExercise(
+            globalEx.id,
+            { ...globalEx, time: lastSet.time.toString() }
+          ).catch(console.error);
+        }
       } else {
         const lastSet = validSets[validSets.length - 1];
         if (lastSet) {
