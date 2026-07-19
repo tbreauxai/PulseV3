@@ -33,7 +33,11 @@ export const useWorkoutHistory = () => {
     mutationFn: async (newWorkout: any) => {
       if (!navigator.onLine) throw new Error('NetworkError');
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const dbWorkout = {
+        user_id: user.id,
         routine_name: newWorkout.routineName,
         duration: newWorkout.duration,
         completed_sets: newWorkout.completedSets,
@@ -132,9 +136,13 @@ export const useWorkoutHistory = () => {
     mutationFn: async (payload: { dateStr: string, routineName: string, exerciseDetails: any[], volume: number, setsCount: number }) => {
       if (!navigator.onLine) throw new Error('NetworkError');
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const { data: existing } = await supabase
         .from('workout_history')
         .select('*')
+        .eq('user_id', user.id)
         .gte('created_at', payload.dateStr + 'T00:00:00.000Z')
         .lte('created_at', payload.dateStr + 'T23:59:59.999Z')
         .order('created_at', { ascending: false })
@@ -173,6 +181,7 @@ export const useWorkoutHistory = () => {
         };
       } else {
         const dbWorkout = {
+          user_id: user.id,
           routine_name: payload.routineName,
           duration: 0,
           completed_sets: payload.setsCount,
