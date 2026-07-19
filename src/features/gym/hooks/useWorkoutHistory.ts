@@ -206,17 +206,71 @@ export const useWorkoutHistory = () => {
         };
       }
     },
-    onSuccess: (data: any) => {
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ['workoutHistory'] });
+      const previousHistory = queryClient.getQueryData(['workoutHistory']);
+
       queryClient.setQueryData(['workoutHistory'], (old: any = []) => {
+        // Try to find today's workout
+        const todayStr = payload.dateStr;
+        const existingWorkoutIndex = old.findIndex((w: any) => {
+           const d = new Date(w.date);
+           return d.toISOString().startsWith(todayStr);
+        });
+
+        if (existingWorkoutIndex !== -1) {
+          // Optimistically update existing
+          const w = old[existingWorkoutIndex];
+          const newW = {
+            ...w,
+            completedSets: (w.completedSets || 0) + payload.setsCount,
+            totalVolume: (w.totalVolume || 0) + payload.volume,
+            exerciseDetails: [...(w.exerciseDetails || []), ...payload.exerciseDetails]
+          };
+          const newOld = [...old];
+          newOld[existingWorkoutIndex] = newW;
+          return newOld;
+        } else {
+          // Optimistically insert new
+          const tempId = `temp-${Date.now()}`;
+          const newW = {
+            id: tempId,
+            routineName: payload.routineName,
+            date: new Date().toISOString(),
+            duration: 0,
+            completedSets: payload.setsCount,
+            totalVolume: payload.volume,
+            exerciseDetails: payload.exerciseDetails
+          };
+          return [newW, ...old];
+        }
+      });
+
+      return { previousHistory };
+    },
+    onSuccess: (data: any, variables: any, context: any) => {
+      queryClient.setQueryData(['workoutHistory'], (old: any = []) => {
+        // Only update if it's not a temp ID that got blown away by a refresh
         if (data.isUpdate) {
           return old.map((w: any) => w.id === data.id ? data : w);
         } else {
-          return [data, ...old];
+          // Replace temp with real
+          const hasTemp = old.some((w: any) => String(w.id).startsWith('temp-'));
+          if (hasTemp) {
+             return old.map((w: any) => String(w.id).startsWith('temp-') ? data : w);
+          } else {
+             return [data, ...old];
+          }
         }
       });
+      // Force invalidate to ensure we have the real DB state
+      queryClient.invalidateQueries({ queryKey: ['workoutHistory'] });
     },
-    onError: () => {
+    onError: (err: any, variables: any, context: any) => {
       alert('Error saving exercise. Please check your connection.');
+      if (context?.previousHistory) {
+         queryClient.setQueryData(['workoutHistory'], context.previousHistory);
+      }
     }
   });
 
