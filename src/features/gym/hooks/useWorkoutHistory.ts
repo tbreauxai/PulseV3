@@ -139,12 +139,17 @@ export const useWorkoutHistory = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
       const { data: existing } = await supabase
         .from('workout_history')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', payload.dateStr + 'T00:00:00.000Z')
-        .lte('created_at', payload.dateStr + 'T23:59:59.999Z')
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -168,7 +173,9 @@ export const useWorkoutHistory = () => {
           .eq('id', workout.id)
           .select();
         
-        if (error) throw error;
+        if (error) throw new Error("DB Update Error: " + error.message);
+        if (!data || data.length === 0) throw new Error("Update silent failure: Data is empty, check RLS");
+        
         return {
           id: data[0].id,
           routineName: data[0].routine_name,
@@ -193,7 +200,9 @@ export const useWorkoutHistory = () => {
           .insert([dbWorkout])
           .select();
         
-        if (error) throw error;
+        if (error) throw new Error("DB Insert Error: " + error.message);
+        if (!data || data.length === 0) throw new Error("Insert silent failure: Data is empty, check RLS");
+        
         return {
           id: data[0].id,
           routineName: data[0].routine_name,
@@ -211,11 +220,16 @@ export const useWorkoutHistory = () => {
       const previousHistory = queryClient.getQueryData(['workoutHistory']);
 
       queryClient.setQueryData(['workoutHistory'], (old: any = []) => {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
         // Try to find today's workout
         const todayStr = payload.dateStr;
         const existingWorkoutIndex = old.findIndex((w: any) => {
            const d = new Date(w.date);
-           return d.toISOString().startsWith(todayStr);
+           return d >= startOfDay && d <= endOfDay;
         });
 
         if (existingWorkoutIndex !== -1) {
@@ -267,7 +281,7 @@ export const useWorkoutHistory = () => {
       queryClient.invalidateQueries({ queryKey: ['workoutHistory'] });
     },
     onError: (err: any, variables: any, context: any) => {
-      alert('Error saving exercise. Please check your connection.');
+      alert('Error saving exercise: ' + err.message);
       if (context?.previousHistory) {
          queryClient.setQueryData(['workoutHistory'], context.previousHistory);
       }

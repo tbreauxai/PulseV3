@@ -93,7 +93,12 @@ export const GymProgress = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
-      <h2 className="text-2xl font-bold text-white tracking-tight">Progress</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white tracking-tight">Progress</h2>
+        <span className="text-[10px] text-gray-800">
+          DEBUG: len={history.length} {history.length > 0 ? `| first=${new Date(history[0]?.date).toLocaleDateString()} | id=${history[0]?.id}` : ''}
+        </span>
+      </div>
 
       {/* Real History Section */}
       <div>
