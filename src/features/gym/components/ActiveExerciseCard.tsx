@@ -4,6 +4,7 @@ import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2,
 export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, progression, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
+  const hasCompletedSet = sets.some((set: any) => set.completed);
 
   // Swipe logic
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -77,7 +78,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
       {/* Main Card Content */}
       <div 
         style={{ transform: `translateX(${swipeOffset}px)` }}
-        className={`relative bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
+        className={`relative ${hasCompletedSet ? 'bg-emerald-950/20 border-emerald-900/50 shadow-[0_0_15px_rgba(5,150,105,0.1)]' : 'bg-[#0a0a0a] border-[#1a1a1a]'} border rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
       >
         {/* Card Header (Swipeable and Clickable) */}
         <div 
