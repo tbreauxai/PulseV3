@@ -44,13 +44,17 @@ if (navigator.onLine) {
   syncOfflineQueue();
 }
 
+import { AlertProvider } from './contexts/AlertContext';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <AlertProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </AlertProvider>
       </PersistQueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Activity } from 'lucide-react';
+import { useAlert } from '../../../contexts/AlertContext';
 
 const CARDIO_TYPES = [
   'Treadmill',
@@ -11,6 +12,7 @@ const CARDIO_TYPES = [
 ];
 
 export const CardioEntryModal = ({ isOpen, onClose, onSave }: any) => {
+  const { alert } = useAlert();
   const [selectedType, setSelectedType] = useState(CARDIO_TYPES[0]);
   const [time, setTime] = useState('');
   const [calories, setCalories] = useState('');

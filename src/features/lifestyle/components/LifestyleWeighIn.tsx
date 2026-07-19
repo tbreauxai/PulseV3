@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Scale, Minus, Plus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { useWeighIns } from '../hooks/useWeighIns';
 import { usePersistentState } from '../../../hooks/usePersistentState';
+import { useAlert } from '../../../contexts/AlertContext';
 import { Virtuoso } from 'react-virtuoso';
 
 const WeighInRow = React.memo(({ log, index, isEditing, editWeight, onEditWeightChange, onSave, onCancel, onDelete, onStartEdit }: any) => {
@@ -49,6 +50,7 @@ const WeighInRow = React.memo(({ log, index, isEditing, editWeight, onEditWeight
 
 export const LifestyleWeighIn = () => {
   const { logs, isLoading: loading, addWeighIn, updateWeighIn, removeWeighIn } = useWeighIns();
+  const { confirm } = useAlert();
   const [weight, setWeight] = usePersistentState('pulse_weight', 175.4);
   
   const [editingId, setEditingId] = useState(null);
@@ -135,7 +137,7 @@ export const LifestyleWeighIn = () => {
   };
 
   const handleDeleteLog = async (id, index) => {
-    if (!window.confirm('Delete this weigh-in?')) return;
+    if (!(await confirm('Delete this weigh-in?'))) return;
     
     // --- PREPARE DATA FOR HOOK ---
     const updatedLogs = logs.filter(log => log.id !== id);

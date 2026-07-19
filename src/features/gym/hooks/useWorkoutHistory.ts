@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
+import { useAlert } from '../../../contexts/AlertContext';
 
 export const useWorkoutHistory = () => {
   const queryClient = useQueryClient();
+  const { alert } = useAlert();
 
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['workoutHistory'],

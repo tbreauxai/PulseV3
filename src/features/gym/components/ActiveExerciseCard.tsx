@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2, Check } from 'lucide-react';
+import { useAlert } from '../../../contexts/AlertContext';
 
 export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, progression, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
+  const { confirm } = useAlert();
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
   const hasCompletedSet = sets.some((set: any) => set.completed);
@@ -78,7 +80,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
       {/* Main Card Content */}
       <div 
         style={{ transform: `translateX(${swipeOffset}px)` }}
-        className={`relative ${hasCompletedSet ? 'bg-emerald-950/20 border-emerald-900/50 shadow-[0_0_15px_rgba(5,150,105,0.1)]' : 'bg-[#0a0a0a] border-[#1a1a1a]'} border rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
+        className={`relative ${hasCompletedSet ? 'bg-[#022c22] border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-[#0a0a0a] border-[#1a1a1a]'} border rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
       >
         {/* Card Header (Swipeable and Clickable) */}
         <div 
@@ -197,7 +199,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                           <select
                             value={set.reps || ""}
                             onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
-                            className={`flex-1 min-w-0 bg-black border ${isRepsRed ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all`}
+                            className={`flex-1 min-w-0 bg-black border ${isRepsRed ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center [text-align-last:center] appearance-none font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all`}
                           >
                             <option value="">--</option>
                             <option value="8">8</option>
@@ -251,8 +253,8 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
 
             <div className="flex space-x-2 mt-3">
               <button 
-                onClick={() => {
-                  if (window.confirm('Skip this exercise for today?')) {
+                onClick={async () => {
+                  if (await confirm('Skip this exercise for today?')) {
                     onSkipExercise();
                   }
                 }}

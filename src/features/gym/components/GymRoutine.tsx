@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Flame, Plus, Dumbbell, Activity, X, Search, ChevronDown, Trash2, Save, ArrowLeft, Edit2 } from 'lucide-react';
 import { useRoutines } from '../hooks/useRoutines';
 import { useExercises } from '../hooks/useExercises';
+import { useAlert } from '../../../contexts/AlertContext';
 import { ExerciseSelectorModal } from './ExerciseSelectorModal';
 import { ExerciseEditorModal } from './ExerciseEditorModal';
 
 export const GymRoutine = () => {
   const { routines, addRoutine, updateRoutine, removeRoutine } = useRoutines();
   const { exercises: allExercises, updateExercise } = useExercises();
+  const { alert, confirm } = useAlert();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
@@ -376,9 +378,9 @@ export const GymRoutine = () => {
                 
                 <div className="flex space-x-2 shrink-0">
                   <button 
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      if (window.confirm('Delete this routine?')) {
+                      if (await confirm('Delete this routine?')) {
                         removeRoutine(routine.id);
                       }
                     }}

@@ -3,11 +3,13 @@ import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
 import { exercises as defaultExercises } from '../data/exercises';
 import { get, set } from 'idb-keyval';
+import { useAlert } from '../../../contexts/AlertContext';
 
 const STORAGE_KEY = 'pulse_app_exercises';
 
 export const useExercises = () => {
   const queryClient = useQueryClient();
+  const { alert } = useAlert();
 
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ['exercises'],

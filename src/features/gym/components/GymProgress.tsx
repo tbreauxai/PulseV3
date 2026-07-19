@@ -1,9 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { Trophy, CalendarCheck, Activity, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
+import { useAlert } from '../../../contexts/AlertContext';
 import { Virtuoso } from 'react-virtuoso';
 
 const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }: any) => {
+  const { confirm } = useAlert();
   const dateObj = new Date(workout.date);
   const formattedDate = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   
@@ -25,9 +27,9 @@ const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }: any)
           </div>
           <div className="flex items-center space-x-2">
             <button 
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                if (window.confirm('Are you sure you want to delete this workout log?')) {
+                if (await confirm('Are you sure you want to delete this workout log?')) {
                   onRemove(workout.id);
                 }
               }}

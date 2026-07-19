@@ -6,6 +6,7 @@ import { queueMutation } from '../../../lib/offlineSync';
 import { useRoutines } from '../hooks/useRoutines';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useExercises } from '../hooks/useExercises';
+import { useAlert } from '../../../contexts/AlertContext';
 import { ActiveExerciseCard } from './ActiveExerciseCard';
 import { RoutineSelectorModal } from './RoutineSelectorModal';
 import { ExerciseSelectorModal } from './ExerciseSelectorModal';
@@ -17,6 +18,7 @@ export const GymToday = () => {
   const { routines } = useRoutines();
   const { addWorkout, appendWorkoutExercise, history } = useWorkoutHistory();
   const { exercises: allExercises, updateExercise } = useExercises();
+  const { alert, confirm } = useAlert();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -368,7 +370,7 @@ export const GymToday = () => {
   }, []);
 
   const finishWorkout = useCallback(async () => {
-    if (window.confirm('Are you sure you want to finish and save this workout?')) {
+    if (await confirm('Are you sure you want to finish and save this workout?')) {
       let totalVolume = 0;
       let completedSetsCount = 0;
       const completedExercises = [];
@@ -543,8 +545,8 @@ export const GymToday = () => {
         <div className="space-y-6">
           <div className="flex space-x-3">
             <button 
-              onClick={() => {
-                if(window.confirm('Are you sure you want to cancel? No data will be saved.')) {
+              onClick={async () => {
+                if(await confirm('Are you sure you want to cancel? No data will be saved.')) {
                   setActiveSession(null);
                 }
               }}

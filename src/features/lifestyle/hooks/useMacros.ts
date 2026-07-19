@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
+import { useAlert } from '../../../contexts/AlertContext';
 
 export const useMacros = (todayDate) => {
   const queryClient = useQueryClient();
+  const { alert } = useAlert();
 
   const { data: macroGoals = { calories: 2800, protein: 180, carbs: 300, fats: 85 } } = useQuery({
     queryKey: ['macroGoals'],
