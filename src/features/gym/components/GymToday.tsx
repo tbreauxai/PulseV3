@@ -581,19 +581,42 @@ export const GymToday = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="flex space-x-3">
-            <button 
-              onClick={async () => {
-                if(await confirm('Are you sure you want to cancel? No data will be saved.')) {
-                  setActiveSession(null);
-                }
-              }}
-              className="flex-1 bg-black hover:bg-rose-950/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-rose-500/20"
-            >
-              <X className="h-5 w-5" />
-              <span>CANCEL</span>
-            </button>
+        <div className="space-y-6 pb-20">
+          <div className="sticky top-[calc(61px+env(safe-area-inset-top))] z-40 bg-black/95 backdrop-blur-md pb-4 pt-4 -mx-4 px-4 border-b border-[#222] shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+            <div className="flex space-x-2">
+              <button 
+                onClick={async () => {
+                  if(await confirm('Are you sure you want to cancel? No data will be saved.')) {
+                    setActiveSession(null);
+                  }
+                }}
+                className="flex-[0.8] bg-rose-950/40 hover:bg-rose-900/50 active:scale-[0.98] transition-all text-rose-500 font-bold py-2 rounded-xl flex flex-col items-center justify-center space-y-1 border border-rose-900/50"
+              >
+                <X className="h-5 w-5" />
+                <span className="text-[10px] tracking-wider">CANCEL</span>
+              </button>
+              <button 
+                onClick={() => handleOpenExerciseModal(null)}
+                className="flex-1 bg-gray-900/50 hover:bg-gray-800/80 active:scale-[0.98] transition-all text-gray-400 font-bold py-2 rounded-xl flex flex-col items-center justify-center space-y-1 border border-gray-800"
+              >
+                <Plus className="h-5 w-5" />
+                <span className="text-[10px] tracking-wider">EXERCISE</span>
+              </button>
+              <button 
+                onClick={() => handleOpenExerciseModal(null, 'Cardio')}
+                className="flex-1 bg-emerald-900/30 hover:bg-emerald-900/50 active:scale-[0.98] transition-all text-emerald-500 font-bold py-2 rounded-xl flex flex-col items-center justify-center space-y-1 border border-emerald-900/50"
+              >
+                <Activity className="h-5 w-5" />
+                <span className="text-[10px] tracking-wider">CARDIO</span>
+              </button>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex-1 bg-indigo-900/30 hover:bg-indigo-900/50 active:scale-[0.98] transition-all text-indigo-400 font-bold py-2 rounded-xl flex flex-col items-center justify-center space-y-1 border border-indigo-900/50"
+              >
+                <ClipboardList className="h-5 w-5" />
+                <span className="text-[10px] tracking-wider">ROUTINE</span>
+              </button>
+            </div>
           </div>
 
           <div>
@@ -719,29 +742,6 @@ export const GymToday = () => {
               })}
             </div>
             
-            <div className="flex space-x-3 mt-4">
-              <button 
-                onClick={() => handleOpenExerciseModal(null)}
-                className="flex-1 bg-rose-600/10 hover:bg-rose-600/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-rose-600/20 border-dashed"
-              >
-                <Plus className="h-5 w-5" />
-                <span className="text-[10px] tracking-wider">EXERCISE</span>
-              </button>
-              <button 
-                onClick={() => handleOpenExerciseModal(null, 'Cardio')}
-                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 active:scale-[0.98] transition-all text-emerald-500 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-emerald-600/20 border-dashed"
-              >
-                <Activity className="h-5 w-5" />
-                <span className="text-[10px] tracking-wider">CARDIO</span>
-              </button>
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="flex-1 bg-indigo-600/10 hover:bg-indigo-600/20 active:scale-[0.98] transition-all text-indigo-400 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-indigo-600/20 border-dashed"
-              >
-                <ClipboardList className="h-5 w-5" />
-                <span className="text-[10px] tracking-wider">ROUTINE</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
