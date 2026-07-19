@@ -13,7 +13,7 @@ import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 export const GymToday = () => {
   const { routines } = useRoutines();
-  const { addWorkout } = useWorkoutHistory();
+  const { addWorkout, appendWorkoutExercise } = useWorkoutHistory();
   const { exercises: allExercises } = useExercises();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,51 +137,6 @@ export const GymToday = () => {
     setSwapExerciseIndex(null);
   }, [swapExerciseIndex]);
 
-  const finishWorkout = useCallback(async () => {
-    if (window.confirm('Are you sure you want to finish and save this workout?')) {
-      let totalVolume = 0;
-      let completedSetsCount = 0;
-      const completedExercises = [];
-
-      activeSession.exercises.forEach((exercise: any, i: number) => {
-        const exerciseSets = activeSession.sets[i] || [];
-        const validSets = exerciseSets.filter((s: any) => s.completed);
-        
-        if (validSets.length > 0) {
-          completedExercises.push({
-            exerciseName: exercise.exerciseName || exercise.name,
-            type: exercise.type || 'strength',
-            sets: validSets
-          });
-          
-          validSets.forEach(set => {
-            completedSetsCount++;
-            const weight = parseFloat(set.weight) || 0;
-            const reps = parseInt(set.reps) || 0;
-            totalVolume += (weight * reps);
-          });
-        }
-      });
-
-      if (completedSetsCount > 0) {
-        try {
-          await addWorkout({
-            routineName: activeSession.routineName || "Free Day",
-            duration: Date.now() - activeSession.startTime,
-            completedSets: completedSetsCount,
-            totalVolume: totalVolume,
-            exerciseDetails: completedExercises
-          });
-        } catch (e: any) {
-          alert("Error saving workout: " + e.message);
-          return;
-        }
-      }
-
-      setActiveSession(null);
-    }
-  }, [activeSession, addWorkout]);
-
   const [exerciseMemoryCache, setExerciseMemoryCache] = useState({});
 
   useEffect(() => {
@@ -240,6 +195,127 @@ export const GymToday = () => {
     }
   }, []);
 
+  const handleCompleteExercise = useCallback(async (exerciseIndex: number) => {
+    if (!activeSession) return;
+    const exercise = activeSession.exercises[exerciseIndex];
+    const exerciseSets = activeSession.sets[exerciseIndex] || [];
+    const validSets = exerciseSets.filter((s: any) => s.completed);
+
+    if (validSets.length === 0) {
+      alert("Please complete at least one set before completing the exercise.");
+      return;
+    }
+
+    let volume = 0;
+    let setsCount = 0;
+    let maxWeight = 0;
+    let maxReps = 0;
+
+    validSets.forEach((set: any) => {
+      setsCount++;
+      const weight = parseFloat(set.weight) || 0;
+      const reps = parseInt(set.reps) || 0;
+      if (exercise.type !== 'cardio') {
+        volume += (weight * reps);
+        if (weight > maxWeight) {
+          maxWeight = weight;
+          maxReps = reps;
+        }
+      }
+    });
+
+    if (exercise.type !== 'cardio' && maxWeight > 0) {
+      const memory = getExerciseMemory(exercise.exerciseName || exercise.name);
+      if (maxWeight > parseFloat(memory.weight || 0) || (maxWeight === parseFloat(memory.weight || 0) && maxReps > parseInt(memory.reps || 0))) {
+        saveExerciseMemory(exercise.exerciseName || exercise.name, maxWeight, maxReps);
+      }
+    }
+
+    const payload = {
+      dateStr: new Date().toISOString().split('T')[0],
+      routineName: activeSession.routineName || "Free Day",
+      volume,
+      setsCount,
+      exerciseDetails: [{
+        exerciseName: exercise.exerciseName || exercise.name,
+        type: exercise.type || 'strength',
+        sets: validSets
+      }]
+    };
+
+    try {
+      await appendWorkoutExercise(payload);
+    } catch (e: any) {
+      alert("Error saving exercise: " + e.message);
+      return;
+    }
+
+    setActiveSession((prev: any) => {
+      if (!prev) return null;
+      const newExercises = [...prev.exercises];
+      newExercises.splice(exerciseIndex, 1);
+      
+      const newSets: any = {};
+      newExercises.forEach((_, idx) => {
+        newSets[idx] = prev.sets[idx >= exerciseIndex ? idx + 1 : idx];
+      });
+
+      if (newExercises.length === 0) {
+        return null; // Automatically clear session
+      }
+
+      return {
+        ...prev,
+        exercises: newExercises,
+        sets: newSets
+      };
+    });
+  }, [activeSession, appendWorkoutExercise, getExerciseMemory, saveExerciseMemory]);
+
+  const finishWorkout = useCallback(async () => {
+    if (window.confirm('Are you sure you want to finish and save this workout?')) {
+      let totalVolume = 0;
+      let completedSetsCount = 0;
+      const completedExercises = [];
+
+      activeSession.exercises.forEach((exercise: any, i: number) => {
+        const exerciseSets = activeSession.sets[i] || [];
+        const validSets = exerciseSets.filter((s: any) => s.completed);
+        
+        if (validSets.length > 0) {
+          completedExercises.push({
+            exerciseName: exercise.exerciseName || exercise.name,
+            type: exercise.type || 'strength',
+            sets: validSets
+          });
+          
+          validSets.forEach(set => {
+            completedSetsCount++;
+            const weight = parseFloat(set.weight) || 0;
+            const reps = parseInt(set.reps) || 0;
+            totalVolume += (weight * reps);
+          });
+        }
+      });
+
+      if (completedSetsCount > 0) {
+        try {
+          await addWorkout({
+            routineName: activeSession.routineName || "Free Day",
+            duration: Date.now() - activeSession.startTime,
+            completedSets: completedSetsCount,
+            totalVolume: totalVolume,
+            exerciseDetails: completedExercises
+          });
+        } catch (e: any) {
+          alert("Error saving workout: " + e.message);
+          return;
+        }
+      }
+
+      setActiveSession(null);
+    }
+  }, [activeSession, addWorkout]);
   const addSet = useCallback((exerciseIndex: any, exerciseName: any) => {
     setActiveSession((prev: any) => {
       const currentSets = prev.sets[exerciseIndex] || [];
@@ -378,13 +454,6 @@ export const GymToday = () => {
               <X className="h-5 w-5" />
               <span>CANCEL</span>
             </button>
-            <button 
-              onClick={finishWorkout}
-              className="flex-[2] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all text-black font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-            >
-              <CheckCircle2 className="h-5 w-5" />
-              <span>FINISH WORKOUT</span>
-            </button>
           </div>
 
           <div>
@@ -494,6 +563,7 @@ export const GymToday = () => {
                     onToggleComplete={toggleSetComplete}
                     onRemoveSet={removeSet}
                     onSwap={handleOpenExerciseModal}
+                    onCompleteExercise={() => handleCompleteExercise(originalIndex)}
                   />
                 );
               })}

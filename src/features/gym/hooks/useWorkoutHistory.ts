@@ -126,5 +126,88 @@ export const useWorkoutHistory = () => {
     queryClient.setQueryData(['workoutHistory'], []);
   };
 
-  return { history, isLoading, addWorkout, removeWorkout, clearHistory };
+  const { mutateAsync: appendWorkoutExercise } = useMutation({
+    mutationFn: async (payload: { dateStr: string, routineName: string, exerciseDetails: any[], volume: number, setsCount: number }) => {
+      if (!navigator.onLine) throw new Error('NetworkError');
+
+      const { data: existing } = await supabase
+        .from('workout_history')
+        .select('*')
+        .gte('created_at', payload.dateStr + 'T00:00:00.000Z')
+        .lte('created_at', payload.dateStr + 'T23:59:59.999Z')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        const workout = existing[0];
+        let currentDetails = workout.exercise_details || [];
+        if (typeof currentDetails === 'string') {
+           try { currentDetails = JSON.parse(currentDetails); } catch(e) { currentDetails = []; }
+        }
+        const updatedDetails = [...currentDetails, ...payload.exerciseDetails];
+
+        const dbWorkout = {
+          completed_sets: (workout.completed_sets || 0) + payload.setsCount,
+          total_volume: (workout.total_volume || 0) + payload.volume,
+          exercise_details: updatedDetails
+        };
+
+        const { data, error } = await supabase
+          .from('workout_history')
+          .update(dbWorkout)
+          .eq('id', workout.id)
+          .select();
+        
+        if (error) throw error;
+        return {
+          id: data[0].id,
+          routineName: data[0].routine_name,
+          date: data[0].created_at,
+          duration: data[0].duration,
+          completedSets: data[0].completed_sets,
+          totalVolume: data[0].total_volume,
+          exerciseDetails: data[0].exercise_details,
+          isUpdate: true
+        };
+      } else {
+        const dbWorkout = {
+          routine_name: payload.routineName,
+          duration: 0,
+          completed_sets: payload.setsCount,
+          total_volume: payload.volume,
+          exercise_details: payload.exerciseDetails
+        };
+        const { data, error } = await supabase
+          .from('workout_history')
+          .insert([dbWorkout])
+          .select();
+        
+        if (error) throw error;
+        return {
+          id: data[0].id,
+          routineName: data[0].routine_name,
+          date: data[0].created_at,
+          duration: data[0].duration,
+          completedSets: data[0].completed_sets,
+          totalVolume: data[0].total_volume,
+          exerciseDetails: data[0].exercise_details,
+          isUpdate: false
+        };
+      }
+    },
+    onSuccess: (data: any) => {
+      queryClient.setQueryData(['workoutHistory'], (old: any = []) => {
+        if (data.isUpdate) {
+          return old.map((w: any) => w.id === data.id ? data : w);
+        } else {
+          return [data, ...old];
+        }
+      });
+    },
+    onError: () => {
+      alert('Error saving exercise. Please check your connection.');
+    }
+  });
+
+  return { history, isLoading, addWorkout, removeWorkout, appendWorkoutExercise, clearHistory };
 };
