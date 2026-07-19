@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2, Check } from 'lucide-react';
 
-export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
+export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, progression, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
 
@@ -142,7 +142,18 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                   <div className="w-20"></div>
                 </div>
                 
-                {sets.map((set, idx) => (
+                {sets.map((set, idx) => {
+                  const currentReps = parseInt(set.reps) || 0;
+                  const currentWeight = parseFloat(set.weight) || 0;
+                  
+                  const isRepBumpDue = progression?.needsRepBump;
+                  const isWeightBumpDue = progression?.needsWeightBump;
+                  const targetWeight = progression?.historicalWeight || 0;
+                  
+                  const isRepsRed = isRepBumpDue && (currentReps === 8 || currentReps === 10 || currentReps === 0);
+                  const isWeightRed = isWeightBumpDue && (currentWeight <= targetWeight || currentReps !== 8);
+
+                  return (
                   <div 
                     key={idx} 
                     className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${set.completed ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-gray-900'}`}
@@ -155,7 +166,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       placeholder="--"
                       value={exercise.type === 'cardio' ? set.time : set.weight}
                       onChange={(e) => onUpdateSet(exerciseIndex, idx, exercise.type === 'cardio' ? 'time' : 'weight', e.target.value)}
-                      className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                      className={`flex-1 min-w-0 bg-black border ${isWeightRed && exercise.type !== 'cardio' ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700`}
                     />
                     {exercise.type === 'cardio' ? (
                       <input 
@@ -169,7 +180,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       <select
                         value={set.reps || ""}
                         onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
-                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all"
+                        className={`flex-1 min-w-0 bg-black border ${isRepsRed ? 'border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-gray-800 text-white'} rounded-md py-2 text-center font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all`}
                       >
                         <option value="">--</option>
                         <option value="8">8</option>
@@ -206,7 +217,8 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             

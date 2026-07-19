@@ -11,10 +11,11 @@ import { RoutineSelectorModal } from './RoutineSelectorModal';
 import { ExerciseSelectorModal } from './ExerciseSelectorModal';
 import { CardioEntryModal } from './CardioEntryModal';
 import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
+import { calculateProgression } from '../hooks/useProgressiveOverload';
 
 export const GymToday = () => {
   const { routines } = useRoutines();
-  const { addWorkout, appendWorkoutExercise } = useWorkoutHistory();
+  const { addWorkout, appendWorkoutExercise, history } = useWorkoutHistory();
   const { exercises: allExercises, updateExercise } = useExercises();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -634,6 +635,8 @@ export const GymToday = () => {
               }).map((originalIndex: number) => {
                 const baseExercise = activeSession.exercises[originalIndex];
                 const globalEx = allExercises.find((g: any) => g.name === baseExercise.exerciseName || g.name === baseExercise.name);
+                const exerciseName = baseExercise.exerciseName || baseExercise.name;
+                const progression = calculateProgression(exerciseName, history);
                 const exercise = {
                   ...baseExercise,
                   muscleGroup: baseExercise.muscleGroup || globalEx?.muscleGroup || '',
@@ -643,6 +646,7 @@ export const GymToday = () => {
                   <ActiveExerciseCard 
                     key={originalIndex}
                     exercise={exercise}
+                    progression={progression}
                     exerciseIndex={originalIndex}
                     sessionSets={activeSession.sets[originalIndex]}
                     onAddSet={addSet}
