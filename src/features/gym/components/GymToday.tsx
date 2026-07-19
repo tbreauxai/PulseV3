@@ -656,41 +656,24 @@ export const GymToday = () => {
                 );
               })}
             </div>
-          </div>
-
-          {createPortal(
-            <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end space-y-3">
-              {isFabOpen && (
-                <>
-                  <button 
-                    onClick={() => { setIsFabOpen(false); handleOpenExerciseModal(null, 'Cardio'); }}
-                    className="bg-emerald-600 text-white rounded-full p-4 shadow-[0_0_20px_rgba(5,150,105,0.4)] flex items-center justify-center hover:bg-emerald-500 transition-colors group relative"
-                  >
-                    <Activity className="h-6 w-6" />
-                    <span className="absolute right-full mr-4 bg-black/80 px-3 py-1.5 rounded-lg text-sm font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                      Add Cardio
-                    </span>
-                  </button>
-                  <button 
-                    onClick={() => { setIsFabOpen(false); handleOpenExerciseModal(null); }}
-                    className="bg-rose-600 text-white rounded-full p-4 shadow-[0_0_20px_rgba(225,29,72,0.4)] flex items-center justify-center hover:bg-rose-500 transition-colors group relative"
-                  >
-                    <Dumbbell className="h-6 w-6" />
-                    <span className="absolute right-full mr-4 bg-black/80 px-3 py-1.5 rounded-lg text-sm font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                      Add Exercise
-                    </span>
-                  </button>
-                </>
-              )}
+            
+            <div className="flex space-x-3 mt-4">
               <button 
-                onClick={() => setIsFabOpen(!isFabOpen)}
-                className="bg-rose-600 text-white rounded-full p-5 shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center justify-center hover:bg-rose-500 hover:scale-105 transition-all active:scale-95"
+                onClick={() => handleOpenExerciseModal(null)}
+                className="flex-1 bg-rose-600/10 hover:bg-rose-600/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-rose-600/20 border-dashed"
               >
-                <Plus className={`h-7 w-7 transition-transform duration-300 ${isFabOpen ? 'rotate-45' : ''}`} />
+                <Plus className="h-5 w-5" />
+                <span>ADD EXERCISE</span>
               </button>
-            </div>,
-            document.body
-          )}
+              <button 
+                onClick={() => handleOpenExerciseModal(null, 'Cardio')}
+                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 active:scale-[0.98] transition-all text-emerald-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-emerald-600/20 border-dashed"
+              >
+                <Activity className="h-5 w-5" />
+                <span>ADD CARDIO</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
