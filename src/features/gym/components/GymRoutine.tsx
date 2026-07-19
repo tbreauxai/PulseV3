@@ -30,8 +30,8 @@ export const GymRoutine = () => {
       muscleGroup: ex.muscleGroup,
       type: ex.type || 'strength',
       sets: ex.type === 'cardio' ? '1' : '3',
-      reps: ex.type === 'cardio' ? '-' : '10',
-      time: ex.time || (ex.type === 'cardio' ? '30:00' : ''),
+      reps: ex.type === 'cardio' || ex.type === 'timed' ? '-' : '10',
+      time: ex.time || (ex.type === 'cardio' ? '30:00' : (ex.type === 'timed' ? '60' : '')),
       distance: ex.distance || (ex.type === 'cardio' ? '3.0' : '')
     }]);
     setIsExerciseModalOpen(false);
@@ -248,6 +248,27 @@ export const GymRoutine = () => {
                             value={ex.distance || ''}
                             onChange={e => updateDraftExercise(i, 'distance', e.target.value)}
                             className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                      </>
+                    ) : ex.type === 'timed' ? (
+                      <>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">SETS</label>
+                          <input 
+                            type="number" 
+                            value={ex.sets}
+                            onChange={e => updateDraftExercise(i, 'sets', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 tracking-wider block mb-1">DURATION (SEC)</label>
+                          <input 
+                            type="text" 
+                            value={ex.time || ''}
+                            onChange={e => updateDraftExercise(i, 'time', e.target.value)}
+                            className="w-full bg-black border border-[#222] rounded-lg py-2 text-center text-white font-bold text-sm focus:outline-none focus:border-rose-600"
                           />
                         </div>
                       </>

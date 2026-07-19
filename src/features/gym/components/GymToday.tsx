@@ -50,24 +50,25 @@ export const GymToday = () => {
     if (routine && routine.exercises) {
       routine.exercises.forEach((ex: any, idx: number) => {
         const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
+        const numSets = parseInt(ex.sets, 10) || 1;
         if (ex.type === 'cardio') {
-          initialSets[idx] = [{
+          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
             time: globalEx?.time || ex.time || '',
             calories: globalEx?.calories || ex.calories || '',
             distance: globalEx?.distance || ex.distance || '',
             completed: false
-          }];
+          }));
         } else if (ex.type === 'timed') {
-          initialSets[idx] = [{
+          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
             time: globalEx?.time || ex.time || '',
             completed: false
-          }];
+          }));
         } else {
-          initialSets[idx] = [{
+          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
             weight: globalEx?.weight || '',
             reps: globalEx?.reps || ex.reps || '',
             completed: false
-          }];
+          }));
         }
       });
     }
