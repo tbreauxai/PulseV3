@@ -5,7 +5,6 @@ import { Plus, Search, Dumbbell, Activity, Trash2 } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { motion, useAnimation } from 'framer-motion';
-import { ExerciseEditorModal } from './ExerciseEditorModal';
 import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
@@ -82,11 +81,8 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
   );
 });
 
-export const GymExercises = () => {
-  const { exercises, addExercise, updateExercise, removeExercise } = useExercises();
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formState, setFormState] = useState(emptyFormState);
+export const GymExercises = ({ onEditExercise }: { onEditExercise: (ex?: any) => void }) => {
+  const { exercises, removeExercise } = useExercises();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All');
   const [selectedMode, setSelectedMode] = useState('All');
@@ -117,32 +113,6 @@ export const GymExercises = () => {
 
     return result;
   }, [exercises, debouncedSearchTerm, selectedMuscleGroup, selectedMode]);
-
-  const openExerciseForm = useCallback((exercise: any = emptyFormState) => {
-    setFormState({ ...emptyFormState, ...exercise });
-    setEditingId(exercise.id || null);
-    setIsFormOpen(true);
-  }, []);
-
-  const closeExerciseForm = () => {
-    setIsFormOpen(false);
-    setEditingId(null);
-    setFormState(emptyFormState);
-  };
-
-  const handleSaveExercise = (updatedExercise: any) => {
-    if (!updatedExercise.name.trim()) {
-      return;
-    }
-
-    if (editingId === null) {
-      addExercise(updatedExercise);
-    } else {
-      updateExercise(editingId, updatedExercise);
-    }
-
-    closeExerciseForm();
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -204,38 +174,15 @@ export const GymExercises = () => {
         </div>
       </div>
 
-      <ExerciseEditorModal 
-        isOpen={isFormOpen}
-        onClose={closeExerciseForm}
-        onSave={handleSaveExercise}
-        onDelete={(id) => {
-          removeExercise(id);
-          closeExerciseForm();
-        }}
-        initialData={formState}
-      />
-
       <div>
         <Virtuoso
           useWindowScroll
           data={filteredExercises}
           itemContent={(index, ex) => (
-            <ExerciseRow ex={ex} onOpenForm={openExerciseForm} onDelete={removeExercise} />
+            <ExerciseRow ex={ex} onOpenForm={onEditExercise} onDelete={removeExercise} />
           )}
         />
       </div>
-
-      {createPortal(
-        <div className="fixed bottom-24 right-6 z-50">
-          <button 
-            onClick={() => openExerciseForm()}
-            className="bg-rose-600 text-white rounded-full p-5 shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center justify-center hover:bg-rose-500 hover:scale-105 transition-all active:scale-95"
-          >
-            <Plus className="h-7 w-7 transition-transform duration-300" />
-          </button>
-        </div>,
-        document.body
-      )}
     </div>
   );
 };
