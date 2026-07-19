@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw, ClipboardList } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
 import { useRoutines } from '../hooks/useRoutines';
@@ -43,49 +43,83 @@ export const GymToday = () => {
     }
   }, [activeSession]);
 
+  const generateRoutineData = useCallback((routine: any) => {
+    const initialSets: any = {};
+    const exercises = routine && routine.exercises ? routine.exercises.map((ex: any, idx: number) => {
+      const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
+      const actualType = ex.type || globalEx?.type || 'strength';
+      const numSets = parseInt(ex.sets, 10) || 1;
+      
+      if (actualType === 'cardio') {
+        initialSets[idx] = Array.from({ length: numSets }).map(() => ({
+          time: globalEx?.time || ex.time || '',
+          calories: globalEx?.calories || ex.calories || '',
+          distance: globalEx?.distance || ex.distance || '',
+          completed: false
+        }));
+      } else if (actualType === 'timed') {
+        initialSets[idx] = Array.from({ length: numSets }).map(() => ({
+          time: globalEx?.time || ex.time || '60',
+          completed: false
+        }));
+      } else {
+        initialSets[idx] = Array.from({ length: numSets }).map(() => ({
+          weight: globalEx?.weight || '',
+          reps: globalEx?.reps || ex.reps || '',
+          completed: false
+        }));
+      }
+
+      return {
+        ...ex,
+        type: actualType
+      };
+    }) : [];
+
+    return { exercises, sets: initialSets };
+  }, [allExercises]);
+
   const startRoutine = useCallback((routineId: any) => {
     const routine = routines.find((r: any) => String(r.id) === String(routineId));
-    
-    const initialSets: any = {};
-    if (routine && routine.exercises) {
-      routine.exercises.forEach((ex: any, idx: number) => {
-        const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
-        const actualType = ex.type || globalEx?.type || 'strength';
-        const numSets = parseInt(ex.sets, 10) || 1;
-        if (actualType === 'cardio') {
-          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
-            time: globalEx?.time || ex.time || '',
-            calories: globalEx?.calories || ex.calories || '',
-            distance: globalEx?.distance || ex.distance || '',
-            completed: false
-          }));
-        } else if (actualType === 'timed') {
-          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
-            time: globalEx?.time || ex.time || '60',
-            completed: false
-          }));
-        } else {
-          initialSets[idx] = Array.from({ length: numSets }).map(() => ({
-            weight: globalEx?.weight || '',
-            reps: globalEx?.reps || ex.reps || '',
-            completed: false
-          }));
-        }
-      });
-    }
+    const { exercises, sets } = generateRoutineData(routine);
 
     setActiveSession({
       routineId: routineId,
       routineName: routine ? routine.name : "Free Day",
       startTime: Date.now(),
-      exercises: routine && routine.exercises ? routine.exercises.map((ex: any) => ({
-        ...ex,
-        type: ex.type || allExercises.find((g: any) => g.name === ex.exerciseName)?.type || 'strength'
-      })) : [],
-      sets: initialSets
+      exercises,
+      sets
     });
     setIsModalOpen(false);
-  }, [routines, allExercises]);
+  }, [routines, generateRoutineData]);
+
+  const addRoutineToSession = useCallback((routineId: any) => {
+    const routine = routines.find((r: any) => String(r.id) === String(routineId));
+    if (!routine || !activeSession) return;
+    
+    const { exercises: newExercises, sets: newSets } = generateRoutineData(routine);
+    
+    setActiveSession((prev: any) => {
+      const startIndex = prev.exercises.length;
+      const shiftedSets: any = {};
+      
+      Object.keys(newSets).forEach((key) => {
+        shiftedSets[startIndex + parseInt(key, 10)] = newSets[key];
+      });
+
+      return {
+        ...prev,
+        routineName: `${prev.routineName} + ${routine.name}`,
+        exercises: [...prev.exercises, ...newExercises],
+        sets: {
+          ...prev.sets,
+          ...shiftedSets
+        }
+      };
+    });
+    
+    setIsModalOpen(false);
+  }, [routines, activeSession, generateRoutineData]);
 
   const startFreeWorkout = useCallback(() => {
     setActiveSession({
@@ -688,17 +722,24 @@ export const GymToday = () => {
             <div className="flex space-x-3 mt-4">
               <button 
                 onClick={() => handleOpenExerciseModal(null)}
-                className="flex-1 bg-rose-600/10 hover:bg-rose-600/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-rose-600/20 border-dashed"
+                className="flex-1 bg-rose-600/10 hover:bg-rose-600/20 active:scale-[0.98] transition-all text-rose-500 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-rose-600/20 border-dashed"
               >
                 <Plus className="h-5 w-5" />
-                <span>ADD EXERCISE</span>
+                <span className="text-[10px] tracking-wider">EXERCISE</span>
               </button>
               <button 
                 onClick={() => handleOpenExerciseModal(null, 'Cardio')}
-                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 active:scale-[0.98] transition-all text-emerald-500 font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 border border-emerald-600/20 border-dashed"
+                className="flex-1 bg-emerald-600/10 hover:bg-emerald-600/20 active:scale-[0.98] transition-all text-emerald-500 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-emerald-600/20 border-dashed"
               >
                 <Activity className="h-5 w-5" />
-                <span>ADD CARDIO</span>
+                <span className="text-[10px] tracking-wider">CARDIO</span>
+              </button>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex-1 bg-indigo-600/10 hover:bg-indigo-600/20 active:scale-[0.98] transition-all text-indigo-400 font-bold py-3 rounded-2xl flex flex-col items-center justify-center space-y-1 border border-indigo-600/20 border-dashed"
+              >
+                <ClipboardList className="h-5 w-5" />
+                <span className="text-[10px] tracking-wider">ROUTINE</span>
               </button>
             </div>
           </div>
@@ -709,7 +750,7 @@ export const GymToday = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         routines={routines}
-        onSelect={startRoutine}
+        onSelect={activeSession ? addRoutineToSession : startRoutine}
         activeRoutineId={activeSession?.routineId}
       />
 
