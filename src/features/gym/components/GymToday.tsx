@@ -14,7 +14,7 @@ import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 export const GymToday = () => {
   const { routines } = useRoutines();
   const { addWorkout, appendWorkoutExercise } = useWorkoutHistory();
-  const { exercises: allExercises } = useExercises();
+  const { exercises: allExercises, updateExercise } = useExercises();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -40,15 +40,37 @@ export const GymToday = () => {
 
   const startRoutine = useCallback((routineId: any) => {
     const routine = routines.find((r: any) => String(r.id) === String(routineId));
+    
+    const initialSets: any = {};
+    if (routine && routine.exercises) {
+      routine.exercises.forEach((ex: any, idx: number) => {
+        const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
+        if (ex.type === 'cardio') {
+          initialSets[idx] = [{
+            time: globalEx?.time || ex.time || '',
+            calories: globalEx?.calories || ex.calories || '',
+            distance: globalEx?.distance || ex.distance || '',
+            completed: false
+          }];
+        } else {
+          initialSets[idx] = [{
+            weight: globalEx?.weight || '',
+            reps: globalEx?.reps || ex.reps || '',
+            completed: false
+          }];
+        }
+      });
+    }
+
     setActiveSession({
       routineId: routineId,
       routineName: routine ? routine.name : "Free Day",
       startTime: Date.now(),
       exercises: routine && routine.exercises ? [...routine.exercises] : [],
-      sets: {} // Maps exerciseIndex -> array of set objects
+      sets: initialSets
     });
     setIsModalOpen(false);
-  }, [routines]);
+  }, [routines, allExercises]);
 
   const startFreeWorkout = useCallback(() => {
     setActiveSession({
@@ -106,7 +128,6 @@ export const GymToday = () => {
       const newSets = { ...prev.sets };
 
       if (swapExerciseIndex !== null) {
-        // Swapping an existing exercise
         newExercises[swapExerciseIndex] = {
           exerciseName: exercise.name,
           muscleGroup: exercise.muscleGroup,
@@ -114,9 +135,13 @@ export const GymToday = () => {
           sets: '-',
           reps: '-'
         };
-        newSets[swapExerciseIndex] = []; // Clear out sets for the new exercise
+        const globalEx = allExercises.find((g: any) => g.name === exercise.name);
+        newSets[swapExerciseIndex] = [{
+          weight: globalEx?.weight || '',
+          reps: globalEx?.reps || '',
+          completed: false
+        }];
       } else {
-        // Appending a new exercise
         newExercises.push({
           exerciseName: exercise.name,
           muscleGroup: exercise.muscleGroup,
@@ -124,6 +149,12 @@ export const GymToday = () => {
           sets: '-',
           reps: '-'
         });
+        const globalEx = allExercises.find((g: any) => g.name === exercise.name);
+        newSets[newExercises.length - 1] = [{
+          weight: globalEx?.weight || '',
+          reps: globalEx?.reps || '',
+          completed: false
+        }];
       }
 
       return {
@@ -228,6 +259,31 @@ export const GymToday = () => {
       const memory = getExerciseMemory(exercise.exerciseName || exercise.name);
       if (maxWeight > parseFloat(memory.weight || 0) || (maxWeight === parseFloat(memory.weight || 0) && maxReps > parseInt(memory.reps || 0))) {
         saveExerciseMemory(exercise.exerciseName || exercise.name, maxWeight, maxReps);
+      }
+    }
+
+    const globalEx = allExercises.find((g: any) => g.name === exercise.exerciseName || g.name === exercise.name);
+    if (globalEx) {
+      if (exercise.type === 'cardio') {
+        const firstSet = validSets[0];
+        if (firstSet && (firstSet.time !== globalEx.time || firstSet.distance !== globalEx.distance || firstSet.calories !== globalEx.calories)) {
+          updateExercise({ 
+            id: globalEx.id, 
+            updatedData: { ...globalEx, time: firstSet.time, distance: firstSet.distance, calories: firstSet.calories }
+          }).catch(console.error);
+        }
+      } else {
+        const lastSet = validSets[validSets.length - 1];
+        if (lastSet) {
+          const lastWeight = parseFloat(lastSet.weight) || 0;
+          const lastReps = parseInt(lastSet.reps) || 0;
+          if (lastWeight > 0 && (lastWeight.toString() !== globalEx.weight || lastReps.toString() !== globalEx.reps)) {
+            updateExercise({
+              id: globalEx.id,
+              updatedData: { ...globalEx, weight: lastWeight.toString(), reps: lastReps.toString() }
+            }).catch(console.error);
+          }
+        }
       }
     }
 
