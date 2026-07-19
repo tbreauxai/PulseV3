@@ -23,7 +23,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
         } else {
           const allMuscles = Array.from(new Set(
             allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
-          )).sort();
+          )).sort() as string[];
           setFilterMuscleGroup(allMuscles.length > 0 ? allMuscles[0] : 'All');
         }
       } else {
@@ -36,7 +36,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
 
   const uniqueMuscles = Array.from(new Set(
     allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
-  )).sort();
+  )).sort() as string[];
   const muscleGroupOptions = isSwap ? uniqueMuscles : ['All', ...uniqueMuscles];
   
   const equipmentOptions = ['All', ...Array.from(new Set(allExercises.map((ex: any) => ex.equipment).filter(Boolean))).sort()];

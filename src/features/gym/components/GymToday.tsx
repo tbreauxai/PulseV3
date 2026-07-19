@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
@@ -19,6 +20,7 @@ export const GymToday = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
   const [isCardioModalOpen, setIsCardioModalOpen] = useState(false);
+  const [isFabOpen, setIsFabOpen] = useState(false);
   const [swapExerciseIndex, setSwapExerciseIndex] = useState(null); // Track which exercise is being swapped
   
   const [activeSession, setActiveSession] = useState(() => {
@@ -267,10 +269,10 @@ export const GymToday = () => {
       if (exercise.type === 'cardio') {
         const firstSet = validSets[0];
         if (firstSet && (firstSet.time !== globalEx.time || firstSet.distance !== globalEx.distance || firstSet.calories !== globalEx.calories)) {
-          updateExercise({ 
-            id: globalEx.id, 
-            updatedData: { ...globalEx, time: firstSet.time, distance: firstSet.distance, calories: firstSet.calories }
-          }).catch(console.error);
+          updateExercise(
+            globalEx.id, 
+            { ...globalEx, time: firstSet.time, distance: firstSet.distance, calories: firstSet.calories }
+          ).catch(console.error);
         }
       } else {
         const lastSet = validSets[validSets.length - 1];
@@ -278,10 +280,10 @@ export const GymToday = () => {
           const lastWeight = parseFloat(lastSet.weight) || 0;
           const lastReps = parseInt(lastSet.reps) || 0;
           if (lastWeight > 0 && (lastWeight.toString() !== globalEx.weight || lastReps.toString() !== globalEx.reps)) {
-            updateExercise({
-              id: globalEx.id,
-              updatedData: { ...globalEx, weight: lastWeight.toString(), reps: lastReps.toString() }
-            }).catch(console.error);
+            updateExercise(
+              globalEx.id,
+              { ...globalEx, weight: lastWeight.toString(), reps: lastReps.toString() }
+            ).catch(console.error);
           }
         }
       }
@@ -647,25 +649,42 @@ export const GymToday = () => {
                   />
                 );
               })}
-              
-            <div className="flex space-x-3">
-              <button 
-                onClick={() => handleOpenExerciseModal(null)}
-                className="flex-1 py-4 rounded-xl border border-dashed border-[#333] text-gray-400 font-bold hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
-              >
-                <Plus className="h-4 w-4" />
-                <span>ADD EXERCISE</span>
-              </button>
-              <button 
-                onClick={() => handleOpenExerciseModal(null, 'Cardio')}
-                className="flex-1 py-4 rounded-xl border border-dashed border-emerald-900/30 text-emerald-600/70 font-bold hover:text-emerald-500 hover:border-emerald-700 transition-colors flex items-center justify-center space-x-2 text-sm"
-              >
-                <Plus className="h-4 w-4" />
-                <span>ADD CARDIO</span>
-              </button>
-            </div>
             </div>
           </div>
+
+          {createPortal(
+            <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end space-y-3">
+              {isFabOpen && (
+                <>
+                  <button 
+                    onClick={() => { setIsFabOpen(false); handleOpenExerciseModal(null, 'Cardio'); }}
+                    className="bg-emerald-600 text-white rounded-full p-4 shadow-[0_0_20px_rgba(5,150,105,0.4)] flex items-center justify-center hover:bg-emerald-500 transition-colors group relative"
+                  >
+                    <Activity className="h-6 w-6" />
+                    <span className="absolute right-full mr-4 bg-black/80 px-3 py-1.5 rounded-lg text-sm font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                      Add Cardio
+                    </span>
+                  </button>
+                  <button 
+                    onClick={() => { setIsFabOpen(false); handleOpenExerciseModal(null); }}
+                    className="bg-rose-600 text-white rounded-full p-4 shadow-[0_0_20px_rgba(225,29,72,0.4)] flex items-center justify-center hover:bg-rose-500 transition-colors group relative"
+                  >
+                    <Dumbbell className="h-6 w-6" />
+                    <span className="absolute right-full mr-4 bg-black/80 px-3 py-1.5 rounded-lg text-sm font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                      Add Exercise
+                    </span>
+                  </button>
+                </>
+              )}
+              <button 
+                onClick={() => setIsFabOpen(!isFabOpen)}
+                className="bg-rose-600 text-white rounded-full p-5 shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center justify-center hover:bg-rose-500 hover:scale-105 transition-all active:scale-95"
+              >
+                <Plus className={`h-7 w-7 transition-transform duration-300 ${isFabOpen ? 'rotate-45' : ''}`} />
+              </button>
+            </div>,
+            document.body
+          )}
         </div>
       )}
 

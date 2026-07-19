@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useExercises } from '../hooks/useExercises';
 import { Plus, Search, Dumbbell, Activity, Trash2 } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
@@ -147,13 +148,6 @@ export const GymExercises = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-white tracking-tight">Library</h2>
-        <button
-          onClick={() => openExerciseForm()}
-          className="inline-flex items-center gap-2 rounded-2xl bg-rose-600/10 border border-rose-600/20 px-4 py-3 text-rose-500 hover:bg-rose-600/15 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="text-xs font-bold uppercase tracking-wider">Add exercise</span>
-        </button>
       </div>
 
       <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 space-y-3">
@@ -230,6 +224,18 @@ export const GymExercises = () => {
           )}
         />
       </div>
+
+      {createPortal(
+        <div className="fixed bottom-24 right-6 z-50">
+          <button 
+            onClick={() => openExerciseForm()}
+            className="bg-rose-600 text-white rounded-full p-5 shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center justify-center hover:bg-rose-500 hover:scale-105 transition-all active:scale-95"
+          >
+            <Plus className="h-7 w-7 transition-transform duration-300" />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
