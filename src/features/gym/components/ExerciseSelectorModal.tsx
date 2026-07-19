@@ -13,7 +13,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
     if (isOpen) {
       if (isSwap && targetSwapExercise) {
         const GENERAL_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Full Body'];
-        const targetMuscles = (targetSwapExercise.muscleGroup || '').split(',').map((s: string) => s.trim());
+        const targetMuscles = (targetSwapExercise.muscleGroup || '').split(/[,|]/).map((s: string) => s.trim()).filter(Boolean);
         const generalMatch = targetMuscles.find((m: string) => GENERAL_GROUPS.includes(m));
         
         if (generalMatch) {
@@ -22,7 +22,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
           setFilterMuscleGroup(targetMuscles[0]);
         } else {
           const allMuscles = Array.from(new Set(
-            allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
+            allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(/[,|]/).map((m: string) => m.trim()).filter(Boolean))
           )).sort() as string[];
           setFilterMuscleGroup(allMuscles.length > 0 ? allMuscles[0] : 'All');
         }
@@ -35,7 +35,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
   if (!isOpen) return null;
 
   const uniqueMuscles = Array.from(new Set(
-    allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(',').map((m: string) => m.trim()).filter(Boolean))
+    allExercises.flatMap((ex: any) => (ex.muscleGroup || '').split(/[,|]/).map((m: string) => m.trim()).filter(Boolean))
   )).sort() as string[];
   const muscleGroupOptions = isSwap ? uniqueMuscles : ['All', ...uniqueMuscles];
   
@@ -43,8 +43,8 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
 
   const getMatchScore = (ex: any, target: any) => {
     if (!target) return 0;
-    const targetMuscles = (target.muscleGroup || '').toLowerCase().split(',').map((m: string) => m.trim()).filter(Boolean);
-    const exMuscles = (ex.muscleGroup || '').toLowerCase().split(',').map((m: string) => m.trim()).filter(Boolean);
+    const targetMuscles = (target.muscleGroup || '').toLowerCase().split(/[,|]/).map((m: string) => m.trim()).filter(Boolean);
+    const exMuscles = (ex.muscleGroup || '').toLowerCase().split(/[,|]/).map((m: string) => m.trim()).filter(Boolean);
     
     if (targetMuscles.length === 0 || exMuscles.length === 0) return 0;
     
@@ -58,7 +58,7 @@ export const ExerciseSelectorModal = ({ isOpen, onClose, onSelect, title = "ADD 
     const matchesSearch = ex.name.toLowerCase().includes(search) || 
                           (ex.muscleGroup || '').toLowerCase().includes(search);
                           
-    const muscleGroups = (ex.muscleGroup || '').split(',').map((m: string) => m.trim().toLowerCase());
+    const muscleGroups = (ex.muscleGroup || '').split(/[,|]/).map((m: string) => m.trim().toLowerCase()).filter(Boolean);
     const matchesMuscle = filterMuscleGroup === 'All' || muscleGroups.includes(filterMuscleGroup.toLowerCase());
     
     const matchesEquipment = filterEquipment === 'All' || ex.equipment === filterEquipment;

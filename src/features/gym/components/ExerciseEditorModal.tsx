@@ -12,7 +12,22 @@ interface ExerciseEditorModalProps {
 
 export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initialData }: ExerciseEditorModalProps) => {
   const [formState, setFormState] = useState<any>({});
-  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false);
+  const [activeMuscleSelector, setActiveMuscleSelector] = useState<'primary' | 'secondary' | null>(null);
+
+  const getMuscleStrings = () => {
+    const mg = formState.muscleGroup || '';
+    if (mg.includes('|')) {
+      const parts = mg.split('|');
+      return { pStr: parts[0].trim(), sStr: parts[1].trim() };
+    }
+    const parts = mg.split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      return { pStr: parts[0], sStr: parts.slice(1).join(', ') };
+    }
+    return { pStr: '', sStr: '' };
+  };
+
+  const { pStr, sStr } = getMuscleStrings();
 
   useEffect(() => {
     if (isOpen) {
@@ -73,14 +88,27 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
             </label>
             
             <div className="space-y-2 text-sm font-bold text-gray-300">
-              MUSCLE GROUP
+              PRIMARY MUSCLES
               <button
                 type="button"
-                onClick={() => setIsMuscleModalOpen(true)}
+                onClick={() => setActiveMuscleSelector('primary')}
                 className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50 flex items-center justify-between transition-colors hover:border-gray-700 text-left"
               >
-                <span className={formState.muscleGroup ? "line-clamp-1 pr-2" : "text-gray-500"}>
-                  {formState.muscleGroup || "Select muscle groups..."}
+                <span className={pStr ? "line-clamp-1 pr-2 text-rose-500" : "text-gray-500"}>
+                  {pStr || "Select primary muscles..."}
+                </span>
+              </button>
+            </div>
+
+            <div className="space-y-2 text-sm font-bold text-gray-300">
+              SECONDARY MUSCLES (OPTIONAL)
+              <button
+                type="button"
+                onClick={() => setActiveMuscleSelector('secondary')}
+                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50 flex items-center justify-between transition-colors hover:border-gray-700 text-left"
+              >
+                <span className={sStr ? "line-clamp-1 pr-2 text-gray-400" : "text-gray-500"}>
+                  {sStr || "Select secondary muscles..."}
                 </span>
               </button>
             </div>
@@ -162,11 +190,15 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
       </div>
 
       <MuscleGroupSelectorModal 
-        isOpen={isMuscleModalOpen}
-        onClose={() => setIsMuscleModalOpen(false)}
-        selectedString={formState.muscleGroup}
+        isOpen={activeMuscleSelector !== null}
+        onClose={() => setActiveMuscleSelector(null)}
+        selectedString={activeMuscleSelector === 'primary' ? pStr : sStr}
         onSave={(selectedStr: string) => {
-          setFormState((prev: any) => ({ ...prev, muscleGroup: selectedStr }));
+          if (activeMuscleSelector === 'primary') {
+            setFormState((prev: any) => ({ ...prev, muscleGroup: `${selectedStr} | ${sStr}` }));
+          } else {
+            setFormState((prev: any) => ({ ...prev, muscleGroup: `${pStr} | ${selectedStr}` }));
+          }
         }}
       />
     </>

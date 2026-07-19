@@ -1,10 +1,25 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2, Check } from 'lucide-react';
 import { useAlert } from '../../../contexts/AlertContext';
+import { motion } from 'framer-motion';
+
+const getMuscleStrings = (mg: string) => {
+  if (!mg) return { pStr: '', sStr: '' };
+  if (mg.includes('|')) {
+    const parts = mg.split('|');
+    return { pStr: parts[0].trim(), sStr: parts[1].trim() };
+  }
+  const parts = mg.split(',').map((s: string) => s.trim()).filter(Boolean);
+  if (parts.length > 0) {
+    return { pStr: parts[0], sStr: parts.slice(1).join(', ') };
+  }
+  return { pStr: '', sStr: '' };
+};
 
 export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, progression, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
   const { confirm } = useAlert();
   const [isExpanded, setIsExpanded] = useState(false);
+  const { pStr, sStr } = getMuscleStrings(exercise.muscleGroup);
   const sets = sessionSets || [];
   const hasCompletedSet = sets.some((set: any) => set.completed);
 
@@ -103,13 +118,28 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               )}
             </div>
             <div>
-              <h4 className="text-white font-medium line-clamp-1">{exercise.exerciseName || exercise.name}</h4>
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 pr-2">
-                {exercise.type === 'cardio'
-                  ? `${sets[0]?.time || '-'} mins • ${sets[0]?.distance || '-'} mi`
-                  : `${sets[0]?.weight || '-'} lbs • ${sets[0]?.reps || '-'} reps`}
-                {exercise.muscleGroup ? ` • ${exercise.muscleGroup}` : ''}
-              </p>
+              <h4 className="text-white font-medium line-clamp-1 flex items-center flex-wrap gap-1.5">
+                {exercise.exerciseName || exercise.name}
+              </h4>
+              
+              <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium flex-wrap">
+                <span className="text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded tracking-wide border border-gray-700/50">
+                  {exercise.type === 'cardio'
+                    ? `${sets[0]?.time || '-'} mins • ${sets[0]?.distance || '-'} mi`
+                    : `${sets[0]?.weight || '-'} lbs • ${sets[0]?.reps || '-'} reps`}
+                </span>
+                
+                {pStr && (
+                  <span className="text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded tracking-wide border border-rose-500/20">
+                    P: {pStr}
+                  </span>
+                )}
+                {sStr && (
+                  <span className="text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded tracking-wide border border-gray-700/50">
+                    S: {sStr}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           

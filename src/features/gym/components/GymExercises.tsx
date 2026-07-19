@@ -9,6 +9,19 @@ import { groupMusclesByCategory } from './MuscleGroupSelectorModal';
 
 const emptyFormState = { name: '', type: 'strength', muscleGroup: '', weight: '', reps: '', equipment: '', time: '', distance: '' };
 
+const getMuscleStrings = (mg: string) => {
+  if (!mg) return { pStr: '', sStr: '' };
+  if (mg.includes('|')) {
+    const parts = mg.split('|');
+    return { pStr: parts[0].trim(), sStr: parts[1].trim() };
+  }
+  const parts = mg.split(',').map((s: string) => s.trim()).filter(Boolean);
+  if (parts.length > 0) {
+    return { pStr: parts[0], sStr: parts.slice(1).join(', ') };
+  }
+  return { pStr: '', sStr: '' };
+};
+
 const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
   const controls = useAnimation();
   
@@ -19,6 +32,8 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
       controls.start({ x: 0 });
     }
   };
+
+  const { pStr, sStr } = getMuscleStrings(ex.muscleGroup);
 
   return (
     <div className="pb-3 relative">
@@ -50,8 +65,24 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
             )}
           </div>
           <div>
-            <h4 className="text-white font-medium">{ex.name}</h4>
-            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 pr-2">{ex.muscleGroup} {ex.equipment ? `• ${ex.equipment}` : ''}</p>
+            <h4 className="text-white font-medium flex items-center flex-wrap gap-1.5">
+              {ex.name}
+              {ex.equipment && <span className="text-[10px] font-bold text-gray-500 bg-gray-800/50 px-1.5 py-0.5 rounded uppercase tracking-wider">{ex.equipment}</span>}
+            </h4>
+            
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium flex-wrap">
+              {pStr && (
+                <span className="text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded tracking-wide border border-rose-500/20">
+                  P: {pStr}
+                </span>
+              )}
+              {sStr && (
+                <span className="text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded tracking-wide border border-gray-700/50">
+                  S: {sStr}
+                </span>
+              )}
+            </div>
+            
             {ex.type === 'cardio' ? (
               (ex.time || ex.distance) && (
                 <p className="text-xs text-gray-500 mt-0.5">
