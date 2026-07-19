@@ -8,7 +8,7 @@ export const muscleCategories = [
   { name: 'Legs', subMuscles: ['Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Adductors', 'Abductors'] },
   { name: 'Shoulders', subMuscles: ['Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts'] },
   { name: 'Arms', subMuscles: ['Arms', 'Biceps', 'Triceps', 'Forearms', 'Brachialis', 'Brachioradialis', 'Long Head Emphasis', 'Short Head Emphasis'] },
-  { name: 'Core', subMuscles: ['Core', 'Upper Abs', 'Lower Abs', 'Obliques', 'Transverse Abdominis'] },
+  { name: 'Core', subMuscles: ['Core', 'Upper Abs', 'Lower Abs', 'Obliques', 'Transverse Abdominis', 'Hip Flexors'] },
   { name: 'Cardio', subMuscles: ['Cardio'] },
   { name: 'Full Body', subMuscles: ['Full Body'] },
 ];
