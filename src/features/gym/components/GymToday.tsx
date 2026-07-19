@@ -50,17 +50,18 @@ export const GymToday = () => {
     if (routine && routine.exercises) {
       routine.exercises.forEach((ex: any, idx: number) => {
         const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
+        const actualType = ex.type || globalEx?.type || 'strength';
         const numSets = parseInt(ex.sets, 10) || 1;
-        if (ex.type === 'cardio') {
+        if (actualType === 'cardio') {
           initialSets[idx] = Array.from({ length: numSets }).map(() => ({
             time: globalEx?.time || ex.time || '',
             calories: globalEx?.calories || ex.calories || '',
             distance: globalEx?.distance || ex.distance || '',
             completed: false
           }));
-        } else if (ex.type === 'timed') {
+        } else if (actualType === 'timed') {
           initialSets[idx] = Array.from({ length: numSets }).map(() => ({
-            time: globalEx?.time || ex.time || '',
+            time: globalEx?.time || ex.time || '60',
             completed: false
           }));
         } else {
@@ -77,7 +78,10 @@ export const GymToday = () => {
       routineId: routineId,
       routineName: routine ? routine.name : "Free Day",
       startTime: Date.now(),
-      exercises: routine && routine.exercises ? [...routine.exercises] : [],
+      exercises: routine && routine.exercises ? routine.exercises.map((ex: any) => ({
+        ...ex,
+        type: ex.type || allExercises.find((g: any) => g.name === ex.exerciseName)?.type || 'strength'
+      })) : [],
       sets: initialSets
     });
     setIsModalOpen(false);
@@ -148,7 +152,7 @@ export const GymToday = () => {
         };
         const globalEx = allExercises.find((g: any) => g.name === exercise.name);
         if (exercise.type === 'timed') {
-          newSets[swapExerciseIndex] = [{ time: globalEx?.time || '', completed: false }];
+          newSets[swapExerciseIndex] = [{ time: globalEx?.time || '60', completed: false }];
         } else {
           newSets[swapExerciseIndex] = [{ weight: globalEx?.weight || '', reps: globalEx?.reps || '', completed: false }];
         }
@@ -162,7 +166,7 @@ export const GymToday = () => {
         });
         const globalEx = allExercises.find((g: any) => g.name === exercise.name);
         if (exercise.type === 'timed') {
-          newSets[newExercises.length - 1] = [{ time: globalEx?.time || '', completed: false }];
+          newSets[newExercises.length - 1] = [{ time: globalEx?.time || '60', completed: false }];
         } else {
           newSets[newExercises.length - 1] = [{ weight: globalEx?.weight || '', reps: globalEx?.reps || '', completed: false }];
         }

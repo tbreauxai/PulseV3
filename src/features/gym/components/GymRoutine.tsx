@@ -102,7 +102,8 @@ export const GymRoutine = () => {
           sets: ex.sets,
           reps: ex.reps,
           time: ex.time,
-          distance: ex.distance
+          distance: ex.distance,
+          type: ex.type
         }))
       };
 
