@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Dumbbell, Plus, ChevronDown, ChevronRight, RefreshCw, Trash2, Check } from 'lucide-react';
 
-export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise }: any) => {
+export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, sessionSets, onAddSet, onUpdateSet, onToggleComplete, onRemoveSet, onSwap, onCompleteExercise, onSkipExercise }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sets = sessionSets || [];
 
@@ -204,13 +204,27 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               <span>ADD SET</span>
             </button>
 
-            <button 
-              onClick={onCompleteExercise}
-              className="w-full mt-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-            >
-              <Check className="h-4 w-4" />
-              <span>COMPLETE EXERCISE</span>
-            </button>
+            <div className="flex space-x-2 mt-3">
+              <button 
+                onClick={() => {
+                  if (window.confirm('Skip this exercise for today?')) {
+                    onSkipExercise();
+                  }
+                }}
+                className="flex-1 bg-gray-900 hover:bg-gray-800 text-gray-500 hover:text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm border border-gray-800"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>SKIP</span>
+              </button>
+
+              <button 
+                onClick={onCompleteExercise}
+                className="flex-[2] bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+              >
+                <Check className="h-4 w-4" />
+                <span>COMPLETE</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

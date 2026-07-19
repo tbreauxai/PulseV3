@@ -272,6 +272,29 @@ export const GymToday = () => {
     });
   }, [activeSession, appendWorkoutExercise, getExerciseMemory, saveExerciseMemory]);
 
+  const handleSkipExercise = useCallback((exerciseIndex: number) => {
+    setActiveSession((prev: any) => {
+      if (!prev) return null;
+      const newExercises = [...prev.exercises];
+      newExercises.splice(exerciseIndex, 1);
+      
+      const newSets: any = {};
+      newExercises.forEach((_, idx) => {
+        newSets[idx] = prev.sets[idx >= exerciseIndex ? idx + 1 : idx];
+      });
+
+      if (newExercises.length === 0) {
+        return null; // Automatically clear session
+      }
+
+      return {
+        ...prev,
+        exercises: newExercises,
+        sets: newSets
+      };
+    });
+  }, []);
+
   const finishWorkout = useCallback(async () => {
     if (window.confirm('Are you sure you want to finish and save this workout?')) {
       let totalVolume = 0;
@@ -564,6 +587,7 @@ export const GymToday = () => {
                     onRemoveSet={removeSet}
                     onSwap={handleOpenExerciseModal}
                     onCompleteExercise={() => handleCompleteExercise(originalIndex)}
+                    onSkipExercise={() => handleSkipExercise(originalIndex)}
                   />
                 );
               })}
