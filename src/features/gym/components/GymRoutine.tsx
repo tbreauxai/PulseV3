@@ -193,7 +193,7 @@ export const GymRoutine = () => {
                 <div key={i} className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl relative overflow-hidden group">
                     <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${ex.type === 'cardio' ? 'bg-emerald-900/50' : 'bg-gray-900'}`}>
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${ex.type === 'cardio' ? 'bg-emerald-900/50' : 'bg-gray-900'}`}>
                         {ex.type === 'cardio' ? (
                           <Activity className="h-4 w-4 text-emerald-500" />
                         ) : (
