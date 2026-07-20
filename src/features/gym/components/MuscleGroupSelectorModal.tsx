@@ -38,6 +38,9 @@ export const MuscleGroupSelectorModal = ({ isOpen, onClose, selectedString, onSa
   const [selected, setSelected] = useState<string[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
+  const allValidMuscles = new Set(muscleCategories.flatMap(c => c.subMuscles));
+  const uncategorizedSelected = selected.filter(m => !allValidMuscles.has(m));
+
   useEffect(() => {
     if (isOpen) {
       if (selectedString) {
@@ -141,6 +144,53 @@ export const MuscleGroupSelectorModal = ({ isOpen, onClose, selectedString, onSa
               </div>
             );
           })}
+
+          {uncategorizedSelected.length > 0 && (
+            <div className="border-b border-[#222] last:border-0">
+              <button
+                onClick={() => setExpandedCategory(expandedCategory === 'Legacy' ? null : 'Legacy')}
+                className="w-full flex items-center justify-between p-4 hover:bg-[#111] transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="text-gray-300 font-bold tracking-wider">LEGACY (OLD LABELS)</span>
+                  <span className="bg-rose-600/20 text-rose-500 px-2 py-0.5 rounded text-xs font-bold">
+                    {uncategorizedSelected.length} selected
+                  </span>
+                </div>
+                {expandedCategory === 'Legacy' ? (
+                  <ChevronUp className="h-5 w-5 text-gray-500" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-500" />
+                )}
+              </button>
+              
+              <AnimatePresence>
+                {expandedCategory === 'Legacy' && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-[#1a1a1a]"
+                  >
+                    <div className="p-2">
+                      {uncategorizedSelected.map(muscle => (
+                        <button
+                          key={muscle}
+                          onClick={() => toggleSelection(muscle)}
+                          className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#1a1a1a] transition-colors"
+                        >
+                          <span className="text-sm text-white font-bold">{muscle}</span>
+                          <div className="h-5 w-5 rounded border flex items-center justify-center transition-colors bg-rose-600 border-rose-600">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
 
         <div className="p-4 border-t border-[#222] shrink-0 bg-[#111]">
