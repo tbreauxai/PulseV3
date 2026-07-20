@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Sparkles, User, Dumbbell } from 'lucide-react';
+import { X, Send, Sparkles, User, Dumbbell, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAICoach } from '../hooks/useAICoach';
@@ -13,8 +13,12 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
   const [usePro, setUsePro] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
-  const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits } = useAICoach();
+  const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const limit = 30; // Groq limit is 30 for both models on free tier
   const requestsLastMinute = requestTimestamps.filter(t => Date.now() - t < 60000).length;
@@ -54,6 +58,48 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   }, [messages, isTyping]);
 
   if (!isOpen) return null;
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+        
+        try {
+          const transcribedText = await transcribeAudio(audioBlob);
+          if (transcribedText.trim()) {
+            sendMessage(transcribedText);
+          }
+        } catch(e) {
+          console.error(e);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      alert('Microphone access denied or unavailable.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,12 +255,28 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
           </div>
           
           <form onSubmit={handleSubmit} className="flex space-x-2">
+            <button
+              type="button"
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onMouseLeave={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              disabled={isTyping || cooldownRemaining > 0}
+              className={`h-auto px-5 rounded-2xl flex items-center justify-center transition-colors ${
+                isRecording 
+                  ? 'bg-rose-500 text-white animate-pulse' 
+                  : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-[#2a2a2a]'
+              } disabled:opacity-50`}
+            >
+              <Mic className="h-5 w-5" />
+            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={cooldownRemaining > 0 ? "Cooling down..." : "Ask your coach anything..."}
-              disabled={isTyping || cooldownRemaining > 0}
+              placeholder={isRecording ? "Listening..." : cooldownRemaining > 0 ? "Cooling down..." : "Ask your coach anything..."}
+              disabled={isTyping || cooldownRemaining > 0 || isRecording}
               className="flex-1 bg-black border border-[#222] rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-rose-600/50 disabled:opacity-50"
             />
             <button

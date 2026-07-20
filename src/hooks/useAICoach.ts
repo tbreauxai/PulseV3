@@ -346,7 +346,30 @@ If they want to create or update something, use your "Write" tools ('create_rout
     }
   }, [messages, queryClient, requestTimestamps]);
 
+  const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+    const apiKey = localStorage.getItem('pulse_groq_key');
+    if (!apiKey) throw new Error('No Groq API key found. Please add it in settings.');
+    
+    setIsTyping(true);
+    try {
+      const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+      const file = new File([audioBlob], 'audio.webm', { type: audioBlob.type });
+      
+      const transcription = await groq.audio.transcriptions.create({
+        file: file,
+        model: 'whisper-large-v3-turbo',
+      });
+      
+      return transcription.text;
+    } catch (error: any) {
+      console.error('Transcription error:', error);
+      throw error;
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const clearChat = () => setMessages([]);
 
-  return { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits };
+  return { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio };
 };
