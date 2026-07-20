@@ -3,10 +3,24 @@ import Groq from 'groq-sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 
+export interface RateLimits {
+  remainingTokens: string | null;
+  remainingRequests: string | null;
+  resetTokens: string | null;
+  resetRequests: string | null;
+}
+
 export const useAICoach = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
+  const [rateLimits, setRateLimits] = useState<RateLimits>({
+    remainingTokens: null,
+    remainingRequests: null,
+    resetTokens: null,
+    resetRequests: null
+  });
+  
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -22,55 +36,26 @@ export const useAICoach = () => {
         }
       } catch(e) {}
     }
+    
+    // Load last known rate limits
+    const storedLimits = localStorage.getItem('pulse_groq_limits');
+    if (storedLimits) {
+      try {
+        setRateLimits(JSON.parse(storedLimits));
+      } catch(e) {}
+    }
   }, []);
 
   const gatherContext = async () => {
-    const todayDate = new Date().toISOString().split('T')[0];
-    const history = queryClient.getQueryData(['workoutHistory']) || [];
-    const exercises = queryClient.getQueryData(['exercises']) || [];
-    const routines = queryClient.getQueryData(['routines']) || [];
-    const weighIns = queryClient.getQueryData(['weighIns']) || [];
-    const macros = queryClient.getQueryData(['macroGoals']) || {};
-    const dailyMacros = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
-    const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
-    const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
-
-    const { data: { user } } = await supabase.auth.getUser();
     return `
 You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
 Your tone is supportive and highly scientific. You rely on data to make decisions.
-Never output raw JSON or code blocks unless requested. Format your output nicely using markdown (bolding, lists, etc).
+Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
 
-Here is the user's current contextual data:
+CRITICAL: You DO NOT have the user's workout data, weigh-ins, routines, or nutrition data in this prompt!
+You MUST use your provided "Read-Only" tools (like analyze_workout_history, get_macros_and_nutrition) to fetch data from the user's database IF they ask a question that requires insight into their habits.
 
---- ALL EXERCISES ---
-${JSON.stringify(exercises)}
-
---- ALL SAVED ROUTINES ---
-${JSON.stringify(routines)}
-
---- WORKOUT HISTORY ---
-${JSON.stringify(history)}
-
---- WEIGH-INS ---
-${JSON.stringify(weighIns)}
-
---- MACRO GOALS & TODAY'S INTAKE ---
-Goals: ${JSON.stringify(macros)}
-Today's Intake: ${JSON.stringify(dailyMacros)}
-
---- TODAY'S HYDRATION ---
-Goal: ${waterGoal}ml
-Intake: ${hydration}ml
-
-Use this data to answer the user's questions specifically tailored to their actual lifestyle and workout habits.
-If they ask for a workout, check what exercises they do from their routines. If they ask about weight, reference their weigh-ins.
-
-CRITICAL INSTRUCTIONS FOR TOOL CALLING:
-- You have tools to create routines and exercises ('create_routine', 'create_exercise'), and to update macro goals ('update_macros').
-- ONLY trigger these tools if the user EXPLICITLY asks you to "create", "save", "add", "build", or "update" something in their app.
-- If the user is just asking for advice, ideas, or says "what do you think?", DO NOT trigger a tool. Just reply with conversational text and markdown.
-- When you do use a tool, you MUST provide the exact tool name in the name field. DO NOT use raw <function> tags in the text.
+If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
 `;
   };
 
@@ -78,8 +63,10 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
     const executeToolLogic = async (toolName: string, args: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required for tool calls.");
-      let responseText = "";
+      
+      const todayDate = new Date().toISOString().split('T')[0];
 
+      // WRITE TOOLS
       if (toolName === 'create_routine') {
         const routineId = Date.now().toString();
         const payload = {
@@ -90,10 +77,9 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        const { error } = await supabase.from('routines').insert([payload]);
-        if (error) throw error;
+        await supabase.from('routines').insert([payload]);
         await queryClient.invalidateQueries({ queryKey: ['routines'] });
-        responseText += `\n✅ **Created Routine:** ${args.name}`;
+        return `SUCCESS: Created Routine ${args.name}`;
       }
       
       if (toolName === 'create_exercise') {
@@ -106,26 +92,60 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           muscle_group: args.muscleGroup || '',
           equipment: args.equipment || ''
         };
-        const { error } = await supabase.from('user_exercises').insert([payload]);
-        if (error) throw error;
+        await supabase.from('user_exercises').insert([payload]);
         await queryClient.invalidateQueries({ queryKey: ['exercises'] });
-        responseText += `\n✅ **Created Exercise:** ${args.name} (${args.muscleGroup})`;
+        return `SUCCESS: Created Exercise ${args.name}`;
       }
       
       if (toolName === 'update_macros') {
         const payload = {
-          user_id: user.id,
           calories_goal: args.calories,
           protein_goal: args.protein,
           carbs_goal: args.carbs,
           fats_goal: args.fats
         };
-        const { error } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' });
-        if (error) throw error;
+        
+        const { data } = await supabase.from('user_settings').update(payload).eq('user_id', user.id).select();
+        if (!data || data.length === 0) {
+           await supabase.from('user_settings').insert([{ user_id: user.id, ...payload }]);
+        }
         await queryClient.invalidateQueries({ queryKey: ['macroGoals'] });
-        responseText += `\n✅ **Updated Macros:** ${args.calories}kcal (${args.protein}g P / ${args.carbs}g C / ${args.fats}g F)`;
+        return `SUCCESS: Updated Macros to ${args.calories}kcal`;
       }
-      return responseText;
+
+      // READ-ONLY RAG TOOLS
+      if (toolName === 'analyze_workout_history') {
+        const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
+        const days = args.days || 30;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        const filtered = history.filter(h => new Date(h.date) >= cutoff);
+        return JSON.stringify(filtered);
+      }
+
+      if (toolName === 'analyze_weigh_ins') {
+        const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
+        const days = args.days || 30;
+        // weighIns have format "Oct 23" which is tricky to parse safely, so we'll just slice by index for now
+        // Assuming latest is at index 0
+        const filtered = weighIns.slice(0, days);
+        return JSON.stringify(filtered);
+      }
+
+      if (toolName === 'get_macros_and_nutrition') {
+        const macros = queryClient.getQueryData(['macroGoals']) || {};
+        const dailyMacros = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
+        const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
+        const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
+        return JSON.stringify({ goals: macros, todayIntake: dailyMacros, hydrationGoal: waterGoal, hydrationToday: hydration });
+      }
+
+      if (toolName === 'get_saved_routines') {
+        const routines = queryClient.getQueryData(['routines']) || [];
+        return JSON.stringify(routines);
+      }
+
+      return `ERROR: Tool ${toolName} not found.`;
     };
 
     const apiKey = localStorage.getItem('pulse_groq_key');
@@ -146,35 +166,30 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
       const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const context = await gatherContext();
 
-      const chatHistory = messages.slice(-10).map(m => ({
-        role: m.role === 'model' ? 'assistant' : 'user',
-        content: m.text
-      }));
+      // We maintain a conversation thread array for the API loop
+      const apiMessages: any[] = [
+        { role: 'system', content: context },
+        ...messages.slice(-10).map(m => ({
+          role: m.role === 'model' ? 'assistant' : 'user',
+          content: m.text
+        })),
+        { role: 'user', content: text }
+      ];
 
       const isPro = localStorage.getItem('pulse_groq_use_pro') === 'true';
+      const modelName = isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
       
       const tools = [
         {
           type: "function",
           function: {
             name: "create_routine",
-            description: "Creates a new workout routine. Use this ONLY when the user asks to build or save a workout routine. DO NOT use this for single exercises.",
+            description: "Creates a new workout routine.",
             parameters: {
               type: "object",
               properties: {
-                name: { type: "string", description: "The name of the routine (e.g. 'Push Day')" },
-                exercises: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      sets: { type: "number" },
-                      reps: { type: "string", description: "Target reps, e.g. '8-12'" },
-                      target_muscle: { type: "string" }
-                    }
-                  }
-                }
+                name: { type: "string" },
+                exercises: { type: "array", items: { type: "object", properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" }, target_muscle: { type: "string" } } } }
               },
               required: ["name", "exercises"]
             }
@@ -184,15 +199,10 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           type: "function",
           function: {
             name: "create_exercise",
-            description: "Creates a new custom gym exercise (e.g. Bicep Curls). Use this ONLY when the user asks to add a new physical exercise to their gym library. DO NOT use this for anything related to nutrition, diet, or macros.",
+            description: "Creates a new gym exercise to add to library.",
             parameters: {
               type: "object",
-              properties: {
-                name: { type: "string" },
-                muscleGroup: { type: "string" },
-                type: { type: "string", enum: ["strength", "cardio"] },
-                equipment: { type: "string", description: "Best guess for equipment (e.g. Barbell, Dumbbell, Machine, Bodyweight)" }
-              },
+              properties: { name: { type: "string" }, muscleGroup: { type: "string" }, type: { type: "string", enum: ["strength", "cardio"] }, equipment: { type: "string" } },
               required: ["name", "muscleGroup"]
             }
           }
@@ -201,76 +211,125 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           type: "function",
           function: {
             name: "update_macros",
-            description: "Updates the user's daily nutrition and diet goals. Use this ONLY when the user asks to calculate or update their calories, protein, carbs, or fats.",
+            description: "Updates the user's daily nutrition goals.",
             parameters: {
               type: "object",
-              properties: {
-                calories: { type: "number" },
-                protein: { type: "number" },
-                carbs: { type: "number" },
-                fats: { type: "number" }
-              },
+              properties: { calories: { type: "number" }, protein: { type: "number" }, carbs: { type: "number" }, fats: { type: "number" } },
               required: ["calories", "protein", "carbs", "fats"]
             }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "analyze_workout_history",
+            description: "Fetches the user's logged workouts over the specified number of days.",
+            parameters: {
+              type: "object",
+              properties: { days: { type: "number", description: "Number of days of history to fetch (e.g. 7, 30)" } },
+              required: ["days"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "analyze_weigh_ins",
+            description: "Fetches the user's weigh-in history (body weight).",
+            parameters: {
+              type: "object",
+              properties: { days: { type: "number", description: "Number of most recent weigh-ins to fetch" } },
+              required: ["days"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "get_macros_and_nutrition",
+            description: "Fetches the user's current diet goals, today's intake, and hydration.",
+            parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "get_saved_routines",
+            description: "Fetches the user's saved workout routines.",
+            parameters: { type: "object", properties: {}, required: [] }
           }
         }
       ];
 
-      const response = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: context },
-          // @ts-ignore
-          ...chatHistory,
-          { role: 'user', content: text }
-        ],
-        model: isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant',
+      let keepRunning = true;
+      let finalResponseContent = "";
+
+      while (keepRunning) {
         // @ts-ignore
-        tools: tools,
-        tool_choice: "auto"
-      });
+        const { data, response } = await groq.chat.completions.create({
+          messages: apiMessages,
+          model: modelName,
+          // @ts-ignore
+          tools: tools,
+          tool_choice: "auto"
+        }).withResponse();
 
-      const responseMessage = response.choices[0]?.message;
+        // Capture Rate Limits
+        const limits = {
+          remainingTokens: response.headers.get('x-ratelimit-remaining-tokens'),
+          remainingRequests: response.headers.get('x-ratelimit-remaining-requests'),
+          resetTokens: response.headers.get('x-ratelimit-reset-tokens'),
+          resetRequests: response.headers.get('x-ratelimit-reset-requests'),
+        };
+        setRateLimits(limits);
+        localStorage.setItem('pulse_groq_limits', JSON.stringify(limits));
 
-      if (responseMessage?.tool_calls) {
-        let toolResponseText = "";
+        const responseMessage = data.choices[0]?.message;
         
-        for (const toolCall of responseMessage.tool_calls) {
-          const args = JSON.parse(toolCall.function.arguments);
-          toolResponseText += await executeToolLogic(toolCall.function.name, args);
+        if (!responseMessage) {
+          keepRunning = false;
+          break;
         }
-        
-        setMessages(prev => [...prev, { role: 'model', text: responseMessage.content ? responseMessage.content + "\n" + toolResponseText : toolResponseText.trim() }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'model', text: responseMessage?.content || '' }]);
+
+        apiMessages.push(responseMessage);
+
+        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+          for (const toolCall of responseMessage.tool_calls) {
+            try {
+              const args = JSON.parse(toolCall.function.arguments);
+              const toolResult = await executeToolLogic(toolCall.function.name, args);
+              apiMessages.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                name: toolCall.function.name,
+                content: toolResult
+              });
+            } catch(err: any) {
+              apiMessages.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                name: toolCall.function.name,
+                content: `Error executing tool: ${err.message}`
+              });
+            }
+          }
+        } else {
+          finalResponseContent = responseMessage.content || "";
+          keepRunning = false;
+        }
       }
+
+      setMessages(prev => [...prev, { role: 'model', text: finalResponseContent }]);
+
     } catch (error: any) {
       console.error(error);
-      
-      // Fallback for Llama 3's hallucinatory <function> tags that break Groq's parser
-      try {
-        const errorJson = JSON.parse(error.message.replace(/^[^{]+/, ''));
-        const failedGen = errorJson?.error?.failed_generation;
-        if (failedGen) {
-          const match = failedGen.match(/<function=([a-zA-Z_]+)[^>]*>?\s*(\{.*?\})\s*<\/function>/s);
-          if (match) {
-            const toolName = match[1];
-            const args = JSON.parse(match[2]);
-            const resultText = await executeToolLogic(toolName, args);
-            setMessages(prev => [...prev, { role: 'model', text: "I've handled that for you!" + resultText }]);
-            return;
-          }
-        }
-      } catch(e) {
-        console.error("Fallback parser failed:", e);
-      }
-
       setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
     } finally {
       setIsTyping(false);
     }
-  }, [messages, queryClient]);
+  }, [messages, queryClient, requestTimestamps]);
 
   const clearChat = () => setMessages([]);
 
-  return { messages, isTyping, sendMessage, clearChat, requestTimestamps };
+  return { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits };
 };

@@ -13,7 +13,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
   const [usePro, setUsePro] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
-  const { messages, isTyping, sendMessage, clearChat, requestTimestamps } = useAICoach();
+  const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const limit = 30; // Groq limit is 30 for both models on free tier
@@ -100,6 +100,27 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
             </button>
           </div>
         </div>
+
+        {/* Token Tracker */}
+        {rateLimits && rateLimits.remainingTokens && (
+          <div className="bg-[#111] border-b border-[#222] px-4 py-2 flex items-center justify-between text-[10px] font-bold tracking-wider">
+             <div className="flex items-center space-x-4">
+                <div>
+                   <span className="text-gray-500">REMAINING TOKENS:</span>
+                   <span className={`ml-1 ${parseInt(rateLimits.remainingTokens) < 1000 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>{rateLimits.remainingTokens}</span>
+                </div>
+                <div>
+                   <span className="text-gray-500">REQUESTS:</span>
+                   <span className={`ml-1 ${parseInt(rateLimits.remainingRequests || '30') < 5 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>{rateLimits.remainingRequests}</span>
+                </div>
+             </div>
+             {rateLimits.resetTokens && (
+               <div className="text-gray-600">
+                 RESETS IN {Math.ceil(parseFloat(rateLimits.resetTokens))}s
+               </div>
+             )}
+          </div>
+        )}
 
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
