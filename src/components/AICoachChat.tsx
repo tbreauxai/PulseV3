@@ -12,8 +12,28 @@ interface AICoachChatProps {
 export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
   const [usePro, setUsePro] = useState(false);
-  const { messages, isTyping, sendMessage, clearChat } = useAICoach();
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const { messages, isTyping, sendMessage, clearChat, requestTimestamps } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const limit = usePro ? 2 : 15;
+  const requestsLastMinute = requestTimestamps.filter(t => Date.now() - t < 60000).length;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const oneMinuteAgo = Date.now() - 60000;
+      const recentReqs = requestTimestamps.filter(t => t > oneMinuteAgo);
+      if (recentReqs.length >= limit) {
+        // Assume chronologically ordered
+        const oldestRecent = recentReqs[0];
+        const timeUntilUnlock = Math.ceil((oldestRecent + 60000 - Date.now()) / 1000);
+        setCooldownRemaining(timeUntilUnlock > 0 ? timeUntilUnlock : 0);
+      } else {
+        setCooldownRemaining(0);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [requestTimestamps, limit]);
 
   useEffect(() => {
     setUsePro(localStorage.getItem('pulse_gemini_use_pro') === 'true');
@@ -162,19 +182,29 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
               </button>
             </div>
           )}
+          <div className="flex justify-between items-center mb-2 px-2">
+            <span className="text-[10px] text-gray-500 font-bold tracking-wider">
+              {usePro ? 'PRO' : 'FLASH'} QUOTA: {requestsLastMinute}/{limit}
+            </span>
+            {cooldownRemaining > 0 && (
+              <span className="text-[10px] text-rose-500 font-bold animate-pulse">
+                COOLDOWN: {cooldownRemaining}s
+              </span>
+            )}
+          </div>
           
           <form onSubmit={handleSubmit} className="flex space-x-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask your coach anything..."
-              disabled={isTyping}
+              placeholder={cooldownRemaining > 0 ? "Cooling down..." : "Ask your coach anything..."}
+              disabled={isTyping || cooldownRemaining > 0}
               className="flex-1 bg-black border border-[#222] rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-rose-600/50 disabled:opacity-50"
             />
             <button
               type="submit"
-              disabled={!input.trim() || isTyping}
+              disabled={!input.trim() || isTyping || cooldownRemaining > 0}
               className="h-auto px-6 rounded-2xl bg-rose-600 text-white font-black hover:bg-rose-700 disabled:opacity-50 disabled:hover:bg-rose-600 transition-colors flex items-center justify-center"
             >
               <Send className="h-5 w-5" />

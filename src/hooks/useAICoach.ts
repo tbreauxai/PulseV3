@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
@@ -6,7 +6,23 @@ import { supabase } from '../lib/supabase';
 export const useAICoach = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('pulse_gemini_requests');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const now = Date.now();
+        const recent = parsed.filter((t: number) => now - t < 24 * 60 * 60 * 1000);
+        setRequestTimestamps(recent);
+        if (parsed.length !== recent.length) {
+          localStorage.setItem('pulse_gemini_requests', JSON.stringify(recent));
+        }
+      } catch(e) {}
+    }
+  }, []);
 
   const gatherContext = async () => {
     // Attempt to gather context from cached react-query data
@@ -51,6 +67,11 @@ If they ask for a workout, check what exercises they do from their routines. If 
     setMessages(prev => [...prev, { role: 'user', text }]);
     setIsTyping(true);
 
+    const now = Date.now();
+    const newTimestamps = [...requestTimestamps, now];
+    setRequestTimestamps(newTimestamps);
+    localStorage.setItem('pulse_gemini_requests', JSON.stringify(newTimestamps));
+
     try {
       const ai = new GoogleGenAI({ apiKey });
       const context = await gatherContext();
@@ -64,7 +85,7 @@ If they ask for a workout, check what exercises they do from their routines. If 
 
       const isPro = localStorage.getItem('pulse_gemini_use_pro') === 'true';
       const response = await ai.models.generateContent({
-        model: isPro ? 'gemini-2.5-pro' : 'gemini-2.0-flash',
+        model: isPro ? 'gemini-2.0-flash' : 'gemini-2.0-flash-lite',
         contents: [
           ...chatHistory,
           { role: 'user', parts: [{ text }] }
@@ -99,5 +120,5 @@ If they ask for a workout, check what exercises they do from their routines. If 
 
   const clearChat = () => setMessages([]);
 
-  return { messages, isTyping, sendMessage, clearChat };
+  return { messages, isTyping, sendMessage, clearChat, requestTimestamps };
 };
