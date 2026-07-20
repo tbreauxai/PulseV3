@@ -288,5 +288,139 @@ export const useWorkoutHistory = () => {
     }
   });
 
-  return { history, isLoading, addWorkout, removeWorkout, appendWorkoutExercise, clearHistory };
+  const { mutateAsync: removeWorkoutExercise } = useMutation({
+    mutationFn: async ({ workoutId, exerciseIndex }: { workoutId: string, exerciseIndex: number }) => {
+      if (!navigator.onLine) throw new Error('NetworkError');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      // 1. Fetch current workout
+      const { data: existing, error: fetchErr } = await supabase
+        .from('workout_history')
+        .select('*')
+        .eq('id', workoutId)
+        .single();
+      
+      if (fetchErr) throw new Error("Could not fetch workout to delete exercise.");
+      if (!existing) throw new Error("Workout not found.");
+
+      let currentDetails = existing.exercise_details || [];
+      if (typeof currentDetails === 'string') {
+         try { currentDetails = JSON.parse(currentDetails); } catch(e) { currentDetails = []; }
+      }
+
+      if (exerciseIndex < 0 || exerciseIndex >= currentDetails.length) {
+        throw new Error("Exercise index out of bounds.");
+      }
+
+      const exerciseToRemove = currentDetails[exerciseIndex];
+      
+      // Calculate volume and sets to subtract
+      let volumeToSubtract = 0;
+      let setsToSubtract = 0;
+      if (exerciseToRemove && exerciseToRemove.sets) {
+        exerciseToRemove.sets.forEach((set: any) => {
+          if (set.completed) setsToSubtract++;
+          const weight = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps) || 0;
+          if (exerciseToRemove.type !== 'cardio' && exerciseToRemove.type !== 'timed') {
+             volumeToSubtract += (weight * reps);
+          }
+        });
+      }
+
+      const newDetails = [...currentDetails];
+      newDetails.splice(exerciseIndex, 1);
+
+      if (newDetails.length === 0) {
+        // Delete entire workout
+        const { error: delErr } = await supabase
+          .from('workout_history')
+          .delete()
+          .eq('id', workoutId);
+        
+        if (delErr) throw new Error("Error deleting empty workout.");
+        return { workoutId, deletedCompletely: true };
+      } else {
+        // Update workout
+        const newSets = Math.max(0, (existing.completed_sets || 0) - setsToSubtract);
+        const newVol = Math.max(0, (existing.total_volume || 0) - volumeToSubtract);
+
+        const { data, error: updErr } = await supabase
+          .from('workout_history')
+          .update({
+            exercise_details: newDetails,
+            completed_sets: newSets,
+            total_volume: newVol
+          })
+          .eq('id', workoutId)
+          .select();
+        
+        if (updErr) throw new Error("Error updating workout.");
+        
+        return {
+          workoutId,
+          deletedCompletely: false,
+          updatedData: {
+            id: data[0].id,
+            routineName: data[0].routine_name,
+            date: data[0].created_at,
+            duration: data[0].duration,
+            completedSets: data[0].completed_sets,
+            totalVolume: data[0].total_volume,
+            exerciseDetails: data[0].exercise_details
+          }
+        };
+      }
+    },
+    onMutate: async ({ workoutId, exerciseIndex }) => {
+      await queryClient.cancelQueries({ queryKey: ['workoutHistory'] });
+      const previousHistory = queryClient.getQueryData(['workoutHistory']);
+
+      queryClient.setQueryData(['workoutHistory'], (old: any = []) => {
+        return old.map((w: any) => {
+          if (w.id === workoutId) {
+            const newDetails = [...(w.exerciseDetails || [])];
+            const exerciseToRemove = newDetails[exerciseIndex];
+            
+            let volSub = 0;
+            let setsSub = 0;
+            if (exerciseToRemove && exerciseToRemove.sets) {
+              exerciseToRemove.sets.forEach((set: any) => {
+                if (set.completed) setsSub++;
+                const weight = parseFloat(set.weight) || 0;
+                const reps = parseInt(set.reps) || 0;
+                if (exerciseToRemove.type !== 'cardio' && exerciseToRemove.type !== 'timed') {
+                  volSub += (weight * reps);
+                }
+              });
+            }
+
+            newDetails.splice(exerciseIndex, 1);
+            return {
+              ...w,
+              completedSets: Math.max(0, (w.completedSets || 0) - setsSub),
+              totalVolume: Math.max(0, (w.totalVolume || 0) - volSub),
+              exerciseDetails: newDetails
+            };
+          }
+          return w;
+        }).filter((w: any) => w.exerciseDetails && w.exerciseDetails.length > 0);
+      });
+
+      return { previousHistory };
+    },
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['workoutHistory'] });
+    },
+    onError: (err: any, variables: any, context: any) => {
+      alert('Error removing exercise: ' + err.message);
+      if (context?.previousHistory) {
+         queryClient.setQueryData(['workoutHistory'], context.previousHistory);
+      }
+    }
+  });
+
+  return { history, isLoading, addWorkout, removeWorkout, appendWorkoutExercise, removeWorkoutExercise, clearHistory };
 };

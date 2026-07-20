@@ -4,7 +4,7 @@ import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useAlert } from '../../../contexts/AlertContext';
 import { Virtuoso } from 'react-virtuoso';
 
-const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }: any) => {
+const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove, onRemoveExercise }: any) => {
   const { confirm } = useAlert();
   const dateObj = new Date(workout.date);
   const formattedDate = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -49,7 +49,20 @@ const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }: any)
           <div className="mt-4 pt-4 border-t border-[#1a1a1a] space-y-4">
             {workout.exerciseDetails.map((ex, i) => (
               <div key={i}>
-                <h5 className="text-sm font-bold text-gray-300 mb-2">{ex.exerciseName}</h5>
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-sm font-bold text-gray-300">{ex.exerciseName}</h5>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (await confirm(`Delete ${ex.exerciseName} from this log?`)) {
+                        onRemoveExercise(workout.id, i);
+                      }
+                    }}
+                    className="h-6 w-6 rounded flex items-center justify-center text-gray-600 hover:bg-rose-600/10 hover:text-rose-500 transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   {ex.sets.map((set, j) => (
                     <div key={j} className="flex justify-between items-center text-xs pl-3 border-l-2 border-[#333]">
@@ -80,7 +93,7 @@ const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove }: any)
 });
 
 export const GymProgress = () => {
-  const { history, removeWorkout } = useWorkoutHistory();
+  const { history, removeWorkout, removeWorkoutExercise } = useWorkoutHistory();
   const [expandedId, setExpandedId] = useState(null);
 
   const toggleExpand = useCallback((id) => {
@@ -90,6 +103,10 @@ export const GymProgress = () => {
   const onRemove = useCallback((id) => {
     removeWorkout(id);
   }, [removeWorkout]);
+
+  const onRemoveExercise = useCallback((workoutId, exerciseIndex) => {
+    removeWorkoutExercise({ workoutId, exerciseIndex }).catch(console.error);
+  }, [removeWorkoutExercise]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
@@ -124,6 +141,7 @@ export const GymProgress = () => {
                   isExpanded={expandedId === workout.id}
                   onToggle={toggleExpand}
                   onRemove={onRemove}
+                  onRemoveExercise={onRemoveExercise}
                 />
               )}
             />
@@ -131,50 +149,7 @@ export const GymProgress = () => {
         </div>
       </div>
 
-      {/* Mock Analytics Section */}
-      <h2 className="text-2xl font-bold text-white tracking-tight pt-4">Analytics</h2>
 
-      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-sm font-bold text-gray-500 tracking-wider">VOLUME LOAD</h3>
-          <span className="text-rose-600 text-xs font-bold bg-rose-600/10 px-2 py-1 rounded">PAST 7 DAYS</span>
-        </div>
-        
-        <div className="flex items-end justify-between h-32 gap-2">
-          {[40, 65, 45, 80, 55, 90, 75].map((height, i) => (
-            <div key={i} className="w-full bg-gray-900 rounded-sm relative group hover:bg-rose-600/20 transition-colors cursor-pointer flex flex-col justify-end" style={{ height: '100%' }}>
-              <div className="w-full bg-rose-600 rounded-sm transition-all duration-700 ease-out" style={{ height: `${height}%` }}></div>
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-between mt-3 text-[10px] font-bold text-gray-600">
-          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-500 tracking-wider mb-3">PERSONAL RECORDS</h3>
-        <div className="space-y-3">
-          {[
-            { name: 'Bench Press', weight: '225 lbs', date: 'Oct 12' },
-            { name: 'Squat', weight: '315 lbs', date: 'Oct 05' },
-            { name: 'Deadlift', weight: '405 lbs', date: 'Sep 28' },
-          ].map((pr, i) => (
-            <div key={i} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl">
-              <div className="flex items-center space-x-4">
-                <div className="h-10 w-10 bg-rose-600/10 rounded-lg flex items-center justify-center">
-                  <Trophy className="h-5 w-5 text-rose-600" />
-                </div>
-                <span className="text-white font-medium">{pr.name}</span>
-              </div>
-              <div className="text-right">
-                <div className="text-white font-bold">{pr.weight}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{pr.date}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
