@@ -105,23 +105,15 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
         <div className="bg-[#111] border-b border-[#222] px-4 py-2 flex items-center justify-between text-[10px] font-bold tracking-wider">
            <div className="flex items-center space-x-4">
               <div>
-                 <span className="text-gray-500">REMAINING TOKENS:</span>
-                 <span className={`ml-1 ${!rateLimits?.remainingTokens ? 'text-yellow-500' : parseInt(rateLimits.remainingTokens) < 1000 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>
-                   {rateLimits?.remainingTokens || 'WAITING FOR API...'}
-                 </span>
-              </div>
-              <div>
-                 <span className="text-gray-500">REQUESTS:</span>
-                 <span className={`ml-1 ${!rateLimits?.remainingRequests ? 'text-yellow-500' : parseInt(rateLimits.remainingRequests) < 5 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>
-                   {rateLimits?.remainingRequests || '--'}
+                 <span className="text-gray-500">ESTIMATED DAILY TOKENS REMAINING:</span>
+                 <span className={`ml-2 ${!rateLimits?.remainingTokens ? 'text-yellow-500' : parseInt(rateLimits.remainingTokens) < 10000 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>
+                   {rateLimits?.remainingTokens ? parseInt(rateLimits.remainingTokens).toLocaleString() : '100,000'}
                  </span>
               </div>
            </div>
-           {rateLimits?.resetTokens && (
-             <div className="text-gray-600">
-               RESETS IN {Math.ceil(parseFloat(rateLimits.resetTokens))}s
-             </div>
-           )}
+           <div className="text-gray-600">
+             RESETS AT MIDNIGHT
+           </div>
         </div>
 
         {/* Chat Area */}

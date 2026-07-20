@@ -274,15 +274,32 @@ If they want to create or update something, use your "Write" tools ('create_rout
           tool_choice: "auto"
         }).withResponse();
 
-        // Capture Rate Limits
+        // Capture Token Usage from response body since headers are blocked by CORS
+        const usage = data.usage?.total_tokens || 0;
+        
+        // Retrieve stored usage for today
+        const todayStr = new Date().toISOString().split('T')[0];
+        let storedUsage = 0;
+        try {
+          const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+          if (stored.date === todayStr) {
+            storedUsage = stored.tokens || 0;
+          }
+        } catch(e) {}
+
+        const newTotalUsage = storedUsage + usage;
+        localStorage.setItem('pulse_groq_usage', JSON.stringify({ date: todayStr, tokens: newTotalUsage }));
+
+        // Estimate remaining based on typical Groq Free Tier (100,000 tokens per day)
+        const estimatedRemaining = Math.max(0, 100000 - newTotalUsage);
+        
         const limits = {
-          remainingTokens: response.headers.get('x-ratelimit-remaining-tokens'),
-          remainingRequests: response.headers.get('x-ratelimit-remaining-requests'),
-          resetTokens: response.headers.get('x-ratelimit-reset-tokens'),
-          resetRequests: response.headers.get('x-ratelimit-reset-requests'),
+          remainingTokens: estimatedRemaining.toString(),
+          remainingRequests: '--', // We can't accurately track RPD without a full DB, so hide this
+          resetTokens: null,
+          resetRequests: null,
         };
         setRateLimits(limits);
-        localStorage.setItem('pulse_groq_limits', JSON.stringify(limits));
 
         const responseMessage = data.choices[0]?.message;
         
