@@ -25,12 +25,15 @@ export const useAICoach = () => {
   }, []);
 
   const gatherContext = async () => {
-    // Attempt to gather context from cached react-query data
+    const todayDate = new Date().toISOString().split('T')[0];
     const history = queryClient.getQueryData(['workoutHistory']) || [];
     const exercises = queryClient.getQueryData(['exercises']) || [];
     const routines = queryClient.getQueryData(['routines']) || [];
     const weighIns = queryClient.getQueryData(['weighIns']) || [];
     const macros = queryClient.getQueryData(['macroGoals']) || {};
+    const dailyMacros = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
+    const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
+    const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
 
     const { data: { user } } = await supabase.auth.getUser();
     return `
@@ -40,20 +43,29 @@ Never output raw JSON or code blocks unless requested. Format your output nicely
 
 Here is the user's current contextual data:
 
---- RECENT WORKOUT HISTORY (Last 30 Days) ---
-${JSON.stringify(history).slice(0, 500)} // Truncated to avoid token limits if it's too huge
+--- ALL EXERCISES ---
+${JSON.stringify(exercises)}
 
---- SAVED ROUTINES ---
-${JSON.stringify(routines).slice(0, 200)}
+--- ALL SAVED ROUTINES ---
+${JSON.stringify(routines)}
 
---- RECENT WEIGH-INS ---
-${JSON.stringify(weighIns).slice(0, 100)}
+--- WORKOUT HISTORY ---
+${JSON.stringify(history)}
 
---- CURRENT MACRO GOALS ---
-${JSON.stringify(macros)}
+--- WEIGH-INS ---
+${JSON.stringify(weighIns)}
+
+--- MACRO GOALS & TODAY'S INTAKE ---
+Goals: ${JSON.stringify(macros)}
+Today's Intake: ${JSON.stringify(dailyMacros)}
+
+--- TODAY'S HYDRATION ---
+Goal: ${waterGoal}ml
+Intake: ${hydration}ml
 
 Use this data to answer the user's questions specifically tailored to their actual lifestyle and workout habits.
 If they ask for a workout, check what exercises they do from their routines. If they ask about weight, reference their weigh-ins.
+You have the ability to create routines and exercises using tools. If the user asks you to create one, use the tool.
 `;
   };
 
@@ -82,6 +94,53 @@ If they ask for a workout, check what exercises they do from their routines. If 
       }));
 
       const isPro = localStorage.getItem('pulse_groq_use_pro') === 'true';
+      
+      const tools = [
+        {
+          type: "function",
+          function: {
+            name: "create_routine",
+            description: "Creates a new workout routine and saves it to the user's library.",
+            parameters: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "The name of the routine (e.g. 'Push Day')" },
+                exercises: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      sets: { type: "number" },
+                      reps: { type: "string", description: "Target reps, e.g. '8-12'" },
+                      target_muscle: { type: "string" }
+                    }
+                  }
+                }
+              },
+              required: ["name", "exercises"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "create_exercise",
+            description: "Creates a new custom exercise.",
+            parameters: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                muscleGroup: { type: "string" },
+                type: { type: "string", enum: ["strength", "cardio"] },
+                equipment: { type: "string", description: "Best guess for equipment (e.g. Barbell, Dumbbell, Machine, Bodyweight)" }
+              },
+              required: ["name", "muscleGroup"]
+            }
+          }
+        }
+      ];
+
       const response = await groq.chat.completions.create({
         messages: [
           { role: 'system', content: context },
@@ -90,9 +149,63 @@ If they ask for a workout, check what exercises they do from their routines. If 
           { role: 'user', content: text }
         ],
         model: isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant',
+        // @ts-ignore
+        tools: tools,
+        tool_choice: "auto"
       });
 
-      setMessages(prev => [...prev, { role: 'model', text: response.choices[0]?.message?.content || '' }]);
+      const responseMessage = response.choices[0]?.message;
+
+      if (responseMessage?.tool_calls) {
+        let toolResponseText = "";
+        
+        for (const toolCall of responseMessage.tool_calls) {
+          const args = JSON.parse(toolCall.function.arguments);
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) throw new Error("Authentication required for tool calls.");
+
+          if (toolCall.function.name === 'create_routine') {
+            const routineId = Date.now().toString();
+            const payload = {
+              user_id: user.id,
+              routine_id: routineId,
+              name: args.name,
+              exercises: args.exercises,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            const { error } = await supabase.from('routines').insert([payload]);
+            if (error) throw error;
+            
+            await queryClient.invalidateQueries({ queryKey: ['routines'] });
+            toolResponseText += `\n✅ **Created Routine:** ${args.name}`;
+          }
+          
+          if (toolCall.function.name === 'create_exercise') {
+            const exerciseId = Date.now().toString();
+            const payload = {
+              user_id: user.id,
+              exercise_id: exerciseId,
+              name: args.name,
+              type: args.type || 'strength',
+              muscle_group: args.muscleGroup || '',
+              equipment: args.equipment || ''
+            };
+            
+            const { error } = await supabase.from('user_exercises').insert([payload]);
+            if (error) throw error;
+            
+            await queryClient.invalidateQueries({ queryKey: ['exercises'] });
+            toolResponseText += `\n✅ **Created Exercise:** ${args.name} (${args.muscleGroup})`;
+          }
+        }
+        
+        setMessages(prev => [...prev, { role: 'model', text: responseMessage.content ? responseMessage.content + "\n" + toolResponseText : toolResponseText.trim() }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'model', text: responseMessage?.content || '' }]);
+      }
     } catch (error: any) {
       console.error(error);
       setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
