@@ -19,7 +19,7 @@ export const LifestyleMetrics = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (metrics && !isLoading) {
+    if (metrics && !isLoading && !isEditing) {
       setFormData({
         age: metrics.age?.toString() || '',
         height_cm: metrics.height_cm?.toString() || '',
@@ -27,7 +27,7 @@ export const LifestyleMetrics = () => {
         activity_level: metrics.activity_level || 'sedentary'
       });
     }
-  }, [metrics, isLoading]);
+  }, [metrics, isLoading, isEditing]);
 
   const latestWeightLbs = logs && logs.length > 0 ? logs[0].weight : null;
   const latestWeightKg = latestWeightLbs ? latestWeightLbs * 0.453592 : null;
