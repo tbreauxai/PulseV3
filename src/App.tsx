@@ -4,6 +4,7 @@ import { LogOut, Loader2, Settings, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SettingsModal } from './components/SettingsModal';
 import { AICoachChat } from './components/AICoachChat';
+import { PWAUpdateNotification } from './components/PWAUpdateNotification';
 
 const AuthScreen = lazy(() => import('./features/auth/components/AuthScreen').then(module => ({ default: module.AuthScreen })));
 const GymView = lazy(() => import('./features/gym/GymView').then(module => ({ default: module.GymView })));
@@ -39,6 +40,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-gray-800">
+      <PWAUpdateNotification />
       <nav className="fixed top-0 w-full flex bg-black/90 backdrop-blur-lg z-50 border-b border-gray-900 pt-safe">
         <button
           onClick={() => setActiveTab('gym')}
