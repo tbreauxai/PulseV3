@@ -114,7 +114,7 @@ export default function App() {
 
       <button
         onClick={() => setIsCoachOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-tr from-rose-600 to-purple-600 shadow-[0_0_20px_rgba(225,29,72,0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40"
+        className="fixed bottom-24 left-6 h-14 w-14 rounded-full bg-gradient-to-tr from-rose-600 to-purple-600 shadow-[0_0_20px_rgba(225,29,72,0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40"
       >
         <Sparkles className="h-6 w-6 text-white" />
       </button>
