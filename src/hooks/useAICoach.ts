@@ -78,7 +78,21 @@ If they ask for a workout, check what exercises they do from their routines. If 
       setMessages(prev => [...prev, { role: 'model', text: response.text || '' }]);
     } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
+      let errorText = `Sorry, an error occurred: ${error.message}`;
+      
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.list();
+        const modelNames = [];
+        for await (const m of response) {
+          modelNames.push(m.name);
+        }
+        errorText += `\n\n**Available Models for your API Key:**\n` + modelNames.map(n => `- ${n}`).join('\n');
+      } catch (e: any) {
+        errorText += `\n\n(Failed to fetch models list: ${e.message})`;
+      }
+
+      setMessages(prev => [...prev, { role: 'model', text: errorText }]);
     } finally {
       setIsTyping(false);
     }
