@@ -13,7 +13,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
   useEffect(() => {
     if (isOpen) {
-      const storedKey = localStorage.getItem('pulse_gemini_key') || '';
+      const storedKey = localStorage.getItem('pulse_groq_key') || '';
       setApiKey(storedKey);
       setSaved(false);
     }
@@ -23,9 +23,9 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
   const handleSave = () => {
     if (apiKey.trim()) {
-      localStorage.setItem('pulse_gemini_key', apiKey.trim());
+      localStorage.setItem('pulse_groq_key', apiKey.trim());
     } else {
-      localStorage.removeItem('pulse_gemini_key');
+      localStorage.removeItem('pulse_groq_key');
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -60,7 +60,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
         <div className="space-y-6">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-bold text-gray-300">GEMINI API KEY</label>
+              <label className="text-sm font-bold text-gray-300">GROQ API KEY</label>
               <div className="flex items-center space-x-1 text-xs font-bold text-emerald-500">
                 <ShieldCheck className="h-3 w-3" />
                 <span>LOCAL ONLY</span>
@@ -73,7 +73,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="AIzaSyB..."
+              placeholder="gsk_..."
               className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
             />
           </div>

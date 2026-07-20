@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import Groq from 'groq-sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 
@@ -10,7 +10,7 @@ export const useAICoach = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const stored = localStorage.getItem('pulse_gemini_requests');
+    const stored = localStorage.getItem('pulse_groq_requests');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -18,7 +18,7 @@ export const useAICoach = () => {
         const recent = parsed.filter((t: number) => now - t < 24 * 60 * 60 * 1000);
         setRequestTimestamps(recent);
         if (parsed.length !== recent.length) {
-          localStorage.setItem('pulse_gemini_requests', JSON.stringify(recent));
+          localStorage.setItem('pulse_groq_requests', JSON.stringify(recent));
         }
       } catch(e) {}
     }
@@ -58,9 +58,9 @@ If they ask for a workout, check what exercises they do from their routines. If 
   };
 
   const sendMessage = useCallback(async (text: string) => {
-    const apiKey = localStorage.getItem('pulse_gemini_key');
+    const apiKey = localStorage.getItem('pulse_groq_key');
     if (!apiKey) {
-      setMessages(prev => [...prev, { role: 'user', text }, { role: 'model', text: 'Error: No Gemini API key found. Please open App Settings (gear icon) and add your API key.' }]);
+      setMessages(prev => [...prev, { role: 'user', text }, { role: 'model', text: 'Error: No Groq API key found. Please open App Settings (gear icon) and add your API key.' }]);
       return;
     }
 
@@ -70,49 +70,32 @@ If they ask for a workout, check what exercises they do from their routines. If 
     const now = Date.now();
     const newTimestamps = [...requestTimestamps, now];
     setRequestTimestamps(newTimestamps);
-    localStorage.setItem('pulse_gemini_requests', JSON.stringify(newTimestamps));
+    localStorage.setItem('pulse_groq_requests', JSON.stringify(newTimestamps));
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const context = await gatherContext();
 
-      // We use the raw generateContent for a simple implementation without chat history management overhead for now,
-      // but we will pass the previous few messages as history to simulate chat.
       const chatHistory = messages.slice(-10).map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
+        role: m.role === 'model' ? 'assistant' : 'user',
+        content: m.text
       }));
 
-      const isPro = localStorage.getItem('pulse_gemini_use_pro') === 'true';
-      const response = await ai.models.generateContent({
-        model: isPro ? 'gemini-pro-latest' : 'gemini-2.0-flash',
-        contents: [
+      const isPro = localStorage.getItem('pulse_groq_use_pro') === 'true';
+      const response = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: context },
+          // @ts-ignore
           ...chatHistory,
-          { role: 'user', parts: [{ text }] }
+          { role: 'user', content: text }
         ],
-        config: {
-          systemInstruction: context
-        }
+        model: isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant',
       });
 
-      setMessages(prev => [...prev, { role: 'model', text: response.text || '' }]);
+      setMessages(prev => [...prev, { role: 'model', text: response.choices[0]?.message?.content || '' }]);
     } catch (error: any) {
       console.error(error);
-      let errorText = `Sorry, an error occurred: ${error.message}`;
-      
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.list();
-        const modelNames = [];
-        for await (const m of response) {
-          modelNames.push(m.name);
-        }
-        errorText += `\n\n**Available Models for your API Key:**\n` + modelNames.map(n => `- ${n}`).join('\n');
-      } catch (e: any) {
-        errorText += `\n\n(Failed to fetch models list: ${e.message})`;
-      }
-
-      setMessages(prev => [...prev, { role: 'model', text: errorText }]);
+      setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
     } finally {
       setIsTyping(false);
     }

@@ -16,7 +16,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const { messages, isTyping, sendMessage, clearChat, requestTimestamps } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const limit = usePro ? 2 : 15;
+  const limit = 30; // Groq limit is 30 for both models on free tier
   const requestsLastMinute = requestTimestamps.filter(t => Date.now() - t < 60000).length;
 
   useEffect(() => {
@@ -36,13 +36,13 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   }, [requestTimestamps, limit]);
 
   useEffect(() => {
-    setUsePro(localStorage.getItem('pulse_gemini_use_pro') === 'true');
+    setUsePro(localStorage.getItem('pulse_groq_use_pro') === 'true');
   }, []);
 
   const togglePro = () => {
     const next = !usePro;
     setUsePro(next);
-    localStorage.setItem('pulse_gemini_use_pro', String(next));
+    localStorage.setItem('pulse_groq_use_pro', String(next));
   };
 
   const scrollToBottom = () => {
@@ -78,19 +78,19 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
             </div>
             <div>
               <h3 className="text-lg font-black text-white tracking-wider">AI COACH</h3>
-              <p className="text-xs text-rose-500 font-bold tracking-widest">POWERED BY GEMINI</p>
+              <p className="text-xs text-rose-500 font-bold tracking-widest">POWERED BY GROQ</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2 bg-black px-3 py-1.5 rounded-full border border-[#222]">
-              <span className={`text-[10px] font-bold ${!usePro ? 'text-rose-500' : 'text-gray-500'}`}>FLASH</span>
+              <span className={`text-[10px] font-bold ${!usePro ? 'text-rose-500' : 'text-gray-500'}`}>FAST (8B)</span>
               <button
                 onClick={togglePro}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${usePro ? 'bg-purple-600' : 'bg-gray-700'}`}
               >
                 <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${usePro ? 'translate-x-5' : 'translate-x-1'}`} />
               </button>
-              <span className={`text-[10px] font-bold ${usePro ? 'text-purple-500' : 'text-gray-500'}`}>PRO</span>
+              <span className={`text-[10px] font-bold ${usePro ? 'text-purple-500' : 'text-gray-500'}`}>PRO (70B)</span>
             </div>
             <button
               onClick={onClose}
@@ -184,7 +184,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
           )}
           <div className="flex justify-between items-center mb-2 px-2">
             <span className="text-[10px] text-gray-500 font-bold tracking-wider">
-              {usePro ? 'PRO' : 'FLASH'} QUOTA: {requestsLastMinute}/{limit}
+              {usePro ? 'PRO (70B)' : 'FAST (8B)'} QUOTA: {requestsLastMinute}/{limit}
             </span>
             {cooldownRemaining > 0 && (
               <span className="text-[10px] text-rose-500 font-bold animate-pulse">
