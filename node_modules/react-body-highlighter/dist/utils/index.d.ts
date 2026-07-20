@@ -1,0 +1,10 @@
+import { IExerciseData, IMuscleData, Muscle } from '../component/metadata';
+export declare const ensure: <T>(value: T | undefined, backupValue: T) => T;
+/**
+ * Function which determines color of muscle based on how often it has been exercised
+ */
+export declare const fillIntensityColor: (activityMap: Record<Muscle, IMuscleData>, highlightedColors: string[], muscle: Muscle) => string | undefined;
+/**
+ * Function which generates object with muscle data
+ */
+export declare const fillMuscleData: (data: IExerciseData[]) => Record<Muscle, IMuscleData>;

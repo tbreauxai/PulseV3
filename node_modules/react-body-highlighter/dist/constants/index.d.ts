@@ -1,0 +1,5 @@
+import { Muscle, IMuscleData } from '../component/metadata';
+export declare const DEFAULT_MUSCLE_DATA: Record<Muscle, IMuscleData>;
+export declare const DEFAULT_BODY_COLOR = "#B6BDC3";
+export declare const DEFAULT_HIGHLIGHTED_COLORS: string[];
+export declare const DEFAULT_MODEL_TYPE: "anterior";

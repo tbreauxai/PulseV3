@@ -1,0 +1,8 @@
+import { Muscle } from '../component/metadata';
+interface ISVGModelData {
+    muscle: Muscle;
+    svgPoints: string[];
+}
+export declare const anteriorData: ISVGModelData[];
+export declare const posteriorData: ISVGModelData[];
+export {};

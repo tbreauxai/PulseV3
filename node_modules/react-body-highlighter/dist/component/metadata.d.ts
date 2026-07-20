@@ -1,0 +1,54 @@
+import { CSSProperties } from 'react';
+export declare const MuscleType: {
+    readonly TRAPEZIUS: "trapezius";
+    readonly UPPER_BACK: "upper-back";
+    readonly LOWER_BACK: "lower-back";
+    readonly CHEST: "chest";
+    readonly BICEPS: "biceps";
+    readonly TRICEPS: "triceps";
+    readonly FOREARM: "forearm";
+    readonly BACK_DELTOIDS: "back-deltoids";
+    readonly FRONT_DELTOIDS: "front-deltoids";
+    readonly ABS: "abs";
+    readonly OBLIQUES: "obliques";
+    readonly ABDUCTOR: "adductor";
+    readonly ABDUCTORS: "abductors";
+    readonly HAMSTRING: "hamstring";
+    readonly QUADRICEPS: "quadriceps";
+    readonly CALVES: "calves";
+    readonly GLUTEAL: "gluteal";
+    readonly HEAD: "head";
+    readonly NECK: "neck";
+    readonly KNEES: "knees";
+    readonly LEFT_SOLEUS: "left-soleus";
+    readonly RIGHT_SOLEUS: "right-soleus";
+};
+export declare type Muscle = typeof MuscleType[keyof typeof MuscleType];
+export declare const ModelType: {
+    readonly POSTERIOR: "posterior";
+    readonly ANTERIOR: "anterior";
+};
+declare type ModelType = typeof ModelType[keyof typeof ModelType];
+export interface IExerciseData {
+    name: string;
+    muscles: Muscle[];
+    frequency?: number;
+}
+export interface IMuscleData {
+    exercises: string[];
+    frequency: number;
+}
+export interface IMuscleStats {
+    muscle: Muscle;
+    data: IMuscleData;
+}
+export interface IModelProps {
+    bodyColor?: string;
+    data?: IExerciseData[];
+    highlightedColors?: string[];
+    onClick?: ((exercise: IMuscleStats) => void) | (() => void);
+    style?: CSSProperties;
+    svgStyle?: CSSProperties;
+    type?: ModelType;
+}
+export {};

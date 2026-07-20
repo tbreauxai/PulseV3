@@ -1,0 +1,22 @@
+import * as React from 'react';
+import { IModelProps } from './metadata';
+declare const _default: React.NamedExoticComponent<IModelProps>;
+/**
+ * Component which displays a model of a body. Accepts many optional props for manipulating functionality or visuals of the component.
+ *
+ * @param data Array containing exercise objects
+ * @param bodyColor Default color of body model (with no muscles worked)
+ * @param highlightedColors Array containing colors to display depending on frequency muscle is worked (where array index = frequency - 1)
+ * @param onClick Callback function when a muscle is clicked (returns back object with muscle-related data)
+ * @param svgStyle Style object that gets passed to SVG element
+ * @param style Style object that gets passed to SVG parent wrapper (div)
+ * @param type Denotes type of model (default `anterior` view vs `posterior` view)
+ *
+ * @component
+ * @example
+ * const data = [{ name: 'Bench Press', muscles: ['chest', 'triceps', 'front-deltoids'] }]
+ * return (
+ *   <Model type="posterior" data={data} />
+ * )
+ */
+export default _default;

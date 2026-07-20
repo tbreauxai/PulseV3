@@ -3,6 +3,7 @@ import { Trophy, CalendarCheck, Activity, ChevronDown, ChevronUp, Trash2 } from 
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useAlert } from '../../../contexts/AlertContext';
 import { Virtuoso } from 'react-virtuoso';
+import { MuscleHeatmap } from './MuscleHeatmap';
 
 const WorkoutRow = React.memo(({ workout, isExpanded, onToggle, onRemove, onRemoveExercise }: any) => {
   const { confirm } = useAlert();
@@ -116,6 +117,8 @@ export const GymProgress = () => {
           DEBUG: len={history.length} {history.length > 0 ? `| first=${new Date(history[0]?.date).toLocaleDateString()} | id=${history[0]?.id}` : ''}
         </span>
       </div>
+
+      <MuscleHeatmap history={history} />
 
       {/* Real History Section */}
       <div>
