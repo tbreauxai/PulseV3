@@ -120,7 +120,26 @@ If they want to create or update something, use your "Write" tools ('create_rout
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - days);
         const filtered = history.filter(h => new Date(h.date) >= cutoff);
-        return JSON.stringify(filtered);
+        
+        // Compress payload to save tokens
+        const compressed = filtered.map(h => {
+          let exercisesStr = 'Unknown';
+          try {
+            const details = typeof h.exerciseDetails === 'string' ? JSON.parse(h.exerciseDetails) : (h.exerciseDetails || []);
+            if (Array.isArray(details)) {
+               exercisesStr = details.map((d: any) => d.name || d.exercise?.name || '').filter(Boolean).join(', ');
+            }
+          } catch(e) {}
+          
+          return {
+             date: h.date?.split('T')[0],
+             routine: h.routineName,
+             volume: h.totalVolume,
+             exercises: exercisesStr
+          };
+        });
+        
+        return JSON.stringify(compressed);
       }
 
       if (toolName === 'analyze_weigh_ins') {
