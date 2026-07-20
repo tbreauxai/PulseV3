@@ -77,9 +77,22 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
         stream.getTracks().forEach(track => track.stop());
         
         try {
-          const transcribedText = await transcribeAudio(audioBlob);
-          if (transcribedText.trim()) {
-            sendMessage(transcribedText);
+          const text = await transcribeAudio(audioBlob);
+          const cleaned = text.trim();
+          const lower = cleaned.toLowerCase();
+          
+          // Ignore known Whisper hallucinations for empty/short audio
+          const isHallucination = 
+            lower === 'thank you.' || 
+            lower === 'thank you' || 
+            lower === 'thanks for watching.' ||
+            lower === 'thanks for watching' ||
+            lower === 'bye.' ||
+            lower === 'bye' ||
+            lower.length < 2;
+
+          if (cleaned && !isHallucination) {
+            sendMessage(cleaned);
           }
         } catch(e) {
           console.error(e);
