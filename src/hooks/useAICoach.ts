@@ -11,7 +11,19 @@ export interface RateLimits {
 }
 
 export const useAICoach = () => {
-  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem('pulse_ai_chat_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('pulse_ai_chat_history', JSON.stringify(messages));
+  }, [messages]);
+
   const [isTyping, setIsTyping] = useState(false);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
   const [rateLimits, setRateLimits] = useState<RateLimits>({
@@ -145,23 +157,44 @@ If they want to create or update something, use your "Write" tools ('create_rout
       if (toolName === 'analyze_weigh_ins') {
         const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
         const days = args.days || 30;
-        // weighIns have format "Oct 23" which is tricky to parse safely, so we'll just slice by index for now
-        // Assuming latest is at index 0
         const filtered = weighIns.slice(0, days);
-        return JSON.stringify(filtered);
+        const compressed = filtered.map(w => `${w.date}: ${w.weight}`);
+        return JSON.stringify(compressed);
       }
 
       if (toolName === 'get_macros_and_nutrition') {
-        const macros = queryClient.getQueryData(['macroGoals']) || {};
-        const dailyMacros = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
+        const macros: any = queryClient.getQueryData(['macroGoals']) || {};
+        const dailyMacros: any = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
         const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
         const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
-        return JSON.stringify({ goals: macros, todayIntake: dailyMacros, hydrationGoal: waterGoal, hydrationToday: hydration });
+        
+        return JSON.stringify({ 
+          goals: { cal: macros.calories, p: macros.protein, c: macros.carbs, f: macros.fats }, 
+          today: { cal: dailyMacros.calories, p: dailyMacros.protein, c: dailyMacros.carbs, f: dailyMacros.fats }, 
+          water: `${hydration}/${waterGoal}` 
+        });
       }
 
       if (toolName === 'get_saved_routines') {
-        const routines = queryClient.getQueryData(['routines']) || [];
-        return JSON.stringify(routines);
+        const routines: any[] = queryClient.getQueryData(['routines']) || [];
+        const compressed = routines.map(r => ({
+          name: r.name,
+          ex: r.exercises?.map((e: any) => e.name || e.exercise?.name).join(', ') || ''
+        }));
+        return JSON.stringify(compressed);
+      }
+
+      if (toolName === 'search_chat_history') {
+        const query = args.query?.toLowerCase() || '';
+        // Skip searching the most recent 6 messages since they are already in context
+        const olderMessages = messages.slice(0, -6);
+        const matches = olderMessages
+          .filter(m => m.text.toLowerCase().includes(query))
+          .map(m => `[${m.role.toUpperCase()}]: ${m.text}`);
+        
+        if (matches.length === 0) return `No past conversation found about: ${query}`;
+        // Return max 5 matches to avoid token explosion
+        return matches.slice(-5).join('\n\n');
       }
 
       return `ERROR: Tool ${toolName} not found.`;
@@ -186,9 +219,10 @@ If they want to create or update something, use your "Write" tools ('create_rout
       const context = await gatherContext();
 
       // We maintain a conversation thread array for the API loop
+      // Only include the most recent 6 messages to save tokens (Sliding Window)
       const apiMessages: any[] = [
         { role: 'system', content: context },
-        ...messages.slice(-10).map(m => ({
+        ...messages.slice(-6).map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.text
         })),
@@ -235,6 +269,18 @@ If they want to create or update something, use your "Write" tools ('create_rout
               type: "object",
               properties: { calories: { type: "number" }, protein: { type: "number" }, carbs: { type: "number" }, fats: { type: "number" } },
               required: ["calories", "protein", "carbs", "fats"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "search_chat_history",
+            description: "Searches the user's permanent chat history for past conversations or topics not in your immediate memory.",
+            parameters: {
+              type: "object",
+              properties: { query: { type: "string", description: "The keyword or topic to search for" } },
+              required: ["query"]
             }
           }
         },
