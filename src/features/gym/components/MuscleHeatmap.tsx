@@ -15,6 +15,7 @@ const genericMuscleMap: Record<string, string> = {
   'Lats': 'upper-back',
   'Upper Lats': 'upper-back',
   'Mid Back': 'upper-back',
+  'Mid-back (Rhomboids)': 'upper-back',
   'Lower Back': 'lower-back',
   'Rhomboids': 'upper-back',
   'Levator Scapulae': 'upper-back',
