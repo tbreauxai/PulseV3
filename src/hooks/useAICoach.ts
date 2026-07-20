@@ -64,7 +64,7 @@ If they ask for a workout, check what exercises they do from their routines. If 
       }));
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         contents: [
           { role: 'user', parts: [{ text: context }] },
           { role: 'model', parts: [{ text: 'Understood. I have access to the contextual data and will act as your supportive, scientific coach.' }] },
