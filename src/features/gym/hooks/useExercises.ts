@@ -220,6 +220,25 @@ export const useExercises = () => {
             }
           }
         }
+
+        // Cascade to workout history
+        const { data: history } = await supabase.from('workout_history').select('*').eq('user_id', user.id);
+        if (history) {
+          for (const workout of history) {
+            let modified = false;
+            const updatedDetails = workout.exercise_details.map((ex: any) => {
+              if (ex.exerciseName === oldName) {
+                modified = true;
+                return { ...ex, exerciseName: updatedData.name, type: updatedData.type || ex.type };
+              }
+              return ex;
+            });
+            if (modified) {
+              await supabase.from('workout_history').update({ exercise_details: updatedDetails }).eq('id', workout.id);
+              cascadeOccurred = true;
+            }
+          }
+        }
       }
 
       return { id, updatedData, cascadeOccurred };
@@ -254,6 +273,7 @@ export const useExercises = () => {
     onSuccess: (data: any) => {
       if (data && data.cascadeOccurred) {
         queryClient.invalidateQueries({ queryKey: ['routines'] });
+        queryClient.invalidateQueries({ queryKey: ['workoutHistory'] });
       }
     }
   });
