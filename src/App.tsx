@@ -26,6 +26,7 @@ export default function App() {
       queryClient.prefetchQuery({ queryKey: ['workoutHistory'] });
       queryClient.prefetchQuery({ queryKey: ['weighIns'] });
       queryClient.prefetchQuery({ queryKey: ['macroGoals'] });
+      queryClient.prefetchQuery({ queryKey: ['bodyMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['exercises'] }); // Force re-run to trigger recovery
     }
   }, [session, queryClient]);

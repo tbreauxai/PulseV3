@@ -34,7 +34,8 @@ export const useBodyMetrics = () => {
         };
       }
       return { age: null, height_cm: null, gender: null, activity_level: null };
-    }
+    },
+    staleTime: 1000 * 60 * 60 // 1 hour
   });
 
   const { mutateAsync: saveMetrics } = useMutation({
