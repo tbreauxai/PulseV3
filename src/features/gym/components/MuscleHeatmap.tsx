@@ -59,9 +59,15 @@ const genericMuscleMap: Record<string, string> = {
   'Quads': 'quadriceps',
   'Hamstrings': 'hamstring',
   'Glutes': 'gluteal',
+  'Gluteus Maximus': 'gluteal',
+  'Gluteus Minimus': 'gluteal',
+  'Gluteus Medius': 'gluteal',
   'Calves': 'calves',
+  'Soleus (Underlying Calf Muscle)': 'calves',
+  'Gastrocnemius (Outer Calf Muscle)': 'calves',
   'Adductors': 'adductor',
-  'Abductors': 'abductors'
+  'Abductors': 'abductors',
+  'Tensor Faciae Latae (Outer Hip)': 'abductors'
 };
 
 const highlightedColors = [
