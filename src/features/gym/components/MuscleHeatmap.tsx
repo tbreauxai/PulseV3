@@ -99,19 +99,21 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
         // Parse Primary | Secondary or comma-separated
         const muscleGroups = globalEx.muscleGroup.split(/[|,]/).map((s: string) => s.trim());
         
-        // Translate to generic muscles
-        const genericMuscles = new Set<string>();
-        muscleGroups.forEach((mg: string) => {
-          const generic = genericMuscleMap[mg];
-          if (generic) genericMuscles.add(generic);
-        });
-
         // Count completed sets
         const completedSets = ex.sets ? ex.sets.filter((s: any) => s.completed).length : 0;
         
         if (completedSets > 0) {
-          genericMuscles.forEach(generic => {
-            muscleSetCounts[generic] = (muscleSetCounts[generic] || 0) + completedSets;
+          const processedGenerics = new Set<string>();
+          
+          muscleGroups.forEach((mg: string, index: number) => {
+            const generic = genericMuscleMap[mg];
+            if (!generic || processedGenerics.has(generic)) return;
+            
+            processedGenerics.add(generic);
+            const isPrimary = index === 0;
+            const addedHeat = isPrimary ? completedSets : (completedSets * 0.5);
+            
+            muscleSetCounts[generic] = (muscleSetCounts[generic] || 0) + addedHeat;
           });
         }
       });
