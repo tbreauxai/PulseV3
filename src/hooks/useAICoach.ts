@@ -17,7 +17,6 @@ export const useAICoach = () => {
     const macros = queryClient.getQueryData(['macroGoals']) || {};
 
     const { data: { user } } = await supabase.auth.getUser();
-
     return `
 You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
 Your tone is supportive and highly scientific. You rely on data to make decisions.
@@ -26,13 +25,13 @@ Never output raw JSON or code blocks unless requested. Format your output nicely
 Here is the user's current contextual data:
 
 --- RECENT WORKOUT HISTORY (Last 30 Days) ---
-${JSON.stringify(history).slice(0, 5000)} // Truncated to avoid token limits if it's too huge
+${JSON.stringify(history).slice(0, 500)} // Truncated to avoid token limits if it's too huge
 
 --- SAVED ROUTINES ---
-${JSON.stringify(routines).slice(0, 2000)}
+${JSON.stringify(routines).slice(0, 200)}
 
 --- RECENT WEIGH-INS ---
-${JSON.stringify(weighIns).slice(0, 1000)}
+${JSON.stringify(weighIns).slice(0, 100)}
 
 --- CURRENT MACRO GOALS ---
 ${JSON.stringify(macros)}
@@ -65,7 +64,7 @@ If they ask for a workout, check what exercises they do from their routines. If 
 
       const isPro = localStorage.getItem('pulse_gemini_use_pro') === 'true';
       const response = await ai.models.generateContent({
-        model: isPro ? 'gemini-pro-latest' : 'gemini-flash-latest',
+        model: isPro ? 'gemini-2.5-pro' : 'gemini-2.0-flash',
         contents: [
           ...chatHistory,
           { role: 'user', parts: [{ text }] }
