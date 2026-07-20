@@ -75,6 +75,59 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
   };
 
   const sendMessage = useCallback(async (text: string) => {
+    const executeToolLogic = async (toolName: string, args: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Authentication required for tool calls.");
+      let responseText = "";
+
+      if (toolName === 'create_routine') {
+        const routineId = Date.now().toString();
+        const payload = {
+          user_id: user.id,
+          routine_id: routineId,
+          name: args.name,
+          exercises: args.exercises,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('routines').insert([payload]);
+        if (error) throw error;
+        await queryClient.invalidateQueries({ queryKey: ['routines'] });
+        responseText += `\n✅ **Created Routine:** ${args.name}`;
+      }
+      
+      if (toolName === 'create_exercise') {
+        const exerciseId = Date.now().toString();
+        const payload = {
+          user_id: user.id,
+          exercise_id: exerciseId,
+          name: args.name,
+          type: args.type || 'strength',
+          muscle_group: args.muscleGroup || '',
+          equipment: args.equipment || ''
+        };
+        const { error } = await supabase.from('user_exercises').insert([payload]);
+        if (error) throw error;
+        await queryClient.invalidateQueries({ queryKey: ['exercises'] });
+        responseText += `\n✅ **Created Exercise:** ${args.name} (${args.muscleGroup})`;
+      }
+      
+      if (toolName === 'update_macros') {
+        const payload = {
+          user_id: user.id,
+          calories_goal: args.calories,
+          protein_goal: args.protein,
+          carbs_goal: args.carbs,
+          fats_goal: args.fats
+        };
+        const { error } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' });
+        if (error) throw error;
+        await queryClient.invalidateQueries({ queryKey: ['macroGoals'] });
+        responseText += `\n✅ **Updated Macros:** ${args.calories}kcal (${args.protein}g P / ${args.carbs}g C / ${args.fats}g F)`;
+      }
+      return responseText;
+    };
+
     const apiKey = localStorage.getItem('pulse_groq_key');
     if (!apiKey) {
       setMessages(prev => [...prev, { role: 'user', text }, { role: 'model', text: 'Error: No Groq API key found. Please open App Settings (gear icon) and add your API key.' }]);
@@ -183,61 +236,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
         
         for (const toolCall of responseMessage.tool_calls) {
           const args = JSON.parse(toolCall.function.arguments);
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (!user) throw new Error("Authentication required for tool calls.");
-
-          if (toolCall.function.name === 'create_routine') {
-            const routineId = Date.now().toString();
-            const payload = {
-              user_id: user.id,
-              routine_id: routineId,
-              name: args.name,
-              exercises: args.exercises,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            
-            const { error } = await supabase.from('routines').insert([payload]);
-            if (error) throw error;
-            
-            await queryClient.invalidateQueries({ queryKey: ['routines'] });
-            toolResponseText += `\n✅ **Created Routine:** ${args.name}`;
-          }
-          
-          if (toolCall.function.name === 'create_exercise') {
-            const exerciseId = Date.now().toString();
-            const payload = {
-              user_id: user.id,
-              exercise_id: exerciseId,
-              name: args.name,
-              type: args.type || 'strength',
-              muscle_group: args.muscleGroup || '',
-              equipment: args.equipment || ''
-            };
-            
-            const { error } = await supabase.from('user_exercises').insert([payload]);
-            if (error) throw error;
-            
-            await queryClient.invalidateQueries({ queryKey: ['exercises'] });
-            toolResponseText += `\n✅ **Created Exercise:** ${args.name} (${args.muscleGroup})`;
-          }
-          
-          if (toolCall.function.name === 'update_macros') {
-            const payload = {
-              user_id: user.id,
-              calories_goal: args.calories,
-              protein_goal: args.protein,
-              carbs_goal: args.carbs,
-              fats_goal: args.fats
-            };
-            
-            const { error } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' });
-            if (error) throw error;
-            
-            await queryClient.invalidateQueries({ queryKey: ['macroGoals'] });
-            toolResponseText += `\n✅ **Updated Macros:** ${args.calories}kcal (${args.protein}g P / ${args.carbs}g C / ${args.fats}g F)`;
-          }
+          toolResponseText += await executeToolLogic(toolCall.function.name, args);
         }
         
         setMessages(prev => [...prev, { role: 'model', text: responseMessage.content ? responseMessage.content + "\n" + toolResponseText : toolResponseText.trim() }]);
@@ -246,6 +245,25 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
       }
     } catch (error: any) {
       console.error(error);
+      
+      // Fallback for Llama 3's hallucinatory <function> tags that break Groq's parser
+      try {
+        const errorJson = JSON.parse(error.message.replace(/^[^{]+/, ''));
+        const failedGen = errorJson?.error?.failed_generation;
+        if (failedGen) {
+          const match = failedGen.match(/<function=([a-zA-Z_]+)(.*?)<\/function>/);
+          if (match) {
+            const toolName = match[1];
+            const args = JSON.parse(match[2]);
+            const resultText = await executeToolLogic(toolName, args);
+            setMessages(prev => [...prev, { role: 'model', text: "I've handled that for you!" + resultText }]);
+            return;
+          }
+        }
+      } catch(e) {
+        // Fall back to standard error display if parsing fails
+      }
+
       setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
     } finally {
       setIsTyping(false);
