@@ -90,6 +90,8 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
     // 1. Filter history for the last 7 days
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const normalizeDate = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const todayNormalized = normalizeDate(now);
     
     const recentHistory = history.filter(workout => {
       const wDate = new Date(workout.date);
@@ -100,7 +102,18 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
     const muscleSetCounts: Record<string, number> = {};
 
     recentHistory.forEach(workout => {
-      if (!workout.exerciseDetails) return;
+      const wDateNormalized = normalizeDate(new Date(workout.date));
+      const diffDays = Math.floor((todayNormalized.getTime() - wDateNormalized.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let timeMultiplier = 0;
+      if (diffDays <= 1) timeMultiplier = 1.0;
+      else if (diffDays === 2) timeMultiplier = 0.75;
+      else if (diffDays === 3) timeMultiplier = 0.5;
+      else if (diffDays === 4) timeMultiplier = 0.25;
+      else timeMultiplier = 0;
+
+      if (timeMultiplier === 0 || !workout.exerciseDetails) return;
+
       workout.exerciseDetails.forEach((ex: any) => {
         // Find global exercise to determine muscle group
         const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
@@ -121,7 +134,8 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
             
             processedGenerics.add(generic);
             const isPrimary = index === 0;
-            const addedHeat = isPrimary ? completedSets : (completedSets * 0.5);
+            const baseHeat = isPrimary ? completedSets : (completedSets * 0.5);
+            const addedHeat = baseHeat * timeMultiplier;
             
             muscleSetCounts[generic] = (muscleSetCounts[generic] || 0) + addedHeat;
           });
@@ -139,7 +153,7 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
       if (count > 14) freq = 5;
 
       return {
-        name: `Trained ${count} sets`,
+        name: `Heat Score: ${count.toFixed(1)}`,
         muscles: [muscle],
         frequency: freq
       };
@@ -151,7 +165,7 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
     <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-5 mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-gray-500 tracking-wider">MUSCLE HEATMAP</h3>
-        <span className="text-rose-600 text-xs font-bold bg-rose-600/10 px-2 py-1 rounded">PAST 7 DAYS</span>
+        <span className="text-rose-600 text-xs font-bold bg-rose-600/10 px-2 py-1 rounded">ACTIVE RECOVERY</span>
       </div>
 
 
