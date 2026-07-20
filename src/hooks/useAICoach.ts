@@ -85,7 +85,7 @@ If they ask for a workout, check what exercises they do from their routines. If 
 
       const isPro = localStorage.getItem('pulse_gemini_use_pro') === 'true';
       const response = await ai.models.generateContent({
-        model: isPro ? 'gemini-2.0-flash' : 'gemini-2.0-flash-lite',
+        model: isPro ? 'gemini-pro-latest' : 'gemini-2.0-flash',
         contents: [
           ...chatHistory,
           { role: 'user', parts: [{ text }] }
