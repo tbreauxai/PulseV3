@@ -158,7 +158,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           type: "function",
           function: {
             name: "create_routine",
-            description: "Creates a new workout routine and saves it to the user's library.",
+            description: "Creates a new workout routine. Use this ONLY when the user asks to build or save a workout routine. DO NOT use this for single exercises.",
             parameters: {
               type: "object",
               properties: {
@@ -184,7 +184,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           type: "function",
           function: {
             name: "create_exercise",
-            description: "Creates a new custom exercise.",
+            description: "Creates a new custom gym exercise (e.g. Bicep Curls). Use this ONLY when the user asks to add a new physical exercise to their gym library. DO NOT use this for anything related to nutrition, diet, or macros.",
             parameters: {
               type: "object",
               properties: {
@@ -201,7 +201,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           type: "function",
           function: {
             name: "update_macros",
-            description: "Updates the user's global daily macro and calorie goals.",
+            description: "Updates the user's daily nutrition and diet goals. Use this ONLY when the user asks to calculate or update their calories, protein, carbs, or fats.",
             parameters: {
               type: "object",
               properties: {
@@ -251,7 +251,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
         const errorJson = JSON.parse(error.message.replace(/^[^{]+/, ''));
         const failedGen = errorJson?.error?.failed_generation;
         if (failedGen) {
-          const match = failedGen.match(/<function=([a-zA-Z_]+)(.*?)<\/function>/);
+          const match = failedGen.match(/<function=([a-zA-Z_]+)[^>]*>?\s*(\{.*?\})\s*<\/function>/s);
           if (match) {
             const toolName = match[1];
             const args = JSON.parse(match[2]);
@@ -261,7 +261,7 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
           }
         }
       } catch(e) {
-        // Fall back to standard error display if parsing fails
+        console.error("Fallback parser failed:", e);
       }
 
       setMessages(prev => [...prev, { role: 'model', text: `Sorry, an error occurred: ${error.message}` }]);
