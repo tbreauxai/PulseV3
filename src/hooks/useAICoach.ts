@@ -67,8 +67,8 @@ Use this data to answer the user's questions specifically tailored to their actu
 If they ask for a workout, check what exercises they do from their routines. If they ask about weight, reference their weigh-ins.
 
 CRITICAL INSTRUCTIONS FOR TOOL CALLING:
-- You have tools to create routines and exercises (`create_routine`, `create_exercise`).
-- ONLY trigger these tools if the user EXPLICITLY asks you to "create", "save", "add", or "build" a routine or exercise into their library.
+- You have tools to create routines and exercises (`create_routine`, `create_exercise`), and to update macro goals (`update_macros`).
+- ONLY trigger these tools if the user EXPLICITLY asks you to "create", "save", "add", "build", or "update" something in their app.
 - If the user is just asking for advice, ideas, or says "what do you think?", DO NOT trigger a tool. Just reply with conversational text and markdown.
 - When you do use a tool, you MUST provide the exact tool name in the name field. DO NOT use raw <function> tags in the text.
 `;
@@ -143,6 +143,23 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
               required: ["name", "muscleGroup"]
             }
           }
+        },
+        {
+          type: "function",
+          function: {
+            name: "update_macros",
+            description: "Updates the user's global daily macro and calorie goals.",
+            parameters: {
+              type: "object",
+              properties: {
+                calories: { type: "number" },
+                protein: { type: "number" },
+                carbs: { type: "number" },
+                fats: { type: "number" }
+              },
+              required: ["calories", "protein", "carbs", "fats"]
+            }
+          }
         }
       ];
 
@@ -204,6 +221,22 @@ CRITICAL INSTRUCTIONS FOR TOOL CALLING:
             
             await queryClient.invalidateQueries({ queryKey: ['exercises'] });
             toolResponseText += `\n✅ **Created Exercise:** ${args.name} (${args.muscleGroup})`;
+          }
+          
+          if (toolCall.function.name === 'update_macros') {
+            const payload = {
+              user_id: user.id,
+              calories_goal: args.calories,
+              protein_goal: args.protein,
+              carbs_goal: args.carbs,
+              fats_goal: args.fats
+            };
+            
+            const { error } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' });
+            if (error) throw error;
+            
+            await queryClient.invalidateQueries({ queryKey: ['macroGoals'] });
+            toolResponseText += `\n✅ **Updated Macros:** ${args.calories}kcal (${args.protein}g P / ${args.carbs}g C / ${args.fats}g F)`;
           }
         }
         
