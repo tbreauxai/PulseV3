@@ -1,7 +1,9 @@
 import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { useAuth } from './features/auth/context/AuthContext';
-import { LogOut, Loader2 } from 'lucide-react';
+import { LogOut, Loader2, Settings, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { SettingsModal } from './components/SettingsModal';
+import { AICoachChat } from './components/AICoachChat';
 
 const AuthScreen = lazy(() => import('./features/auth/components/AuthScreen').then(module => ({ default: module.AuthScreen })));
 const GymView = lazy(() => import('./features/gym/GymView').then(module => ({ default: module.GymView })));
@@ -11,6 +13,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('gym');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCoachOpen, setIsCoachOpen] = useState(false);
   const { session } = useAuth() as any;
   const queryClient = useQueryClient();
 
@@ -75,12 +79,20 @@ export default function App() {
               V3
             </span>
           </h1>
-          <button 
-            onClick={() => supabase.auth.signOut()}
-            className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => supabase.auth.signOut()}
+              className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="relative">
@@ -99,6 +111,19 @@ export default function App() {
           </AnimatePresence>
         </div>
       </main>
+
+      <button
+        onClick={() => setIsCoachOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-tr from-rose-600 to-purple-600 shadow-[0_0_20px_rgba(225,29,72,0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40"
+      >
+        <Sparkles className="h-6 w-6 text-white" />
+      </button>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      
+      <AnimatePresence>
+        {isCoachOpen && <AICoachChat isOpen={isCoachOpen} onClose={() => setIsCoachOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
