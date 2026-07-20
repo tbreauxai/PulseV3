@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Scale, Utensils, LineChart } from 'lucide-react';
+import { Scale, Utensils, LineChart, User } from 'lucide-react';
 import { LifestyleWeighIn } from './components/LifestyleWeighIn';
 import { LifestyleMealPrep } from './components/LifestyleMealPrep';
+import { LifestyleMetrics } from './components/LifestyleMetrics';
 import { LifestyleProgress } from './components/LifestyleProgress';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,6 +21,7 @@ export const LifestyleView = () => {
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
             {lifeTab === 'weigh-in' && <LifestyleWeighIn />}
+            {lifeTab === 'metrics' && <LifestyleMetrics />}
             {lifeTab === 'meal-prep' && <LifestyleMealPrep />}
             {lifeTab === 'progress' && <LifestyleProgress />}
           </motion.div>
@@ -34,6 +36,13 @@ export const LifestyleView = () => {
           >
             <Scale className="h-6 w-6" />
             <span className="text-[10px] font-bold tracking-wider">WEIGH-IN</span>
+          </button>
+          <button
+            onClick={() => setLifeTab('metrics')}
+            className={`flex flex-col items-center space-y-1 transition-colors ${lifeTab === 'metrics' ? 'text-emerald-500' : 'text-gray-500 hover:text-gray-400'}`}
+          >
+            <User className="h-6 w-6" />
+            <span className="text-[10px] font-bold tracking-wider">METRICS</span>
           </button>
           <button
             onClick={() => setLifeTab('meal-prep')}

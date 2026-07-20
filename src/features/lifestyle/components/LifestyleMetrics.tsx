@@ -1,0 +1,225 @@
+import React, { useState, useEffect } from 'react';
+import { useBodyMetrics } from '../hooks/useBodyMetrics';
+import { useWeighIns } from '../hooks/useWeighIns';
+import { User, Activity, Flame, Ruler, Loader2, Save } from 'lucide-react';
+import { useAlert } from '../../../contexts/AlertContext';
+
+export const LifestyleMetrics = () => {
+  const { metrics, saveMetrics, isLoading } = useBodyMetrics();
+  const { logs } = useWeighIns();
+  const { alert } = useAlert();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    age: '',
+    height_cm: '',
+    gender: 'male',
+    activity_level: 'sedentary'
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (metrics && !isLoading) {
+      setFormData({
+        age: metrics.age?.toString() || '',
+        height_cm: metrics.height_cm?.toString() || '',
+        gender: metrics.gender || 'male',
+        activity_level: metrics.activity_level || 'sedentary'
+      });
+    }
+  }, [metrics, isLoading]);
+
+  const latestWeightLbs = logs && logs.length > 0 ? logs[0].weight : null;
+  const latestWeightKg = latestWeightLbs ? latestWeightLbs * 0.453592 : null;
+
+  const calculateMetrics = () => {
+    if (!formData.age || !formData.height_cm || !latestWeightKg) return null;
+    
+    const age = parseInt(formData.age);
+    const heightCm = parseFloat(formData.height_cm);
+    
+    // BMI = weight(kg) / height(m)^2
+    const heightM = heightCm / 100;
+    const bmi = latestWeightKg / (heightM * heightM);
+
+    // BMR Mifflin-St Jeor
+    let bmr = (10 * latestWeightKg) + (6.25 * heightCm) - (5 * age);
+    bmr += formData.gender === 'male' ? 5 : -161;
+
+    // TDEE
+    const multipliers: Record<string, number> = {
+      'sedentary': 1.2,
+      'light': 1.375,
+      'moderate': 1.55,
+      'active': 1.725,
+      'extra': 1.9
+    };
+    const tdee = bmr * (multipliers[formData.activity_level] || 1.2);
+
+    return {
+      bmi: bmi.toFixed(1),
+      bmr: Math.round(bmr),
+      tdee: Math.round(tdee)
+    };
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      await saveMetrics({
+        age: formData.age ? parseInt(formData.age) : null,
+        height_cm: formData.height_cm ? parseFloat(formData.height_cm) : null,
+        gender: formData.gender,
+        activity_level: formData.activity_level
+      });
+      setIsEditing(false);
+      alert('success', 'Body metrics updated');
+    } catch (e) {
+      console.error(e);
+      alert('error', 'Failed to save metrics');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const calculated = calculateMetrics();
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-rose-500 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 px-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white tracking-tight">Body Metrics</h2>
+        <button
+          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          disabled={isSaving}
+          className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded flex items-center gap-1"
+        >
+          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : (isEditing ? <Save className="w-3 h-3" /> : 'EDIT')}
+          {isEditing ? 'SAVE' : ''}
+        </button>
+      </div>
+
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 tracking-wider">AGE</label>
+              {isEditing ? (
+                <input 
+                  type="number" 
+                  value={formData.age}
+                  onChange={e => setFormData(p => ({ ...p, age: e.target.value }))}
+                  className="w-full bg-[#111] border border-gray-800 rounded p-2 text-white font-bold"
+                  placeholder="Years"
+                />
+              ) : (
+                <div className="text-lg font-bold text-white">{formData.age || '--'}</div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 tracking-wider">HEIGHT (cm)</label>
+              {isEditing ? (
+                <input 
+                  type="number" 
+                  value={formData.height_cm}
+                  onChange={e => setFormData(p => ({ ...p, height_cm: e.target.value }))}
+                  className="w-full bg-[#111] border border-gray-800 rounded p-2 text-white font-bold"
+                  placeholder="cm"
+                />
+              ) : (
+                <div className="text-lg font-bold text-white">{formData.height_cm || '--'} cm</div>
+              )}
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 tracking-wider">GENDER</label>
+              {isEditing ? (
+                <select 
+                  value={formData.gender}
+                  onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))}
+                  className="w-full bg-[#111] border border-gray-800 rounded p-2 text-white font-bold"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              ) : (
+                <div className="text-lg font-bold text-white capitalize">{formData.gender || '--'}</div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 tracking-wider">ACTIVITY</label>
+              {isEditing ? (
+                <select 
+                  value={formData.activity_level}
+                  onChange={e => setFormData(p => ({ ...p, activity_level: e.target.value }))}
+                  className="w-full bg-[#111] border border-gray-800 rounded p-2 text-white font-bold text-sm"
+                >
+                  <option value="sedentary">Sedentary (Office job)</option>
+                  <option value="light">Light (1-3 days/wk)</option>
+                  <option value="moderate">Moderate (3-5 days/wk)</option>
+                  <option value="active">Active (6-7 days/wk)</option>
+                  <option value="extra">Extra Active (Manual labor)</option>
+                </select>
+              ) : (
+                <div className="text-lg font-bold text-white capitalize">{formData.activity_level || '--'}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-sm font-bold text-gray-500 tracking-wider mt-8">CALCULATIONS</h3>
+      {!latestWeightLbs ? (
+        <div className="text-center p-4 text-sm text-gray-500 border border-gray-800 rounded-xl">
+          Log a weigh-in first to see calculations!
+        </div>
+      ) : !calculated ? (
+        <div className="text-center p-4 text-sm text-gray-500 border border-gray-800 rounded-xl">
+          Enter your metrics above to see calculations!
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          <div className="bg-gradient-to-br from-blue-900/40 to-blue-900/10 border border-blue-500/20 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Ruler className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <div className="text-xs text-blue-300/70 font-bold">BMI</div>
+                <div className="text-xl font-black text-blue-400">{calculated.bmi}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-rose-900/40 to-rose-900/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-500/20 rounded-lg">
+                <Activity className="w-5 h-5 text-rose-400" />
+              </div>
+              <div>
+                <div className="text-xs text-rose-300/70 font-bold">Basal Metabolic Rate (BMR)</div>
+                <div className="text-xl font-black text-rose-400">{calculated.bmr} <span className="text-sm font-normal text-rose-400/50">kcal</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-900/40 to-orange-900/10 border border-orange-500/20 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Flame className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <div className="text-xs text-orange-300/70 font-bold">Total Daily Energy (TDEE)</div>
+                <div className="text-xl font-black text-orange-400">{calculated.tdee} <span className="text-sm font-normal text-orange-400/50">kcal</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
