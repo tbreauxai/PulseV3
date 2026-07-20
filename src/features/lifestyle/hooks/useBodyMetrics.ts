@@ -22,7 +22,9 @@ export const useBodyMetrics = () => {
         .single();
       
       if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
-        throw error;
+        console.error("Fetch Error:", error);
+        // Do not throw, just return default to prevent 10-second retry loading spinner
+        return { age: null, height_cm: null, gender: null, activity_level: null };
       }
       
       if (data) {
@@ -54,7 +56,10 @@ export const useBodyMetrics = () => {
         .from('user_settings')
         .upsert(payload, { onConflict: 'user_id' });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Save Error:", error);
+        throw error;
+      }
       return newMetrics;
     },
     onMutate: async (newMetrics) => {
