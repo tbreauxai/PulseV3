@@ -65,7 +65,12 @@ Intake: ${hydration}ml
 
 Use this data to answer the user's questions specifically tailored to their actual lifestyle and workout habits.
 If they ask for a workout, check what exercises they do from their routines. If they ask about weight, reference their weigh-ins.
-You have the ability to create routines and exercises using tools. If the user asks you to create one, use the tool.
+
+CRITICAL INSTRUCTIONS FOR TOOL CALLING:
+- You have tools to create routines and exercises (`create_routine`, `create_exercise`).
+- ONLY trigger these tools if the user EXPLICITLY asks you to "create", "save", "add", or "build" a routine or exercise into their library.
+- If the user is just asking for advice, ideas, or says "what do you think?", DO NOT trigger a tool. Just reply with conversational text and markdown.
+- When you do use a tool, you MUST provide the exact tool name in the name field. DO NOT use raw <function> tags in the text.
 `;
   };
 
