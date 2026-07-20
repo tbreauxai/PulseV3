@@ -7,7 +7,7 @@ export const muscleCategories = [
   { name: 'Back', subMuscles: ['Back', 'Lats', 'Upper Lats', 'Mid-back (Rhomboids)', 'Rear Delts', 'Traps', 'Upper Traps', 'Mid Traps', 'Lower Traps', 'Lower Back', 'Levator Scapulae'] },
   { name: 'Legs', subMuscles: ['Legs', 'Quads', 'Hamstrings', 'Glutes', 'Gluteus Maximus', 'Gluteus Minimus', 'Gluteus Medius', 'Tensor Faciae Latae (Outer Hip)', 'Calves', 'Soleus (Underlying Calf Muscle)', 'Gastrocnemius (Outer Calf Muscle)', 'Adductors', 'Abductors'] },
   { name: 'Shoulders', subMuscles: ['Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts'] },
-  { name: 'Arms', subMuscles: ['Arms', 'General Biceps', 'Biceps Brachii (Short Head Emphasis)', 'Biceps Brachii (Long Head Emphasis)', 'Triceps', 'Forearms', 'Forearm Flexors', 'Forearm Extensors', 'Grip Stabilizers', 'Brachialis', 'Brachioradialis'] },
+  { name: 'Arms', subMuscles: ['Arms', 'General Biceps', 'Biceps Brachii (Short Head Emphasis)', 'Biceps Brachii (Long Head Emphasis)', 'Triceps', 'Triceps (Lateral Head)', 'Triceps (Medial Head)', 'Triceps (Long head)', 'Forearms', 'Forearm Flexors', 'Forearm Extensors', 'Grip Stabilizers', 'Brachialis', 'Brachioradialis'] },
   { name: 'Core', subMuscles: ['Core', 'Upper Abs', 'Lower Abs', 'Obliques', 'Transverse Abdominis', 'Hip Flexors'] },
   { name: 'Cardio', subMuscles: ['Cardio'] },
   { name: 'Full Body', subMuscles: ['Full Body'] },

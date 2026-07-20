@@ -39,6 +39,9 @@ const genericMuscleMap: Record<string, string> = {
   'Biceps Brachii (Long Head Emphasis)': 'biceps',
   'Brachialis': 'biceps',
   'Triceps': 'triceps',
+  'Triceps (Lateral Head)': 'triceps',
+  'Triceps (Medial Head)': 'triceps',
+  'Triceps (Long head)': 'triceps',
 
   // Forearms
   'Forearms': 'forearm',
