@@ -56,22 +56,38 @@ export const useMacros = (todayDate) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const payload = {
-        user_id: user.id,
-        calories_goal: editGoals.calories,
-        protein_goal: editGoals.protein,
-        carbs_goal: editGoals.carbs,
-        fats_goal: editGoals.fats
-      };
-
-      if (!navigator.onLine) throw new Error('NetworkError');
-
-      const { error } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('user_settings')
-        .upsert(payload, { onConflict: 'user_id' });
+        .update({
+          calories_goal: editGoals.calories,
+          protein_goal: editGoals.protein,
+          carbs_goal: editGoals.carbs,
+          fats_goal: editGoals.fats
+        })
+        .eq('user_id', user.id)
+        .select();
 
-      if (error) throw error;
-      return payload;
+      if (updateError) throw updateError;
+
+      if (!updateData || updateData.length === 0) {
+        const { error: insertError } = await supabase
+          .from('user_settings')
+          .insert([{
+            user_id: user.id,
+            calories_goal: editGoals.calories,
+            protein_goal: editGoals.protein,
+            carbs_goal: editGoals.carbs,
+            fats_goal: editGoals.fats
+          }]);
+          
+        if (insertError) throw insertError;
+      }
+      return {
+        calories: editGoals.calories,
+        protein: editGoals.protein,
+        carbs: editGoals.carbs,
+        fats: editGoals.fats
+      };
     },
     onMutate: async (editGoals: any) => {
       await queryClient.cancelQueries({ queryKey: ['macroGoals'] });

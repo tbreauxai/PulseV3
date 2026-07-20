@@ -33,11 +33,21 @@ export const useHydration = (todayDate) => {
 
       if (!navigator.onLine) throw new Error('NetworkError');
 
-      const { error } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('user_settings')
-        .upsert({ user_id: user.id, water_goal: newGoal }, { onConflict: 'user_id' });
+        .update({ water_goal: newGoal })
+        .eq('user_id', user.id)
+        .select();
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      if (!updateData || updateData.length === 0) {
+        const { error: insertError } = await supabase
+          .from('user_settings')
+          .insert([{ user_id: user.id, water_goal: newGoal }]);
+          
+        if (insertError) throw insertError;
+      }
       return newGoal;
     },
     onMutate: async (newGoal: number) => {

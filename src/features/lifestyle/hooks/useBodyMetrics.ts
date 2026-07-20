@@ -52,13 +52,28 @@ export const useBodyMetrics = () => {
 
       if (!navigator.onLine) throw new Error('NetworkError');
 
-      const { error } = await supabase
+      // Perform a partial update to avoid wiping out other columns with NULLs
+      const { data: updateData, error: updateError } = await supabase
         .from('user_settings')
-        .upsert(payload, { onConflict: 'user_id' });
+        .update(newMetrics)
+        .eq('user_id', user.id)
+        .select();
 
-      if (error) {
-        console.error("Save Error:", error);
-        throw error;
+      if (updateError) {
+        console.error("Update Error:", updateError);
+        throw updateError;
+      }
+
+      // If no row was updated, it means the row doesn't exist yet, so we insert
+      if (!updateData || updateData.length === 0) {
+        const { error: insertError } = await supabase
+          .from('user_settings')
+          .insert([payload]);
+          
+        if (insertError) {
+          console.error("Insert Error:", insertError);
+          throw insertError;
+        }
       }
       return newMetrics;
     },
