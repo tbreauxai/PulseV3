@@ -25,10 +25,10 @@ export const PWAUpdateNotification = () => {
     <AnimatePresence>
       {needRefresh && (
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
+          initial={{ opacity: 0, y: -50, x: "-50%" }}
+          animate={{ opacity: 1, y: 0, x: "-50%" }}
+          exit={{ opacity: 0, y: -50, x: "-50%" }}
+          className="fixed top-4 left-1/2 z-[100] w-[90%] max-w-sm"
         >
           <div className="bg-gradient-to-r from-rose-900/90 to-purple-900/90 backdrop-blur-md border border-rose-500/50 rounded-2xl shadow-2xl p-4 flex flex-col gap-3">
             <div className="flex items-start justify-between">
