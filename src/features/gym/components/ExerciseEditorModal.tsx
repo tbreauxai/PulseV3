@@ -108,8 +108,9 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
                 className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
               >
                 <option value="Supported / Safe">Supported / Safe</option>
-                <option value="High Neural Tension">High Neural Tension</option>
-                <option value="High Axial Load / Shear Force">High Axial Load / Shear Force</option>
+                <option value="High Neural Tension (Sciatica Stretchers)">High Neural Tension (Sciatica Stretchers)</option>
+                <option value="High Axial Load (Spine Compressors)">High Axial Load (Spine Compressors)</option>
+                <option value="Spinal Shear / Flexion (Disc & Muscle Irritators)">Spinal Shear / Flexion (Disc & Muscle Irritators)</option>
               </select>
             </label>
             

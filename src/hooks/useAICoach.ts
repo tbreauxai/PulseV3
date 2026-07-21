@@ -208,9 +208,7 @@ ${workoutContext}
                  if (!name) return '';
                  const ex = allExercises.find(e => e.name === name);
                  const mType = ex?.movementType ? ex.movementType : '';
-                 let sRisk = '';
-                 if (ex?.spinalRisk === 'High Neural Tension') sRisk = 'High Spinal Risk (Neural)';
-                 if (ex?.spinalRisk === 'High Axial Load / Shear Force') sRisk = 'High Spinal Risk (Axial/Shear)';
+                 const sRisk = ex?.spinalRisk && ex.spinalRisk !== 'Supported / Safe' ? ex.spinalRisk : '';
                  const tags = [mType, sRisk].filter(Boolean).join(', ');
                  return tags ? `${name} (${tags})` : name;
                }).filter(Boolean).join(' | ');
@@ -313,9 +311,7 @@ ${workoutContext}
              if (!name) return '';
              const ex = allExercises.find(a => a.name === name);
              const mType = ex?.movementType ? ex.movementType : '';
-             let sRisk = '';
-             if (ex?.spinalRisk === 'High Neural Tension') sRisk = 'High Spinal Risk (Neural)';
-             if (ex?.spinalRisk === 'High Axial Load / Shear Force') sRisk = 'High Spinal Risk (Axial/Shear)';
+             const sRisk = ex?.spinalRisk && ex.spinalRisk !== 'Supported / Safe' ? ex.spinalRisk : '';
              const tags = [mType, sRisk].filter(Boolean).join(', ');
              return tags ? `${name} (${tags})` : name;
           }).filter(Boolean).join(' | ') || ''
