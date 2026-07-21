@@ -505,25 +505,27 @@ ${workoutContext}
         apiMessages.push(responseMessage);
 
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-          for (const toolCall of responseMessage.tool_calls) {
+          const toolResults = await Promise.all(responseMessage.tool_calls.map(async (toolCall: any) => {
             try {
               const args = JSON.parse(toolCall.function.arguments);
               const toolResult = await executeToolLogic(toolCall.function.name, args);
-              apiMessages.push({
+              return {
                 role: 'tool',
                 tool_call_id: toolCall.id,
                 name: toolCall.function.name,
                 content: toolResult
-              });
+              };
             } catch(err: any) {
-              apiMessages.push({
+              return {
                 role: 'tool',
                 tool_call_id: toolCall.id,
                 name: toolCall.function.name,
                 content: `Error executing tool: ${err.message}`
-              });
+              };
             }
-          }
+          }));
+          
+          apiMessages.push(...toolResults);
         } else {
           finalResponseContent = responseMessage.content || "";
           keepRunning = false;
