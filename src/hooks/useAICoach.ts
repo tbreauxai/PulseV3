@@ -65,7 +65,7 @@ Your tone is supportive and highly scientific. You rely on data to make decision
 Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
 
 CRITICAL: You DO NOT have the user's workout data, weigh-ins, routines, or nutrition data in this prompt!
-You MUST use your provided "Read-Only" tools (like analyze_workout_history, get_macros_and_nutrition) to fetch data from the user's database IF they ask a question that requires insight into their habits.
+You MUST use your provided "Read-Only" tools (like analyze_workout_history, get_macros_and_nutrition, get_body_metrics) to fetch data from the user's database IF they ask a question that requires insight into their habits.
 
 If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
 STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
@@ -174,6 +174,46 @@ STRICT RULE: NEVER output raw function tags like <function=create_exercise> in y
           goals: { cal: macros.calories, p: macros.protein, c: macros.carbs, f: macros.fats }, 
           today: { cal: dailyMacros.calories, p: dailyMacros.protein, c: dailyMacros.carbs, f: dailyMacros.fats }, 
           water: `${hydration}/${waterGoal}` 
+        });
+      }
+
+      if (toolName === 'get_body_metrics') {
+        const metrics: any = queryClient.getQueryData(['bodyMetrics']) || {};
+        const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
+        const latestWeightLbs = weighIns && weighIns.length > 0 ? parseFloat(weighIns[0].weight) : null;
+        
+        let calculatedStr = "No weight logged.";
+        if (metrics.age && metrics.height_cm && latestWeightLbs) {
+          const age = parseInt(metrics.age);
+          const heightCm = parseFloat(metrics.height_cm);
+          const latestWeightKg = latestWeightLbs * 0.453592;
+          
+          const heightM = heightCm / 100;
+          const bmi = latestWeightKg / (heightM * heightM);
+          
+          let bmr = (10 * latestWeightKg) + (6.25 * heightCm) - (5 * age);
+          bmr += metrics.gender === 'male' ? 5 : -161;
+          
+          const multipliers: Record<string, number> = {
+            'sedentary': 1.2, 'light': 1.375, 'moderate': 1.55, 'active': 1.725, 'extra': 1.9
+          };
+          const tdee = bmr * (multipliers[metrics.activity_level] || 1.2);
+          
+          const genderFactor = metrics.gender === 'male' ? 1 : 0;
+          let bodyFatPercent = (1.20 * bmi) + (0.23 * age) - (10.8 * genderFactor) - 5.4;
+          if (bodyFatPercent < 2) bodyFatPercent = 2;
+          if (bodyFatPercent > 60) bodyFatPercent = 60;
+          
+          calculatedStr = `BMI: ${bmi.toFixed(1)}, BMR: ${Math.round(bmr)}, TDEE: ${Math.round(tdee)}, Body Fat: ${bodyFatPercent.toFixed(1)}%`;
+        }
+
+        return JSON.stringify({
+          age: metrics.age,
+          height_cm: metrics.height_cm,
+          gender: metrics.gender,
+          activity_level: metrics.activity_level,
+          weight_lbs: latestWeightLbs,
+          calculations: calculatedStr
         });
       }
 
@@ -323,6 +363,14 @@ STRICT RULE: NEVER output raw function tags like <function=create_exercise> in y
           function: {
             name: "get_saved_routines",
             description: "Fetches the user's saved workout routines.",
+            parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "get_body_metrics",
+            description: "Fetches the user's Age, Height, Weight, BMI, BMR, TDEE, and Body Fat %. Use this if they ask for personalized calorie/macro targets.",
             parameters: { type: "object", properties: {}, required: [] }
           }
         }
