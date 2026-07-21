@@ -3,6 +3,7 @@ import Groq from 'groq-sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { semanticCache } from '../lib/semanticCache';
+import { memoryEngine } from '../lib/memoryEngine';
 
 export interface RateLimits {
   remainingTokens: string | null;
@@ -395,6 +396,9 @@ ${workoutContext}
     setRequestTimestamps(newTimestamps);
     localStorage.setItem('pulse_groq_requests', JSON.stringify(newTimestamps));
 
+    // Fire hidden extraction asynchronously
+    memoryEngine.processMessageAsync(text, apiKey).catch(() => {});
+
     try {
       // -------------------------------------------------------------
       // 1. SEMANTIC CACHE LOOKUP
@@ -409,6 +413,7 @@ ${workoutContext}
       const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const staticContext = getStaticContext();
       const dynamicContext = getDynamicContext();
+      const memoryContext = await memoryEngine.retrieveContext(text);
 
       // We maintain a conversation thread array for the API loop
       // Only include the most recent 6 messages to save tokens (Sliding Window)
@@ -418,7 +423,7 @@ ${workoutContext}
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.text
         })),
-        { role: 'user', content: `${dynamicContext}\n[USER MESSAGE]:\n${text}` }
+        { role: 'user', content: `${memoryContext}${dynamicContext}\n[USER MESSAGE]:\n${text}` }
       ];
 
       // -------------------------------------------------------------

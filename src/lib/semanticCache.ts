@@ -177,6 +177,16 @@ class SemanticCache {
       return items; // Fallback to raw unpruned items
     }
   }
+
+  public async getEmbedding(text: string): Promise<number[] | null> {
+    if (!this.isInitialized || !this.extractor) return null;
+    try {
+      const output = await this.extractor(text.trim().toLowerCase(), { pooling: 'mean', normalize: true });
+      return Array.from(output.data) as number[];
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 export const semanticCache = SemanticCache.getInstance();
