@@ -594,6 +594,8 @@ ${workoutContext}
           model: modelName,
           temperature: 0.0,
           // @ts-ignore
+          reasoning_format: "hidden",
+          // @ts-ignore
           tools: tools,
           tool_choice: "auto"
         }).withResponse();
