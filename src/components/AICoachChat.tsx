@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Sparkles, User, Dumbbell, Mic } from 'lucide-react';
+import { X, Send, Sparkles, User, Dumbbell, Mic, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAICoach } from '../hooks/useAICoach';
@@ -170,8 +170,16 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
                  </span>
               </div>
            </div>
-           <div className="text-gray-600">
-             RESETS AT MIDNIGHT
+           <div className="flex items-center space-x-4">
+             <span className="text-gray-600">RESETS AT MIDNIGHT</span>
+             <button 
+               onClick={clearChat}
+               className="text-gray-500 hover:text-rose-500 flex items-center transition-colors"
+               title="Clear Chat History (Resets AI Context)"
+             >
+               <Trash2 className="h-3 w-3 mr-1" />
+               CLEAR
+             </button>
            </div>
         </div>
 
