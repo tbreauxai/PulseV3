@@ -366,6 +366,27 @@ ${workoutContext}
         });
       }
 
+      if (toolName === 'calculate_custom_macros') {
+        const cals = args.target_calories;
+        const balanced = {
+           protein: Math.round((cals * 0.30) / 4),
+           carbs: Math.round((cals * 0.40) / 4),
+           fats: Math.round((cals * 0.30) / 9)
+        };
+        const lowCarb = {
+           protein: Math.round((cals * 0.40) / 4),
+           carbs: Math.round((cals * 0.20) / 4),
+           fats: Math.round((cals * 0.40) / 9)
+        };
+        return JSON.stringify({
+          target_calories: cals,
+          suggested_macros: {
+            balanced: `P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g`,
+            low_carb: `P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`
+          }
+        });
+      }
+
       if (toolName === 'search_chat_history') {
         const query = args.query?.toLowerCase() || '';
         // Skip searching the most recent 6 messages since they are already in context
@@ -579,6 +600,20 @@ ${workoutContext}
             name: "get_body_metrics",
             description: "Fetches the user's Age, Height, Weight, BMI, BMR, TDEE, and Body Fat %. Use this if they ask for personalized calorie/macro targets.",
             parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "calculate_custom_macros",
+            description: "Calculates exact grammatical macro splits for a custom or hypothetical calorie target. Use this whenever the user asks for macros based on a specific calorie number (e.g. 1800) rather than their body metrics.",
+            parameters: {
+              type: "object",
+              properties: {
+                target_calories: { type: "number", description: "The total calorie target to calculate splits for." }
+              },
+              required: ["target_calories"]
+            }
           }
         }
       ];
