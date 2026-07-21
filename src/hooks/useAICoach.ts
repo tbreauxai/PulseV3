@@ -141,7 +141,7 @@ STRICT RULE: NEVER output raw function tags like <function=create_exercise> in y
           try {
             const details = typeof h.exerciseDetails === 'string' ? JSON.parse(h.exerciseDetails) : (h.exerciseDetails || []);
             if (Array.isArray(details)) {
-               exercisesStr = details.map((d: any) => d.name || d.exercise?.name || '').filter(Boolean).join(', ');
+               exercisesStr = details.map((d: any) => d.exerciseName || d.name || d.exercise?.name || '').filter(Boolean).join(', ');
             }
           } catch(e) {}
           
