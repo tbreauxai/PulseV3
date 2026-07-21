@@ -96,6 +96,7 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
               >
                 <option value="Compound">Compound (Multi-Joint)</option>
                 <option value="Isolation">Isolation (Single-Joint)</option>
+                <option value="Isometric">Isometric (Static Hold)</option>
               </select>
             </label>
             

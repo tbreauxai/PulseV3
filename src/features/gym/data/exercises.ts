@@ -63,7 +63,7 @@ export const exercises = [
   { id: '57', name: 'Dips (Tricep Version)', type: 'strength', movementType: 'Compound', muscleGroup: 'Arms', equipment: 'Bodyweight' },
 
   // Core
-  { id: '22', name: 'Plank', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { id: '22', name: 'Plank', type: 'strength', movementType: 'Isometric', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: '23', name: 'Crunches', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: '24', name: 'Hanging Leg Raises', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: '25', name: 'Russian Twists', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Dumbbell' },
@@ -72,7 +72,7 @@ export const exercises = [
   { id: '60', name: 'Bicycle Crunches', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: '61', name: 'Decline Crunches', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: '62', name: 'V-Ups', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { id: '63', name: 'Side Plank', type: 'strength', movementType: 'Isolation', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { id: '63', name: 'Side Plank', type: 'strength', movementType: 'Isometric', muscleGroup: 'Core', equipment: 'Bodyweight' },
   
   // Cardio & Full Body
   { id: '64', name: 'Treadmill Running', type: 'cardio', movementType: 'Compound', muscleGroup: 'Cardio', equipment: 'Machine' },
