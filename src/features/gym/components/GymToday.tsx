@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw, ClipboardList } from 'lucide-react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw, ClipboardList, Timer } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
 import { useRoutines } from '../hooks/useRoutines';
@@ -28,8 +28,44 @@ export const GymToday = () => {
   
   const [activeSession, setActiveSession] = useState(() => {
     const saved = localStorage.getItem('pulseV3-activeSession');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) return JSON.parse(saved);
+    return null;
   });
+
+  const [restTimer, setRestTimer] = useState<{ endTime: number, mode: 'set' | 'exercise' } | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    const loadTimer = () => {
+      const saved = localStorage.getItem('pulse_rest_timer');
+      if (saved) setRestTimer(JSON.parse(saved));
+    };
+    loadTimer();
+    window.addEventListener('pulse_timer_updated', loadTimer);
+    return () => window.removeEventListener('pulse_timer_updated', loadTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!restTimer) {
+      setTimeRemaining(null);
+      return;
+    }
+    
+    const tick = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((restTimer.endTime - now) / 1000));
+      setTimeRemaining(remaining);
+
+      if (remaining === 0 && restTimer.mode === 'exercise') {
+        setRestTimer(null);
+        localStorage.removeItem('pulse_rest_timer');
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [restTimer]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMode, setSelectedMode] = useState('All');
@@ -517,6 +553,22 @@ export const GymToday = () => {
           updatedSets[setIndex].weight, 
           updatedSets[setIndex].reps
         );
+
+        // Timer Logic
+        const isLastSet = updatedSets.every((s: any) => s.completed);
+        const ex = prev.exercises[exerciseIndex];
+        const isCompound = ex?.movementType === 'Compound';
+        let durationSec = isCompound ? 120 : 60;
+        let mode: 'set' | 'exercise' = 'set';
+        
+        if (isLastSet) {
+          durationSec = 60;
+          mode = 'exercise';
+        }
+        
+        const newTimer = { endTime: Date.now() + durationSec * 1000, mode };
+        localStorage.setItem('pulse_rest_timer', JSON.stringify(newTimer));
+        window.dispatchEvent(new Event('pulse_timer_updated'));
       }
 
       return {
@@ -540,7 +592,23 @@ export const GymToday = () => {
 
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      
+      {timeRemaining !== null && (
+        <div className="fixed top-20 right-4 z-[100] bg-black/90 backdrop-blur border border-[#222] px-4 py-2 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] flex items-center space-x-3">
+          <Timer className="h-5 w-5 text-rose-500" />
+          <span className={`font-mono font-bold text-lg ${timeRemaining === 0 && restTimer?.mode === 'set' ? 'text-red-500 animate-[pulse_1s_ease-in-out_infinite]' : 'text-white'}`}>
+            {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+          </span>
+          <button 
+            onClick={() => { setRestTimer(null); localStorage.removeItem('pulse_rest_timer'); setTimeRemaining(null); }}
+            className="ml-2 text-gray-500 hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">
