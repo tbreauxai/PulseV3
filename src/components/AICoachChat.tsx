@@ -11,7 +11,6 @@ interface AICoachChatProps {
 
 export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
-  const [usePro, setUsePro] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,15 +38,6 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
     return () => clearInterval(interval);
   }, [requestTimestamps, limit]);
 
-  useEffect(() => {
-    setUsePro(localStorage.getItem('pulse_groq_use_pro') === 'true');
-  }, []);
-
-  const togglePro = () => {
-    const next = !usePro;
-    setUsePro(next);
-    localStorage.setItem('pulse_groq_use_pro', String(next));
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -141,16 +131,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 bg-black px-3 py-1.5 rounded-full border border-[#222]">
-              <span className={`text-[10px] font-bold ${!usePro ? 'text-rose-500' : 'text-gray-500'}`}>FAST (8B)</span>
-              <button
-                onClick={togglePro}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${usePro ? 'bg-purple-600' : 'bg-gray-700'}`}
-              >
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${usePro ? 'translate-x-5' : 'translate-x-1'}`} />
-              </button>
-              <span className={`text-[10px] font-bold ${usePro ? 'text-purple-500' : 'text-gray-500'}`}>PRO (70B)</span>
-            </div>
+
             <button
               onClick={onClose}
               className="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center hover:bg-gray-800 transition-colors"

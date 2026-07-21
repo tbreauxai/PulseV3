@@ -327,8 +327,31 @@ ${workoutContext}
         { role: 'user', content: `${dynamicContext}\n[USER MESSAGE]:\n${text}` }
       ];
 
-      const isPro = localStorage.getItem('pulse_groq_use_pro') === 'true';
-      const modelName = isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
+      // -------------------------------------------------------------
+      // FIRST-PASS LLM ROUTER (Semantic Routing)
+      // -------------------------------------------------------------
+      let isComplex = false;
+      try {
+        const routerResponse = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
+            { role: 'user', content: text }
+          ],
+          model: 'llama-3.1-8b-instant',
+          temperature: 0,
+          max_tokens: 5,
+        });
+        const classification = routerResponse.choices[0]?.message?.content?.trim().toUpperCase();
+        if (classification?.includes('COMPLEX')) {
+          isComplex = true;
+        }
+        console.log(`[Semantic Router] Classified as: ${classification}`);
+      } catch (err) {
+        console.error("Router error:", err);
+      }
+      
+      const modelName = isComplex ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
+      console.log(`[Semantic Router] Routing payload to: ${modelName}`);
       
       const tools = [
         {
