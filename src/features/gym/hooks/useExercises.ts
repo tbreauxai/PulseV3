@@ -44,6 +44,7 @@ export const useExercises = () => {
                     name: ex.exerciseName,
                     type: ex.type || 'strength',
                     muscle_group: 'Restored',
+                    movement_type: ex.movementType || 'Compound',
                     weight: '', reps: '', equipment: '', time: '', distance: ''
                   });
                 }
@@ -56,7 +57,7 @@ export const useExercises = () => {
             await supabase.from('user_exercises').insert(payloads);
             if (data) {
               data.push(...payloads.map((p: any) => ({
-                exercise_id: p.exercise_id, name: p.name, type: p.type, muscle_group: p.muscle_group, weight: p.weight, reps: p.reps, equipment: p.equipment, time: p.time, distance: p.distance
+                exercise_id: p.exercise_id, name: p.name, type: p.type, muscle_group: p.muscle_group, movement_type: p.movement_type, weight: p.weight, reps: p.reps, equipment: p.equipment, time: p.time, distance: p.distance
               })));
             }
           }
@@ -71,6 +72,7 @@ export const useExercises = () => {
           id: ex.exercise_id,
           name: ex.name,
           type: ex.type,
+          movementType: ex.movement_type || 'Compound',
           muscleGroup: ex.muscle_group,
           weight: ex.weight,
           reps: ex.reps,
@@ -93,6 +95,7 @@ export const useExercises = () => {
           exercise_id: ex.id || String(Date.now() + Math.random()),
           name: ex.name,
           type: ex.type || 'strength',
+          movement_type: ex.movementType || 'Compound',
           muscle_group: ex.muscleGroup,
           weight: ex.weight || '',
           reps: ex.reps || '',
@@ -124,6 +127,7 @@ export const useExercises = () => {
         exercise_id: exerciseId,
         name: newExercise.name,
         type: newExercise.type || 'strength',
+        movement_type: newExercise.movementType || 'Compound',
         muscle_group: newExercise.muscleGroup || '',
         weight: newExercise.weight || '',
         reps: newExercise.reps || '',
@@ -158,6 +162,7 @@ export const useExercises = () => {
               exercise_id: context.tempId,
               name: newExercise.name,
               type: newExercise.type || 'strength',
+              movement_type: newExercise.movementType || 'Compound',
               muscle_group: newExercise.muscleGroup || '',
               weight: newExercise.weight || '',
               reps: newExercise.reps || '',
@@ -190,6 +195,7 @@ export const useExercises = () => {
       const payload: any = {
         name: updatedData.name,
         type: updatedData.type,
+        movement_type: updatedData.movementType,
         weight: updatedData.weight,
         reps: updatedData.reps,
         equipment: updatedData.equipment,
@@ -257,6 +263,7 @@ export const useExercises = () => {
         const payload: any = {
             name: updatedData.name,
             type: updatedData.type,
+            movement_type: updatedData.movementType,
             weight: updatedData.weight,
             reps: updatedData.reps,
             equipment: updatedData.equipment,
