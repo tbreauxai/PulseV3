@@ -313,6 +313,16 @@ ${workoutContext}
         return JSON.stringify(compressed);
       }
 
+      if (toolName === 'get_exercise_library') {
+        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+        const compressed = allExercises.map(e => ({
+          name: e.name,
+          type: e.movementType || 'Compound',
+          group: e.muscleGroup
+        }));
+        return JSON.stringify(compressed);
+      }
+
       if (toolName === 'update_adaptive_tdee') {
         // Find date 30 days ago
         const thirtyDaysAgo = new Date();
@@ -603,6 +613,14 @@ ${workoutContext}
           function: {
             name: "get_saved_routines",
             description: "Fetches the user's saved workout routines.",
+            parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "get_exercise_library",
+            description: "Fetches the user's entire available exercise library including their custom exercises, muscle groups, and movement types. Use this to see what exercises they have available when building new routines.",
             parameters: { type: "object", properties: {}, required: [] }
           }
         },
