@@ -59,17 +59,55 @@ export const useAICoach = () => {
   }, []);
 
   const gatherContext = async () => {
+    // 1. Fetch zero-shot context from react-query cache
+    const todayDate = new Date().toISOString().split('T')[0];
+    
+    // Body Metrics
+    const metrics: any = queryClient.getQueryData(['bodyMetrics']) || {};
+    const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
+    const weightLbs = weighIns && weighIns.length > 0 ? parseFloat(weighIns[0].weight) : 'Unknown';
+    let bodyContext = `Body Metrics: Age: ${metrics.age || '?'}, Height: ${metrics.height_cm || '?'}cm, Weight: ${weightLbs}lbs, Activity: ${metrics.activity_level || '?'}.`;
+
+    // Macros & Hydration
+    const macroGoals: any = queryClient.getQueryData(['macroGoals']) || {};
+    const dailyMacros: any = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
+    const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
+    const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
+    
+    const macroContext = `Today's Intake vs Goals: 
+- Calories: ${dailyMacros.calories || 0}/${macroGoals.calories || 0} kcal
+- Protein: ${dailyMacros.protein || 0}/${macroGoals.protein || 0} g
+- Carbs: ${dailyMacros.carbs || 0}/${macroGoals.carbs || 0} g
+- Fats: ${dailyMacros.fats || 0}/${macroGoals.fats || 0} g
+- Hydration: ${hydration}/${waterGoal} ml`;
+
+    // Last Workout
+    const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
+    let workoutContext = "Last Workout: None logged recently.";
+    if (history && history.length > 0) {
+      const last = history[0]; // Assuming sorted desc
+      workoutContext = `Last Workout: ${last.routineName || 'Unknown Routine'} on ${last.date?.split('T')[0] || '?'} (Volume: ${last.totalVolume || 0} lbs)`;
+    }
+
     return `
 You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
 Your tone is supportive and highly scientific. You rely on data to make decisions.
 Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
 
-CRITICAL: You DO NOT have the user's workout data, weigh-ins, routines, or nutrition data in this prompt!
-You MUST use your provided "Read-Only" tools (like analyze_workout_history, get_macros_and_nutrition, get_body_metrics) to fetch data from the user's database IF they ask a question that requires insight into their habits.
+--- ZERO-SHOT DAILY BRIEFING ---
+You ALREADY know the following about the user. Do NOT use tools to fetch this baseline information.
+${bodyContext}
 
-If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
-STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
-STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
+${macroContext}
+
+${workoutContext}
+--------------------------------
+
+CRITICAL RULES:
+- ONLY use your "Read-Only" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. "What did I do last Tuesday?" or "How has my weight changed this month?").
+- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
+- STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
+- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
 `;
   };
 
