@@ -275,7 +275,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
             )}
           </div>
           
-          <form onSubmit={handleSubmit} className="flex space-x-2">
+          <form onSubmit={handleSubmit} className="flex space-x-2 select-none">
             <button
               type="button"
               onMouseDown={startRecording}
@@ -285,7 +285,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
               onTouchEnd={stopRecording}
               disabled={isTyping || cooldownRemaining > 0}
               title="Hold to talk"
-              className={`h-auto px-5 rounded-2xl flex items-center justify-center transition-colors ${
+              className={`h-auto px-5 rounded-2xl flex items-center justify-center transition-colors select-none ${
                 isRecording 
                   ? 'bg-rose-500 text-white animate-pulse' 
                   : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-[#2a2a2a]'
