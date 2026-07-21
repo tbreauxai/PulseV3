@@ -415,13 +415,15 @@ ${workoutContext}
           function: {
             name: "create_routine",
             description: "Creates a new workout routine.",
+            strict: true,
             parameters: {
               type: "object",
               properties: {
                 name: { type: "string" },
-                exercises: { type: "array", items: { type: "object", properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" }, target_muscle: { type: "string" } } } }
+                exercises: { type: "array", items: { type: "object", properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" }, target_muscle: { type: "string" } }, required: ["name", "sets", "reps", "target_muscle"], additionalProperties: false } }
               },
-              required: ["name", "exercises"]
+              required: ["name", "exercises"],
+              additionalProperties: false
             }
           }
         },
@@ -429,11 +431,18 @@ ${workoutContext}
           type: "function",
           function: {
             name: "create_exercise",
-            description: "Creates a new gym exercise to add to library.",
+            description: "Creates a new custom exercise.",
+            strict: true,
             parameters: {
               type: "object",
-              properties: { name: { type: "string" }, muscleGroup: { type: "string" }, type: { type: "string", enum: ["strength", "cardio"] }, equipment: { type: "string" } },
-              required: ["name", "muscleGroup"]
+              properties: {
+                name: { type: "string" },
+                muscleGroup: { type: "string" },
+                type: { type: "string", description: "strength, cardio, or mobility" },
+                equipment: { type: "string" }
+              },
+              required: ["name", "muscleGroup", "type", "equipment"],
+              additionalProperties: false
             }
           }
         },
@@ -441,11 +450,18 @@ ${workoutContext}
           type: "function",
           function: {
             name: "update_macros",
-            description: "Updates the user's daily nutrition goals.",
+            description: "Updates the user's daily macro goals.",
+            strict: true,
             parameters: {
               type: "object",
-              properties: { calories: { type: "number" }, protein: { type: "number" }, carbs: { type: "number" }, fats: { type: "number" } },
-              required: ["calories", "protein", "carbs", "fats"]
+              properties: {
+                calories: { type: "number" },
+                protein: { type: "number" },
+                carbs: { type: "number" },
+                fats: { type: "number" }
+              },
+              required: ["calories", "protein", "carbs", "fats"],
+              additionalProperties: false
             }
           }
         },
@@ -531,6 +547,7 @@ ${workoutContext}
         const { data, response } = await groq.chat.completions.create({
           messages: apiMessages,
           model: modelName,
+          temperature: 0.0,
           // @ts-ignore
           tools: tools,
           tool_choice: "auto"
