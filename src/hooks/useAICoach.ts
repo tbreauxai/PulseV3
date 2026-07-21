@@ -283,7 +283,6 @@ ${workoutContext}
           name: r.name,
           ex: r.exercises?.map((e: any) => e.name || e.exercise?.name).join(', ') || ''
         }));
-        }));
         return JSON.stringify(compressed);
       }
 
