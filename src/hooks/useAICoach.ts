@@ -58,7 +58,21 @@ export const useAICoach = () => {
     }
   }, []);
 
-  const gatherContext = async () => {
+  const getStaticContext = () => {
+    return `
+You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
+Your tone is supportive and highly scientific. You rely on data to make decisions.
+Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
+
+CRITICAL RULES:
+- ONLY use your "Read-Only" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. "What did I do last Tuesday?" or "How has my weight changed this month?").
+- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
+- STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
+- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
+`;
+  };
+
+  const getDynamicContext = () => {
     // 1. Fetch zero-shot context from react-query cache
     const todayDate = new Date().toISOString().split('T')[0];
     
@@ -90,10 +104,6 @@ export const useAICoach = () => {
     }
 
     return `
-You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
-Your tone is supportive and highly scientific. You rely on data to make decisions.
-Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
-
 --- ZERO-SHOT DAILY BRIEFING ---
 You ALREADY know the following about the user. Do NOT use tools to fetch this baseline information.
 ${bodyContext}
@@ -102,12 +112,6 @@ ${macroContext}
 
 ${workoutContext}
 --------------------------------
-
-CRITICAL RULES:
-- ONLY use your "Read-Only" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. "What did I do last Tuesday?" or "How has my weight changed this month?").
-- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
-- STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
-- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
 `;
   };
 
@@ -296,17 +300,18 @@ CRITICAL RULES:
 
     try {
       const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
-      const context = await gatherContext();
+      const staticContext = getStaticContext();
+      const dynamicContext = getDynamicContext();
 
       // We maintain a conversation thread array for the API loop
       // Only include the most recent 6 messages to save tokens (Sliding Window)
       const apiMessages: any[] = [
-        { role: 'system', content: context },
+        { role: 'system', content: staticContext },
         ...messages.slice(-6).map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.text
         })),
-        { role: 'user', content: text }
+        { role: 'user', content: `${dynamicContext}\n[USER MESSAGE]:\n${text}` }
       ];
 
       const isPro = localStorage.getItem('pulse_groq_use_pro') === 'true';
