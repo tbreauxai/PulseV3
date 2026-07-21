@@ -109,6 +109,7 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
               >
                 <option value="Supported / Safe">Supported / Safe</option>
                 <option value="High Neural Tension">High Neural Tension</option>
+                <option value="High Axial Load / Shear Force">High Axial Load / Shear Force</option>
               </select>
             </label>
             
