@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import Groq from 'groq-sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { semanticCache } from '../lib/semanticCache';
 
 export interface RateLimits {
   remainingTokens: string | null;
@@ -56,6 +57,9 @@ export const useAICoach = () => {
         setRateLimits(JSON.parse(storedLimits));
       } catch(e) {}
     }
+
+    // Initialize semantic cache
+    semanticCache.init().catch(e => console.warn("Semantic cache init failed:", e));
   }, []);
 
   const getStaticContext = () => {
@@ -368,6 +372,16 @@ ${workoutContext}
     localStorage.setItem('pulse_groq_requests', JSON.stringify(newTimestamps));
 
     try {
+      // -------------------------------------------------------------
+      // 1. SEMANTIC CACHE LOOKUP
+      // -------------------------------------------------------------
+      const cachedResponse = await semanticCache.get(text);
+      if (cachedResponse) {
+        setMessages(prev => [...prev, { role: 'model', text: cachedResponse }]);
+        setIsTyping(false);
+        return; // Skip LLM entirely
+      }
+
       const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const staticContext = getStaticContext();
       const dynamicContext = getDynamicContext();
@@ -541,6 +555,7 @@ ${workoutContext}
 
       let keepRunning = true;
       let finalResponseContent = "";
+      let madeToolCalls = false;
 
       while (keepRunning) {
         // @ts-ignore
@@ -590,6 +605,7 @@ ${workoutContext}
         apiMessages.push(responseMessage);
 
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+          madeToolCalls = true;
           const toolResults = await Promise.all(responseMessage.tool_calls.map(async (toolCall: any) => {
             try {
               const args = JSON.parse(toolCall.function.arguments);
@@ -618,6 +634,13 @@ ${workoutContext}
       }
 
       setMessages(prev => [...prev, { role: 'model', text: finalResponseContent }]);
+
+      // -------------------------------------------------------------
+      // 3. CACHE SAVING
+      // -------------------------------------------------------------
+      if (!madeToolCalls && finalResponseContent) {
+        semanticCache.set(text, finalResponseContent).catch(e => console.warn("Failed to set semantic cache:", e));
+      }
 
     } catch (error: any) {
       console.error(error);
