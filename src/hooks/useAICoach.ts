@@ -124,6 +124,10 @@ ${workoutContext}
 
       // WRITE TOOLS
       if (toolName === 'create_routine') {
+        if (!args.name || typeof args.name !== 'string' || args.name.trim().length === 0) return 'ERROR: Routine name cannot be empty.';
+        if (!args.exercises || !Array.isArray(args.exercises) || args.exercises.length === 0) return 'ERROR: Routine must contain at least one exercise.';
+        if (args.exercises.length > 50) return 'ERROR: Too many exercises in routine (max 50).';
+
         const routineId = Date.now().toString();
         const payload = {
           user_id: user.id,
@@ -139,6 +143,10 @@ ${workoutContext}
       }
       
       if (toolName === 'create_exercise') {
+        if (!args.name || typeof args.name !== 'string' || args.name.trim().length === 0) return 'ERROR: Exercise name cannot be empty.';
+        if (args.name.length > 100) return 'ERROR: Exercise name is too long.';
+        if (!args.muscleGroup || typeof args.muscleGroup !== 'string' || args.muscleGroup.trim().length === 0) return 'ERROR: Muscle group is required.';
+
         const exerciseId = Date.now().toString();
         const payload = {
           user_id: user.id,
@@ -154,6 +162,11 @@ ${workoutContext}
       }
       
       if (toolName === 'update_macros') {
+        if (args.calories < 500 || args.calories > 10000) return 'ERROR: Calories must be between 500 and 10000.';
+        if (args.protein < 0 || args.protein > 500) return 'ERROR: Protein must be realistic (0-500g).';
+        if (args.carbs < 0 || args.carbs > 1500) return 'ERROR: Carbs must be realistic (0-1500g).';
+        if (args.fats < 0 || args.fats > 500) return 'ERROR: Fats must be realistic (0-500g).';
+
         const payload = {
           calories_goal: args.calories,
           protein_goal: args.protein,
