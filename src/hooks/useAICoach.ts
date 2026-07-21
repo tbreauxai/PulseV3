@@ -264,7 +264,18 @@ ${workoutContext}
           if (bodyFatPercent < 2) bodyFatPercent = 2;
           if (bodyFatPercent > 60) bodyFatPercent = 60;
           
-          calculatedStr = `BMI: ${bmi.toFixed(1)}, BMR: ${Math.round(bmr)}, TDEE: ${Math.round(tdee)}, Body Fat: ${bodyFatPercent.toFixed(1)}%`;
+          const balanced = {
+             protein: Math.round((tdee * 0.30) / 4),
+             carbs: Math.round((tdee * 0.40) / 4),
+             fats: Math.round((tdee * 0.30) / 9)
+          };
+          const lowCarb = {
+             protein: Math.round((tdee * 0.40) / 4),
+             carbs: Math.round((tdee * 0.20) / 4),
+             fats: Math.round((tdee * 0.40) / 9)
+          };
+
+          calculatedStr = `BMI: ${bmi.toFixed(1)}, BMR: ${Math.round(bmr)}, TDEE: ${Math.round(tdee)}, Body Fat: ${bodyFatPercent.toFixed(1)}% | MACRO OPTIONS - Balanced: P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g | Low Carb: P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`;
         }
 
         return JSON.stringify({
@@ -324,20 +335,30 @@ ${workoutContext}
         const lastDate = new Date(weighIns[weighIns.length - 1].date).getTime();
         const daysElapsed = Math.max(14, (lastDate - firstDate) / (1000 * 3600 * 24)); // ensure at least 14 to avoid dividing by 0 or artificially short windows
 
-        // Thermodynamics: 1 lb of tissue = ~3500 calories
         const caloriesFromTissue = weightDeltaLbs * 3500;
-        
-        // Adaptive TDEE: (Total Eaten - Calories from Tissue Change) / Days
-        // If you lost weight (negative delta), caloriesFromTissue is negative, meaning you burned MORE than you ate.
-        // TDEE = Eaten - (-Burned) = Eaten + Burned.
         const totalCaloriesExpended = totalCals - caloriesFromTissue;
         const adaptiveTDEE = totalCaloriesExpended / daysElapsed;
+        
+        const balanced = {
+           protein: Math.round((adaptiveTDEE * 0.30) / 4),
+           carbs: Math.round((adaptiveTDEE * 0.40) / 4),
+           fats: Math.round((adaptiveTDEE * 0.30) / 9)
+        };
+        const lowCarb = {
+           protein: Math.round((adaptiveTDEE * 0.40) / 4),
+           carbs: Math.round((adaptiveTDEE * 0.20) / 4),
+           fats: Math.round((adaptiveTDEE * 0.40) / 9)
+        };
 
         return JSON.stringify({
            days_tracked: macros.length,
            average_intake: Math.round(avgCals),
            weight_change_lbs: weightDeltaLbs.toFixed(2),
-           adaptive_tdee: Math.round(adaptiveTDEE)
+           adaptive_tdee: Math.round(adaptiveTDEE),
+           suggested_macros: {
+              balanced: `P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g`,
+              low_carb: `P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`
+           }
         });
       }
 
