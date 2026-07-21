@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBodyMetrics } from '../hooks/useBodyMetrics';
 import { useWeighIns } from '../hooks/useWeighIns';
-import { User, Activity, Flame, Ruler, Loader2, Save } from 'lucide-react';
+import { User, Activity, Flame, Ruler, Loader2, Save, Droplets, Dumbbell, Percent, Bone } from 'lucide-react';
 import { useAlert } from '../../../contexts/AlertContext';
 
 export const LifestyleMetrics = () => {
@@ -29,7 +29,7 @@ export const LifestyleMetrics = () => {
     }
   }, [metrics, isLoading, isEditing]);
 
-  const latestWeightLbs = logs && logs.length > 0 ? logs[0].weight : null;
+  const latestWeightLbs = logs && logs.length > 0 ? parseFloat(logs[0].weight) : null;
   const latestWeightKg = latestWeightLbs ? latestWeightLbs * 0.453592 : null;
 
   const calculateMetrics = () => {
@@ -56,10 +56,43 @@ export const LifestyleMetrics = () => {
     };
     const tdee = bmr * (multipliers[formData.activity_level] || 1.2);
 
+    // Advanced Body Composition Estimation
+    const genderFactor = formData.gender === 'male' ? 1 : 0;
+    
+    // Body Fat % (Deurenberg Formula)
+    let bodyFatPercent = (1.20 * bmi) + (0.23 * age) - (10.8 * genderFactor) - 5.4;
+    if (bodyFatPercent < 2) bodyFatPercent = 2;
+    if (bodyFatPercent > 60) bodyFatPercent = 60;
+
+    // Lean Body Mass (LBM) in kg (Boer Formula)
+    let lbmKg = 0;
+    if (formData.gender === 'male') {
+      lbmKg = (0.407 * latestWeightKg) + (0.267 * heightCm) - 19.2;
+    } else {
+      lbmKg = (0.252 * latestWeightKg) + (0.473 * heightCm) - 48.3;
+    }
+    const lbmLbs = lbmKg * 2.20462;
+
+    // Body Water (typically ~73% of LBM)
+    const bodyWaterPercent = ((lbmKg * 0.73) / latestWeightKg) * 100;
+
+    // Bone Mass (typically ~4-5% of total weight)
+    const boneMassLbs = latestWeightLbs * 0.04;
+
+    // Muscle Mass (LBM - Bone Mass)
+    const muscleMassLbs = lbmLbs - boneMassLbs;
+    const muscleMassPercent = (muscleMassLbs / latestWeightLbs) * 100;
+
     return {
       bmi: bmi.toFixed(1),
       bmr: Math.round(bmr),
-      tdee: Math.round(tdee)
+      tdee: Math.round(tdee),
+      bodyFat: bodyFatPercent.toFixed(1),
+      leanMass: lbmLbs.toFixed(1),
+      bodyWater: bodyWaterPercent.toFixed(1),
+      boneMass: boneMassLbs.toFixed(1),
+      muscleMass: muscleMassLbs.toFixed(1),
+      muscleMassPercent: muscleMassPercent.toFixed(1)
     };
   };
 
@@ -182,41 +215,70 @@ export const LifestyleMetrics = () => {
           Enter your metrics above to see calculations!
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
-          <div className="bg-gradient-to-br from-blue-900/40 to-blue-900/10 border border-blue-500/20 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Ruler className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-xs text-blue-300/70 font-bold">BMI</div>
-                <div className="text-xl font-black text-blue-400">{calculated.bmi}</div>
-              </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-blue-900/40 to-blue-900/10 border border-blue-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Ruler className="w-4 h-4 text-blue-400" />
+              <div className="text-[10px] text-blue-300/70 font-bold tracking-wider">BMI</div>
             </div>
+            <div className="text-xl font-black text-blue-400">{calculated.bmi}</div>
           </div>
           
-          <div className="bg-gradient-to-br from-rose-900/40 to-rose-900/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-rose-500/20 rounded-lg">
-                <Activity className="w-5 h-5 text-rose-400" />
-              </div>
-              <div>
-                <div className="text-xs text-rose-300/70 font-bold">Basal Metabolic Rate (BMR)</div>
-                <div className="text-xl font-black text-rose-400">{calculated.bmr} <span className="text-sm font-normal text-rose-400/50">kcal</span></div>
-              </div>
+          <div className="bg-gradient-to-br from-purple-900/40 to-purple-900/10 border border-purple-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Percent className="w-4 h-4 text-purple-400" />
+              <div className="text-[10px] text-purple-300/70 font-bold tracking-wider">BODY FAT</div>
             </div>
+            <div className="text-xl font-black text-purple-400">{calculated.bodyFat}%</div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-900/40 to-orange-900/10 border border-orange-500/20 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <Flame className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <div className="text-xs text-orange-300/70 font-bold">Total Daily Energy (TDEE)</div>
-                <div className="text-xl font-black text-orange-400">{calculated.tdee} <span className="text-sm font-normal text-orange-400/50">kcal</span></div>
-              </div>
+          <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-900/10 border border-emerald-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Dumbbell className="w-4 h-4 text-emerald-400" />
+              <div className="text-[10px] text-emerald-300/70 font-bold tracking-wider">MUSCLE MASS</div>
             </div>
+            <div className="text-xl font-black text-emerald-400">{calculated.muscleMass} <span className="text-xs font-normal text-emerald-400/50">lbs</span></div>
+            <div className="text-[10px] text-emerald-400/50">{calculated.muscleMassPercent}%</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-900/40 to-indigo-900/10 border border-indigo-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-indigo-400" />
+              <div className="text-[10px] text-indigo-300/70 font-bold tracking-wider">LEAN MASS</div>
+            </div>
+            <div className="text-xl font-black text-indigo-400">{calculated.leanMass} <span className="text-xs font-normal text-indigo-400/50">lbs</span></div>
+          </div>
+
+          <div className="bg-gradient-to-br from-cyan-900/40 to-cyan-900/10 border border-cyan-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Droplets className="w-4 h-4 text-cyan-400" />
+              <div className="text-[10px] text-cyan-300/70 font-bold tracking-wider">BODY WATER</div>
+            </div>
+            <div className="text-xl font-black text-cyan-400">{calculated.bodyWater}%</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-700/40 to-gray-800/10 border border-gray-500/20 rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Bone className="w-4 h-4 text-gray-400" />
+              <div className="text-[10px] text-gray-300/70 font-bold tracking-wider">BONE MASS</div>
+            </div>
+            <div className="text-xl font-black text-gray-300">{calculated.boneMass} <span className="text-xs font-normal text-gray-400/50">lbs</span></div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-rose-900/40 to-rose-900/10 border border-rose-500/20 rounded-xl p-4 flex flex-col justify-between col-span-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-4 h-4 text-rose-400" />
+              <div className="text-[10px] text-rose-300/70 font-bold tracking-wider">BASAL METABOLIC RATE (BMR)</div>
+            </div>
+            <div className="text-xl font-black text-rose-400">{calculated.bmr} <span className="text-xs font-normal text-rose-400/50">kcal/day</span></div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-900/40 to-orange-900/10 border border-orange-500/20 rounded-xl p-4 flex flex-col justify-between col-span-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Flame className="w-4 h-4 text-orange-400" />
+              <div className="text-[10px] text-orange-300/70 font-bold tracking-wider">TOTAL DAILY ENERGY (TDEE)</div>
+            </div>
+            <div className="text-xl font-black text-orange-400">{calculated.tdee} <span className="text-xs font-normal text-orange-400/50">kcal/day</span></div>
           </div>
         </div>
       )}
