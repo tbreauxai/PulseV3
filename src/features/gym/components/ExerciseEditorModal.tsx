@@ -74,31 +74,33 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
               />
             </label>
 
-            <label className="space-y-2 text-sm font-bold text-gray-300">
-              TYPE
-              <select
-                value={formState.type || 'strength'}
-                onChange={handleChange('type')}
-                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-              >
-                <option value="strength">Strength (Weight / Reps)</option>
-                <option value="timed">Timed Hold (Duration)</option>
-                <option value="cardio">Cardio (Time / Calories)</option>
-              </select>
-            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="space-y-2 text-sm font-bold text-gray-300">
+                TYPE
+                <select
+                  value={formState.type || 'strength'}
+                  onChange={handleChange('type')}
+                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                >
+                  <option value="strength">Strength (Weight / Reps)</option>
+                  <option value="timed">Timed Hold (Duration)</option>
+                  <option value="cardio">Cardio (Time / Calories)</option>
+                </select>
+              </label>
 
-            <label className="space-y-2 text-sm font-bold text-gray-300">
-              MOVEMENT TYPE
-              <select
-                value={formState.movementType || 'Compound'}
-                onChange={handleChange('movementType')}
-                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
-              >
-                <option value="Compound">Compound (Multi-Joint)</option>
-                <option value="Isolation">Isolation (Single-Joint)</option>
-                <option value="Isometric">Isometric (Static Hold)</option>
-              </select>
-            </label>
+              <label className="space-y-2 text-sm font-bold text-gray-300">
+                MOVEMENT TYPE
+                <select
+                  value={formState.movementType || 'Compound'}
+                  onChange={handleChange('movementType')}
+                  className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+                >
+                  <option value="Compound">Compound (Multi-Joint)</option>
+                  <option value="Isolation">Isolation (Single-Joint)</option>
+                  <option value="Isometric">Isometric (Static Hold)</option>
+                </select>
+              </label>
+            </div>
 
             <label className="space-y-2 text-sm font-bold text-gray-300">
               SPINAL RISK
@@ -141,7 +143,7 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
             </div>
 
             {(!formState.type || formState.type === 'strength') && (
-              <>
+              <div className="grid grid-cols-2 gap-4">
                 <label className="space-y-2 text-sm font-bold text-gray-300">
                   WEIGHT
                   <input
@@ -161,7 +163,7 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
                     className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
                   />
                 </label>
-              </>
+              </div>
             )}
 
             {formState.type === 'timed' && (
