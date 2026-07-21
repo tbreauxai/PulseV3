@@ -247,7 +247,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
           )}
           <div className="flex justify-between items-center mb-2 px-2">
             <span className="text-[10px] text-gray-500 font-bold tracking-wider">
-              {usePro ? 'PRO (70B)' : 'FAST (8B)'} QUOTA: {requestsLastMinute}/{limit}
+              ROUTER QUOTA: {requestsLastMinute}/{limit}
             </span>
             {cooldownRemaining > 0 && (
               <span className="text-[10px] text-rose-500 font-bold animate-pulse">
