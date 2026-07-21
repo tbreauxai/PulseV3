@@ -189,7 +189,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                   const isWeightBumpDue = progression?.needsWeightBump;
                   const targetWeight = progression?.historicalWeight || 0;
                   
-                  const isRepsRed = isRepBumpDue && (currentReps === 8 || currentReps === 10 || currentReps === 0);
+                  const isRepsRed = isRepBumpDue && (currentReps === 8 || currentReps === 10 || currentReps === 12 || currentReps === 0);
                   const isWeightRed = isWeightBumpDue && (currentWeight <= targetWeight || currentReps !== 8);
 
                   return (
@@ -235,6 +235,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                             <option value="8">8</option>
                             <option value="10">10</option>
                             <option value="12">12</option>
+                            <option value="15">15</option>
                           </select>
                         )}
                         {exercise.type === 'cardio' && (
