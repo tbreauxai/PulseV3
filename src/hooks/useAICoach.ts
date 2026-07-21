@@ -133,13 +133,14 @@ ${workoutContext}
         if (args.exercises.length > 50) return 'ERROR: Too many exercises in routine (max 50).';
 
         const routineId = Date.now().toString();
+        const routineDate = args.date ? new Date(args.date).toISOString() : new Date().toISOString();
         const payload = {
           user_id: user.id,
           routine_id: routineId,
           name: args.name,
           exercises: args.exercises,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: routineDate,
+          updated_at: routineDate
         };
         await supabase.from('routines').insert([payload]);
         await queryClient.invalidateQueries({ queryKey: ['routines'] });
@@ -420,7 +421,7 @@ ${workoutContext}
         console.error("Router error:", err);
       }
       
-      const modelName = isComplex ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
+      const modelName = isComplex ? 'llama-3.3-70b-specdec' : 'llama-3.1-8b-instant';
       console.log(`[Semantic Router] Routing payload to: ${modelName}`);
       
       const tools = [
@@ -434,9 +435,10 @@ ${workoutContext}
               type: "object",
               properties: {
                 name: { type: "string" },
+                date: { type: "string", description: "ISO date string (e.g. YYYY-MM-DD)" },
                 exercises: { type: "array", items: { type: "object", properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" }, target_muscle: { type: "string" } }, required: ["name", "sets", "reps", "target_muscle"], additionalProperties: false } }
               },
-              required: ["name", "exercises"],
+              required: ["name", "date", "exercises"],
               additionalProperties: false
             }
           }
