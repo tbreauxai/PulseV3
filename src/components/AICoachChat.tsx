@@ -284,6 +284,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
               onTouchStart={startRecording}
               onTouchEnd={stopRecording}
               disabled={isTyping || cooldownRemaining > 0}
+              title="Hold to talk"
               className={`h-auto px-5 rounded-2xl flex items-center justify-center transition-colors ${
                 isRecording 
                   ? 'bg-rose-500 text-white animate-pulse' 
