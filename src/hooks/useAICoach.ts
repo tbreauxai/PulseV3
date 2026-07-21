@@ -68,6 +68,8 @@ CRITICAL: You DO NOT have the user's workout data, weigh-ins, routines, or nutri
 You MUST use your provided "Read-Only" tools (like analyze_workout_history, get_macros_and_nutrition) to fetch data from the user's database IF they ask a question that requires insight into their habits.
 
 If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
+STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
+STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
 `;
   };
 
