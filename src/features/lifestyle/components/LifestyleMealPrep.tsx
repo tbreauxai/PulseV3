@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Utensils, Droplets, Plus, X } from 'lucide-react';
 import { useHydration } from '../hooks/useHydration';
 import { useMacros } from '../hooks/useMacros';
+import { useBodyMetrics } from '../hooks/useBodyMetrics';
+import { useWeighIns } from '../hooks/useWeighIns';
 import { MacroProgress } from './MacroProgress';
 import { LogMealModal } from './LogMealModal';
 
@@ -10,6 +12,8 @@ export const LifestyleMealPrep = () => {
 
   const { water, isLoading: loading, logWater, waterGoal, saveWaterGoal } = useHydration(todayDate);
   const { macroGoals, currentMacros, saveMacroGoals, logMeal } = useMacros(todayDate);
+  const { metrics } = useBodyMetrics();
+  const { logs: weighIns } = useWeighIns();
 
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editGoals, setEditGoals] = useState(macroGoals);
@@ -33,7 +37,42 @@ export const LifestyleMealPrep = () => {
     setIsEditingMacros(false);
   };
 
-  const handleLogMeal = async (mealData) => {
+  const handleAutoCalculate = (goalType: 'cut' | 'maintain' | 'bulk') => {
+    if (!metrics || !metrics.age || !metrics.height_cm || !weighIns || weighIns.length === 0) {
+      alert("Please log your height, age, activity level, and weight in the Metrics tab first!");
+      return;
+    }
+
+    const latestWeightLbs = parseFloat(weighIns[0].weight);
+    const weightKg = latestWeightLbs * 0.453592;
+    const heightCm = parseFloat(metrics.height_cm);
+    const age = parseInt(metrics.age);
+    
+    let bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age);
+    bmr += metrics.gender === 'male' ? 5 : -161;
+    
+    const multipliers: Record<string, number> = {
+      'sedentary': 1.2, 'light': 1.375, 'moderate': 1.55, 'active': 1.725, 'extra': 1.9
+    };
+    const tdee = bmr * (multipliers[metrics.activity_level] || 1.2);
+    
+    let targetCalories = tdee;
+    if (goalType === 'cut') targetCalories -= 500;
+    if (goalType === 'bulk') targetCalories += 500;
+    
+    const targetProtein = Math.round(latestWeightLbs); // 1g per lb
+    const targetFats = Math.round((targetCalories * 0.25) / 9); // 25% of calories from fat
+    const targetCarbs = Math.max(0, Math.round((targetCalories - (targetProtein * 4) - (targetFats * 9)) / 4));
+
+    setEditGoals({
+      calories: Math.round(targetCalories),
+      protein: targetProtein,
+      fats: targetFats,
+      carbs: targetCarbs
+    });
+  };
+
+  const handleLogMeal = async (mealData: any) => {
     const newMacros = {
       calories: currentMacros.calories + Number(mealData.calories),
       protein: currentMacros.protein + Number(mealData.protein),
@@ -43,7 +82,7 @@ export const LifestyleMealPrep = () => {
     logMeal(newMacros);
   };
 
-  const calcPercent = (current, goal) => Math.min(100, Math.round((current / goal) * 100)) || 0;
+  const calcPercent = (current: number, goal: number) => Math.min(100, Math.round((current / goal) * 100)) || 0;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -76,6 +115,14 @@ export const LifestyleMealPrep = () => {
 
         {isEditingMacros ? (
           <div className="space-y-4">
+            <div className="flex flex-col space-y-2 mb-4 p-3 bg-gray-900 rounded-xl border border-gray-800">
+              <span className="text-xs font-bold text-gray-400 text-center uppercase tracking-wider">Auto-Calculate</span>
+              <div className="flex space-x-2">
+                <button onClick={() => handleAutoCalculate('cut')} className="flex-1 py-2 bg-black border border-emerald-500/30 text-emerald-500 text-xs font-bold rounded-lg hover:bg-emerald-500/10 transition">CUT</button>
+                <button onClick={() => handleAutoCalculate('maintain')} className="flex-1 py-2 bg-black border border-gray-700 text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-800 transition">MAINTAIN</button>
+                <button onClick={() => handleAutoCalculate('bulk')} className="flex-1 py-2 bg-black border border-rose-500/30 text-rose-500 text-xs font-bold rounded-lg hover:bg-rose-500/10 transition">BULK</button>
+              </div>
+            </div>
             {[
               { label: 'Calories (kcal)', key: 'calories' },
               { label: 'Protein (g)', key: 'protein' },
@@ -86,7 +133,7 @@ export const LifestyleMealPrep = () => {
                 <span className="text-white text-sm font-bold">{item.label}</span>
                 <input 
                   type="number" 
-                  value={editGoals[item.key]}
+                  value={(editGoals as any)[item.key]}
                   onChange={e => setEditGoals({...editGoals, [item.key]: Number(e.target.value)})}
                   className="w-24 bg-gray-900 border border-gray-800 rounded px-3 py-2 text-white text-right outline-none focus:border-emerald-500 transition-colors"
                 />
