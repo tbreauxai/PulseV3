@@ -278,7 +278,63 @@ ${workoutContext}
           name: r.name,
           ex: r.exercises?.map((e: any) => e.name || e.exercise?.name).join(', ') || ''
         }));
+        }));
         return JSON.stringify(compressed);
+      }
+
+      if (toolName === 'update_adaptive_tdee') {
+        // Find date 30 days ago
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const cutoff = thirtyDaysAgo.toISOString().split('T')[0];
+
+        // 1. Fetch weigh-ins
+        const { data: weighIns } = await supabase
+          .from('weigh_ins')
+          .select('date, weight')
+          .gte('date', cutoff)
+          .order('date', { ascending: true });
+
+        // 2. Fetch daily macros
+        const { data: macros } = await supabase
+          .from('daily_macros')
+          .select('date, calories')
+          .gte('date', cutoff)
+          .gt('calories', 500) // ignore blank/empty days
+          .order('date', { ascending: true });
+
+        if (!weighIns || weighIns.length < 2) return 'ERROR: Not enough weigh-in data (needs at least 2 weigh-ins in the last 30 days). Fallback to Mifflin-St. Jeor.';
+        if (!macros || macros.length < 14) return 'ERROR: Not enough caloric tracking data (needs at least 14 days of tracked calories > 500 in the last 30 days). Fallback to Mifflin-St. Jeor.';
+
+        // Calculate Average Calories
+        const totalCals = macros.reduce((sum, m) => sum + (m.calories || 0), 0);
+        const avgCals = totalCals / macros.length;
+
+        // Calculate Weight Delta
+        const firstWeight = parseFloat(weighIns[0].weight);
+        const lastWeight = parseFloat(weighIns[weighIns.length - 1].weight);
+        const weightDeltaLbs = lastWeight - firstWeight;
+        
+        // Days elapsed between first and last weigh in
+        const firstDate = new Date(weighIns[0].date).getTime();
+        const lastDate = new Date(weighIns[weighIns.length - 1].date).getTime();
+        const daysElapsed = Math.max(14, (lastDate - firstDate) / (1000 * 3600 * 24)); // ensure at least 14 to avoid dividing by 0 or artificially short windows
+
+        // Thermodynamics: 1 lb of tissue = ~3500 calories
+        const caloriesFromTissue = weightDeltaLbs * 3500;
+        
+        // Adaptive TDEE: (Total Eaten - Calories from Tissue Change) / Days
+        // If you lost weight (negative delta), caloriesFromTissue is negative, meaning you burned MORE than you ate.
+        // TDEE = Eaten - (-Burned) = Eaten + Burned.
+        const totalCaloriesExpended = totalCals - caloriesFromTissue;
+        const adaptiveTDEE = totalCaloriesExpended / daysElapsed;
+
+        return JSON.stringify({
+           days_tracked: macros.length,
+           average_intake: Math.round(avgCals),
+           weight_change_lbs: weightDeltaLbs.toFixed(2),
+           adaptive_tdee: Math.round(adaptiveTDEE)
+        });
       }
 
       if (toolName === 'search_chat_history') {
@@ -412,8 +468,20 @@ ${workoutContext}
             description: "Fetches the user's logged workouts over the specified number of days.",
             parameters: {
               type: "object",
-              properties: { days: { type: "number", description: "Number of days of history to fetch (e.g. 7, 30)" } },
-              required: ["days"]
+              properties: {
+                days: { type: "number", description: "Number of days to analyze (default 30)" }
+              }
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "update_adaptive_tdee",
+            description: "Calculates the user's true Adaptive TDEE using thermodynamic analysis over the last 21-30 days of weigh-ins and calories. DO NOT ask the user before calling this tool, just call it.",
+            parameters: {
+              type: "object",
+              properties: {}
             }
           }
         },
