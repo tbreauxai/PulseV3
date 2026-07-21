@@ -45,6 +45,7 @@ export const useExercises = () => {
                     type: ex.type || 'strength',
                     muscle_group: 'Restored',
                     movement_type: ex.movementType || 'Compound',
+                    spinal_risk: ex.spinalRisk || 'Supported / Safe',
                     weight: '', reps: '', equipment: '', time: '', distance: ''
                   });
                 }
@@ -57,7 +58,7 @@ export const useExercises = () => {
             await supabase.from('user_exercises').insert(payloads);
             if (data) {
               data.push(...payloads.map((p: any) => ({
-                exercise_id: p.exercise_id, name: p.name, type: p.type, muscle_group: p.muscle_group, movement_type: p.movement_type, weight: p.weight, reps: p.reps, equipment: p.equipment, time: p.time, distance: p.distance
+                exercise_id: p.exercise_id, name: p.name, type: p.type, muscle_group: p.muscle_group, movement_type: p.movement_type, spinal_risk: p.spinal_risk, weight: p.weight, reps: p.reps, equipment: p.equipment, time: p.time, distance: p.distance
               })));
             }
           }
@@ -73,6 +74,7 @@ export const useExercises = () => {
           name: ex.name,
           type: ex.type,
           movementType: ex.movement_type || 'Compound',
+          spinalRisk: ex.spinal_risk || 'Supported / Safe',
           muscleGroup: ex.muscle_group,
           weight: ex.weight,
           reps: ex.reps,
@@ -96,6 +98,7 @@ export const useExercises = () => {
           name: ex.name,
           type: ex.type || 'strength',
           movement_type: ex.movementType || 'Compound',
+          spinal_risk: ex.spinalRisk || 'Supported / Safe',
           muscle_group: ex.muscleGroup,
           weight: ex.weight || '',
           reps: ex.reps || '',
@@ -128,6 +131,7 @@ export const useExercises = () => {
         name: newExercise.name,
         type: newExercise.type || 'strength',
         movement_type: newExercise.movementType || 'Compound',
+        spinal_risk: newExercise.spinalRisk || 'Supported / Safe',
         muscle_group: newExercise.muscleGroup || '',
         weight: newExercise.weight || '',
         reps: newExercise.reps || '',
@@ -163,6 +167,7 @@ export const useExercises = () => {
               name: newExercise.name,
               type: newExercise.type || 'strength',
               movement_type: newExercise.movementType || 'Compound',
+              spinal_risk: newExercise.spinalRisk || 'Supported / Safe',
               muscle_group: newExercise.muscleGroup || '',
               weight: newExercise.weight || '',
               reps: newExercise.reps || '',
@@ -196,6 +201,7 @@ export const useExercises = () => {
         name: updatedData.name,
         type: updatedData.type,
         movement_type: updatedData.movementType,
+        spinal_risk: updatedData.spinalRisk,
         weight: updatedData.weight,
         reps: updatedData.reps,
         equipment: updatedData.equipment,
@@ -264,6 +270,7 @@ export const useExercises = () => {
             name: updatedData.name,
             type: updatedData.type,
             movement_type: updatedData.movementType,
+            spinal_risk: updatedData.spinalRisk,
             weight: updatedData.weight,
             reps: updatedData.reps,
             equipment: updatedData.equipment,

@@ -99,6 +99,18 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
                 <option value="Isometric">Isometric (Static Hold)</option>
               </select>
             </label>
+
+            <label className="space-y-2 text-sm font-bold text-gray-300">
+              SPINAL RISK
+              <select
+                value={formState.spinalRisk || 'Supported / Safe'}
+                onChange={handleChange('spinalRisk')}
+                className="w-full rounded-2xl border border-[#222] bg-black px-4 py-3.5 text-white font-medium focus:outline-none focus:border-rose-600/50"
+              >
+                <option value="Supported / Safe">Supported / Safe</option>
+                <option value="High Neural Tension">High Neural Tension</option>
+              </select>
+            </label>
             
             <div className="space-y-2 text-sm font-bold text-gray-300">
               PRIMARY MUSCLES

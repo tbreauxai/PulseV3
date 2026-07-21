@@ -207,8 +207,11 @@ ${workoutContext}
                  const name = d.exerciseName || d.name || d.exercise?.name || '';
                  if (!name) return '';
                  const ex = allExercises.find(e => e.name === name);
-                 return ex?.movementType ? `${name} (${ex.movementType})` : name;
-               }).filter(Boolean).join(', ');
+                 const mType = ex?.movementType ? ex.movementType : '';
+                 const sRisk = ex?.spinalRisk === 'High Neural Tension' ? 'High Spinal Risk' : '';
+                 const tags = [mType, sRisk].filter(Boolean).join(', ');
+                 return tags ? `${name} (${tags})` : name;
+               }).filter(Boolean).join(' | ');
             }
           } catch(e) {}
           
@@ -307,8 +310,11 @@ ${workoutContext}
              const name = e.name || e.exercise?.name || e.exerciseName || '';
              if (!name) return '';
              const ex = allExercises.find(a => a.name === name);
-             return ex?.movementType ? `${name} (${ex.movementType})` : name;
-          }).filter(Boolean).join(', ') || ''
+             const mType = ex?.movementType ? ex.movementType : '';
+             const sRisk = ex?.spinalRisk === 'High Neural Tension' ? 'High Spinal Risk' : '';
+             const tags = [mType, sRisk].filter(Boolean).join(', ');
+             return tags ? `${name} (${tags})` : name;
+          }).filter(Boolean).join(' | ') || ''
         }));
         return JSON.stringify(compressed);
       }
@@ -318,6 +324,7 @@ ${workoutContext}
         const compressed = allExercises.map(e => ({
           name: e.name,
           type: e.movementType || 'Compound',
+          risk: e.spinalRisk || 'Supported / Safe',
           group: e.muscleGroup
         }));
         return JSON.stringify(compressed);
