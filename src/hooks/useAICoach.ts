@@ -196,13 +196,19 @@ ${workoutContext}
         cutoff.setDate(cutoff.getDate() - days);
         const filtered = history.filter(h => new Date(h.date) >= cutoff);
         
+        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
         // Compress payload to save tokens
         const compressed = filtered.map(h => {
           let exercisesStr = 'Unknown';
           try {
             const details = typeof h.exerciseDetails === 'string' ? JSON.parse(h.exerciseDetails) : (h.exerciseDetails || []);
             if (Array.isArray(details)) {
-               exercisesStr = details.map((d: any) => d.exerciseName || d.name || d.exercise?.name || '').filter(Boolean).join(', ');
+               exercisesStr = details.map((d: any) => {
+                 const name = d.exerciseName || d.name || d.exercise?.name || '';
+                 if (!name) return '';
+                 const ex = allExercises.find(e => e.name === name);
+                 return ex?.movementType ? `${name} (${ex.movementType})` : name;
+               }).filter(Boolean).join(', ');
             }
           } catch(e) {}
           
@@ -294,9 +300,15 @@ ${workoutContext}
 
       if (toolName === 'get_saved_routines') {
         const routines: any[] = queryClient.getQueryData(['routines']) || [];
+        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
         const compressed = routines.map(r => ({
           name: r.name,
-          ex: r.exercises?.map((e: any) => e.name || e.exercise?.name).join(', ') || ''
+          ex: r.exercises?.map((e: any) => {
+             const name = e.name || e.exercise?.name || e.exerciseName || '';
+             if (!name) return '';
+             const ex = allExercises.find(a => a.name === name);
+             return ex?.movementType ? `${name} (${ex.movementType})` : name;
+          }).filter(Boolean).join(', ') || ''
         }));
         return JSON.stringify(compressed);
       }
