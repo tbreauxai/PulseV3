@@ -588,13 +588,10 @@ ${workoutContext}
       let madeToolCalls = false;
 
       while (keepRunning) {
-        // @ts-ignore
         const { data, response } = await groq.chat.completions.create({
           messages: apiMessages,
           model: modelName,
           temperature: 0.0,
-          // @ts-ignore
-          reasoning_format: "hidden",
           // @ts-ignore
           tools: tools,
           tool_choice: "auto"
