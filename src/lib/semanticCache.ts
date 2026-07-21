@@ -148,6 +148,35 @@ class SemanticCache {
     
     this.saveToStorage();
   }
+
+  public async pruneJSON(goal: string, items: any[], topK: number = 10): Promise<any[]> {
+    if (!this.isInitialized || !this.extractor || items.length <= topK) return items;
+
+    try {
+      console.log(`[Neural Skimmer] Pruning ${items.length} items to top ${topK} for goal: "${goal}"`);
+      
+      const goalOutput = await this.extractor(goal.trim().toLowerCase(), { pooling: 'mean', normalize: true });
+      const goalEmbedding = Array.from(goalOutput.data) as number[];
+
+      const scoredItems = await Promise.all(items.map(async (item) => {
+        // Stringify item for embedding
+        const textToEmbed = JSON.stringify(item).toLowerCase();
+        const itemOutput = await this.extractor(textToEmbed, { pooling: 'mean', normalize: true });
+        const itemEmbedding = Array.from(itemOutput.data) as number[];
+        
+        const sim = this.cosineSimilarity(goalEmbedding, itemEmbedding);
+        return { item, sim };
+      }));
+
+      // Sort by similarity descending
+      scoredItems.sort((a, b) => b.sim - a.sim);
+
+      return scoredItems.slice(0, topK).map(s => s.item);
+    } catch (e) {
+      console.error("[Neural Skimmer] Error during pruning", e);
+      return items; // Fallback to raw unpruned items
+    }
+  }
 }
 
 export const semanticCache = SemanticCache.getInstance();

@@ -120,7 +120,7 @@ ${workoutContext}
   };
 
   const sendMessage = useCallback(async (text: string) => {
-    const executeToolLogic = async (toolName: string, args: any) => {
+    const executeToolLogic = async (toolName: string, args: any, goalText: string = "") => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required for tool calls.");
       
@@ -213,7 +213,10 @@ ${workoutContext}
           };
         });
         
-        return JSON.stringify(compressed);
+        // Use Neural Skimmer to filter down to the 10 most relevant workouts based on the user's query
+        const pruned = await semanticCache.pruneJSON(goalText, compressed, 10);
+        
+        return JSON.stringify(pruned);
       }
 
       if (toolName === 'analyze_weigh_ins') {
@@ -631,7 +634,7 @@ ${workoutContext}
           const toolResults = await Promise.all(responseMessage.tool_calls.map(async (toolCall: any) => {
             try {
               const args = JSON.parse(toolCall.function.arguments);
-              const toolResult = await executeToolLogic(toolCall.function.name, args);
+              const toolResult = await executeToolLogic(toolCall.function.name, args, text);
               return {
                 role: 'tool',
                 tool_call_id: toolCall.id,
