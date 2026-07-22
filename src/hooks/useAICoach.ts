@@ -71,9 +71,10 @@ Never output raw JSON or code blocks unless requested. Format your output nicely
 
 CRITICAL RULES:
 - ONLY use your "Read-Only" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. "What did I do last Tuesday?" or "How has my weight changed this month?").
-- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros').
+- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').
 - STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
 - STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
+- STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the \`update_active_workout\` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.
 `;
   };
 
@@ -108,6 +109,19 @@ CRITICAL RULES:
       workoutContext = `Last Workout: ${last.routineName || 'Unknown Routine'} on ${last.date?.split('T')[0] || '?'} (Volume: ${last.totalVolume || 0} lbs)`;
     }
 
+    // Active Live Session
+    let activeSessionContext = "ACTIVE LIVE WORKOUT: None.";
+    try {
+      const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
+      if (activeSessionStr) {
+         const session = JSON.parse(activeSessionStr);
+         if (session && session.exercises) {
+            const exNames = session.exercises.map((e: any) => e.exerciseName || e.name).join(', ');
+            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'} -> [${exNames}]`;
+         }
+      }
+    } catch(e) {}
+
     return `
 --- ZERO-SHOT DAILY BRIEFING ---
 You ALREADY know the following about the user. Do NOT use tools to fetch this baseline information.
@@ -116,6 +130,8 @@ ${bodyContext}
 ${macroContext}
 
 ${workoutContext}
+
+${activeSessionContext}
 --------------------------------
 `;
   };

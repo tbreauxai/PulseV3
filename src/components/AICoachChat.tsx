@@ -47,6 +47,13 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   const startRecording = async () => {
