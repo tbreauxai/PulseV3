@@ -66,16 +66,38 @@ Example output:
   ]
 }`;
 
-      // @ts-ignore
-      const completion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: prompt },
-          { role: 'user', content: text }
-        ],
-        model: 'llama-3.1-8b-instant',
-        response_format: { type: "json_object" },
-        temperature: 0.0
-      });
+      let completion: any = null;
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries) {
+        try {
+          // @ts-ignore
+          completion = await groq.chat.completions.create({
+            messages: [
+              { role: 'system', content: prompt },
+              { role: 'user', content: text }
+            ],
+            model: 'llama-3.1-8b-instant',
+            response_format: { type: "json_object" },
+            temperature: 0.0,
+            // @ts-ignore
+            service_tier: 'flex'
+          });
+          break; // success
+        } catch (error: any) {
+          retries++;
+          if (retries >= maxRetries || (error.status !== 429 && error.status !== 503)) {
+            console.warn(`[Memory Engine] Flex tier failed after ${retries} attempts:`, error);
+            return; // Give up
+          }
+          const backoffDelay = Math.pow(2, retries) * 1000 + Math.random() * 1000;
+          console.log(`[Memory Engine] Flex capacity error. Retrying in ${Math.round(backoffDelay)}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        }
+      }
+      
+      if (!completion) return;
 
       const responseContent = completion.choices[0]?.message?.content || "{}";
       const parsed = JSON.parse(responseContent);
