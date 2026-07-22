@@ -807,83 +807,115 @@ ${activeSessionContext}
       let keepRunning = true;
       let finalResponseContent = "";
       let madeToolCalls = false;
+      let uiMessageAdded = false;
 
       while (keepRunning) {
-        const { data, response } = await groq.chat.completions.create({
+        const stream = await groq.chat.completions.create({
           messages: apiMessages,
           model: modelName,
           temperature: 0.0,
           // @ts-ignore
           tools: tools,
-          tool_choice: "auto"
-        }).withResponse();
+          tool_choice: "auto",
+          stream: true,
+          // @ts-ignore
+          stream_options: { include_usage: true }
+        });
 
-        // Capture Token Usage from response body since headers are blocked by CORS
-        const usage = data.usage?.total_tokens || 0;
+        let currentResponse = "";
+        let toolCallsAcc: any[] = [];
         
-        // Retrieve stored usage for today
-        const todayStr = new Date().toISOString().split('T')[0];
-        let storedUsage = 0;
-        try {
-          const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
-          if (stored.date === todayStr) {
-            storedUsage = stored.tokens || 0;
-          }
-        } catch(e) {}
+        for await (const chunk of stream) {
+           const delta = chunk.choices[0]?.delta;
+           
+           // @ts-ignore
+           if (chunk.usage && chunk.usage.total_tokens) {
+              const usage = chunk.usage.total_tokens;
+              const todayStr = new Date().toISOString().split('T')[0];
+              let storedUsage = 0;
+              try {
+                const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+                if (stored.date === todayStr) {
+                  storedUsage = stored.tokens || 0;
+                }
+              } catch(e) {}
 
-        const newTotalUsage = storedUsage + usage;
-        localStorage.setItem('pulse_groq_usage', JSON.stringify({ date: todayStr, tokens: newTotalUsage }));
+              const newTotalUsage = storedUsage + usage;
+              localStorage.setItem('pulse_groq_usage', JSON.stringify({ date: todayStr, tokens: newTotalUsage }));
 
-        // Estimate remaining based on typical Groq Free Tier (100,000 tokens per day)
-        const estimatedRemaining = Math.max(0, 100000 - newTotalUsage);
-        
-        const limits = {
-          remainingTokens: estimatedRemaining.toString(),
-          remainingRequests: '--', // We can't accurately track RPD without a full DB, so hide this
-          resetTokens: null,
-          resetRequests: null,
-        };
-        setRateLimits(limits);
+              const estimatedRemaining = Math.max(0, 100000 - newTotalUsage);
+              setRateLimits({
+                remainingTokens: estimatedRemaining.toString(),
+                remainingRequests: '--',
+                resetTokens: null,
+                resetRequests: null,
+              });
+           }
 
-        const responseMessage = data.choices[0]?.message;
-        
-        if (!responseMessage) {
-          keepRunning = false;
-          break;
+           if (!delta) continue;
+           
+           if (delta.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                 const index = tc.index;
+                 if (!toolCallsAcc[index]) {
+                    toolCallsAcc[index] = { id: tc.id, type: 'function', function: { name: tc.function?.name || '', arguments: '' } };
+                 }
+                 if (tc.function?.arguments) {
+                    toolCallsAcc[index].function.arguments += tc.function.arguments;
+                 }
+              }
+           }
+           
+           if (delta.content) {
+              if (!uiMessageAdded) {
+                 setMessages(prev => [...prev, { role: 'model', text: '' }]);
+                 uiMessageAdded = true;
+              }
+              currentResponse += delta.content;
+              setMessages(prev => {
+                 const newMessages = [...prev];
+                 newMessages[newMessages.length - 1].text = currentResponse;
+                 return newMessages;
+              });
+           }
         }
 
-        apiMessages.push(responseMessage);
+        toolCallsAcc = toolCallsAcc.filter(Boolean); // compact array
 
-        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-          madeToolCalls = true;
-          const toolResults = await Promise.all(responseMessage.tool_calls.map(async (toolCall: any) => {
-            try {
-              const args = JSON.parse(toolCall.function.arguments);
-              const toolResult = await executeToolLogic(toolCall.function.name, args, text);
-              return {
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                name: toolCall.function.name,
-                content: toolResult
-              };
-            } catch(err: any) {
-              return {
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                name: toolCall.function.name,
-                content: `Error executing tool: ${err.message}`
-              };
-            }
-          }));
-          
-          apiMessages.push(...toolResults);
+        if (toolCallsAcc.length > 0) {
+           madeToolCalls = true;
+           apiMessages.push({
+             role: 'assistant',
+             content: null,
+             tool_calls: toolCallsAcc
+           });
+
+           const toolResults = await Promise.all(toolCallsAcc.map(async (toolCall: any) => {
+             try {
+               const args = JSON.parse(toolCall.function.arguments);
+               const toolResult = await executeToolLogic(toolCall.function.name, args, text);
+               return {
+                 role: 'tool',
+                 tool_call_id: toolCall.id,
+                 name: toolCall.function.name,
+                 content: toolResult
+               };
+             } catch(err: any) {
+               return {
+                 role: 'tool',
+                 tool_call_id: toolCall.id,
+                 name: toolCall.function.name,
+                 content: `Error executing tool: ${err.message}`
+               };
+             }
+           }));
+           
+           apiMessages.push(...toolResults);
         } else {
-          finalResponseContent = responseMessage.content || "";
-          keepRunning = false;
+           finalResponseContent = currentResponse;
+           keepRunning = false;
         }
       }
-
-      setMessages(prev => [...prev, { role: 'model', text: finalResponseContent }]);
 
       // -------------------------------------------------------------
       // 3. CACHE SAVING
