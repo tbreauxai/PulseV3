@@ -75,6 +75,7 @@ CRITICAL RULES:
 - STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
 - STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
 - STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the \`update_active_workout\` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.
+- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the \`search_exercise_knowledge\` tool.
 `;
   };
 
@@ -469,6 +470,27 @@ ${activeSessionContext}
         });
       }
 
+      if (toolName === 'search_exercise_knowledge') {
+        const queryName = args.exercise_name;
+        if (!queryName) return "ERROR: Missing exercise_name.";
+        
+        const { data, error } = await supabase
+          .from('exercise_knowledge')
+          .select('*')
+          .ilike('exercise_name', `%${queryName}%`)
+          .limit(1);
+          
+        if (error) {
+           return `ERROR searching knowledge base: ${error.message}. The user might need to run the SQL migration to create the exercise_knowledge table.`;
+        }
+        
+        if (!data || data.length === 0) {
+           return `NO KNOWLEDGE FOUND for exercise: ${queryName}.`;
+        }
+        
+        return JSON.stringify(data[0]);
+      }
+
       if (toolName === 'calculate_custom_macros') {
         const cals = args.target_calories;
         const balanced = {
@@ -740,6 +762,20 @@ ${activeSessionContext}
             name: "get_exercise_library",
             description: "Fetches the user's entire available exercise library including their custom exercises, muscle groups, and movement types. Use this to see what exercises they have available when building new routines.",
             parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "search_exercise_knowledge",
+            description: "Searches the Supabase Exercise Knowledge Base for detailed information on how to perform an exercise, what muscles it targets, common mistakes, and video links. ALWAYS call this when the user asks 'how do I do this', 'is my form right', or asks for a guide.",
+            parameters: {
+              type: "object",
+              properties: {
+                exercise_name: { type: "string", description: "The exact name of the exercise to look up (e.g. 'Barbell Squat')." }
+              },
+              required: ["exercise_name"]
+            }
           }
         },
         {
