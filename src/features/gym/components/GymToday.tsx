@@ -714,7 +714,7 @@ export const GymToday = () => {
         </div>
       ) : (
         <div className="space-y-6 pb-20">
-          <div className="sticky top-[calc(61px+env(safe-area-inset-top))] z-40 bg-black/95 backdrop-blur-md pb-4 pt-4 -mx-4 px-4 border-b border-[#222] shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+          <div className="sticky top-[calc(61px+env(safe-area-inset-top))] z-40 bg-black/95 backdrop-blur-md pb-4 pt-4 border-b border-[#222] shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
             <div className="flex space-x-2">
               <button 
                 onClick={async () => {
