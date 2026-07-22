@@ -130,7 +130,17 @@ export const GymToday = () => {
     };
 
     window.addEventListener('pulse_update_active_workout', handleUpdateLiveWorkout);
-    return () => window.removeEventListener('pulse_update_active_workout', handleUpdateLiveWorkout);
+    
+    const handleForceReload = () => {
+       const saved = localStorage.getItem('pulseV3-activeSession');
+       if (saved) setActiveSession(JSON.parse(saved));
+    };
+    window.addEventListener('pulse_force_reload_active_workout', handleForceReload);
+
+    return () => {
+      window.removeEventListener('pulse_update_active_workout', handleUpdateLiveWorkout);
+      window.removeEventListener('pulse_force_reload_active_workout', handleForceReload);
+    };
   }, [allExercises]);
 
   const generateRoutineData = useCallback((routine: any) => {

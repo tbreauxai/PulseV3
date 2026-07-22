@@ -263,11 +263,61 @@ ${activeSessionContext}
            return "ERROR: Missing exercises array.";
         }
         
-        window.dispatchEvent(new CustomEvent('pulse_update_active_workout', { 
-          detail: { exercises: newExNames } 
-        }));
+        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
+        if (!activeSessionStr) {
+           return "ERROR: No active workout session found. The user must start a workout first.";
+        }
         
-        return "SUCCESS: The active live workout has been dynamically modified on the user's screen.";
+        try {
+           const session = JSON.parse(activeSessionStr);
+           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+           
+           const newExercises: any[] = [];
+           const newSets: any = {};
+           const usedOldIndices = new Set<number>();
+
+           newExNames.forEach((name: string, i: number) => {
+              const oldIndex = session.exercises.findIndex((ex: any, idx: number) => 
+                  !usedOldIndices.has(idx) && 
+                  (ex.exerciseName || ex.name)?.toLowerCase() === name.toLowerCase()
+              );
+
+              if (oldIndex !== -1) {
+                 usedOldIndices.add(oldIndex);
+                 newExercises.push(session.exercises[oldIndex]);
+                 newSets[i] = session.sets[oldIndex];
+              } else {
+                 const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
+                 const type = dbEx ? (dbEx.type || 'strength') : 'strength';
+                 newExercises.push({
+                    exerciseName: dbEx ? dbEx.name : name,
+                    type,
+                    sets: 3,
+                    reps: '8-12',
+                    time: '',
+                    distance: ''
+                 });
+                 
+                 newSets[i] = Array.from({ length: 3 }).map(() => {
+                    if (type === 'cardio') return { time: '', distance: '', calories: '', completed: false };
+                    if (type === 'timed') return { time: '', completed: false };
+                    return { weight: '', reps: '8-12', completed: false };
+                 });
+              }
+           });
+
+           session.exercises = newExercises;
+           session.sets = newSets;
+           
+           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
+           
+           // Notify any mounted Gym tabs to reload from local storage
+           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
+           
+           return "SUCCESS: The active live workout has been dynamically modified.";
+        } catch (err: any) {
+           return `ERROR: Failed to update session - ${err.message}`;
+        }
       }
 
       // READ-ONLY RAG TOOLS
