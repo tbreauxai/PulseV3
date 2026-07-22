@@ -102,7 +102,8 @@ Example output:
       // Track usage
       if (completion.usage?.total_tokens) {
         try {
-          const todayStr = new Date().toISOString().split('T')[0];
+          const d = new Date();
+          const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
           const storedUsage = stored.date === todayStr ? (stored.tokens || 0) : 0;
           localStorage.setItem('pulse_groq_usage', JSON.stringify({ 

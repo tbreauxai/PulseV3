@@ -28,11 +28,26 @@ export const useAICoach = () => {
 
   const [isTyping, setIsTyping] = useState(false);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
-  const [rateLimits, setRateLimits] = useState<RateLimits>({
-    remainingTokens: null,
-    remainingRequests: null,
-    resetTokens: null,
-    resetRequests: null
+  const [rateLimits, setRateLimits] = useState<RateLimits>(() => {
+    try {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+      if (stored.date === todayStr) {
+        return {
+          remainingTokens: Math.max(0, 100000 - (stored.tokens || 0)).toString(),
+          remainingRequests: '--',
+          resetTokens: null,
+          resetRequests: null
+        };
+      }
+    } catch(e) {}
+    return {
+      remainingTokens: null,
+      remainingRequests: null,
+      resetTokens: null,
+      resetRequests: null
+    };
   });
   
   const queryClient = useQueryClient();
@@ -50,21 +65,7 @@ export const useAICoach = () => {
         }
       } catch(e) {}
     }
-    
-    // Load last known rate limits from usage
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
-      if (stored.date === todayStr) {
-        const estimatedRemaining = Math.max(0, 100000 - (stored.tokens || 0));
-        setRateLimits({
-          remainingTokens: estimatedRemaining.toString(),
-          remainingRequests: '--',
-          resetTokens: null,
-          resetRequests: null
-        });
-      }
-    } catch(e) {}
+    // Rate limits are now initialized synchronously in useState
 
     // Initialize semantic cache
     semanticCache.init().catch(e => console.warn("Semantic cache init failed:", e));
@@ -615,7 +616,8 @@ ${activeSessionContext}
 
     // Helper to log token usage
     const trackUsage = (tokens: number) => {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       let storedUsage = 0;
       try {
         const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
@@ -933,7 +935,8 @@ ${activeSessionContext}
            // @ts-ignore
            if (chunk.usage && chunk.usage.total_tokens) {
               const usage = chunk.usage.total_tokens;
-              const todayStr = new Date().toISOString().split('T')[0];
+              const d = new Date();
+              const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
               let storedUsage = 0;
               try {
                 const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
