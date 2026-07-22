@@ -454,11 +454,12 @@ ${activeSessionContext}
              const name = e.name || e.exercise?.name || e.exerciseName || '';
              if (!name) return '';
              const ex = allExercises.find(a => a.name === name);
-             const mType = ex?.movementType ? ex.movementType : '';
-             const sRisk = ex?.spinalRisk && ex.spinalRisk !== 'Supported / Safe' ? ex.spinalRisk : '';
-             const tags = [mType, sRisk].filter(Boolean).join(', ');
-             return tags ? `${name} (${tags})` : name;
-          }).filter(Boolean).join(' | ') || ''
+             const risk = ex?.spinalRisk || 'Supported / Safe';
+             const mType = ex?.movementType || 'Unknown';
+             const target = ex?.muscleGroup || 'Unknown';
+             const eq = ex?.equipment || 'Unknown';
+             return `"${name}" [Muscle: ${target} | Type: ${mType} | Eq: ${eq} | Risk: ${risk}]`;
+          }) || []
         }));
         return JSON.stringify(compressed);
       }
@@ -467,9 +468,7 @@ ${activeSessionContext}
         const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
         const compressed = allExercises.map(e => ({
           name: e.name,
-          type: e.movementType || 'Compound',
-          risk: e.spinalRisk || 'Supported / Safe',
-          group: e.muscleGroup
+          metadata: `[Muscle: ${e.muscleGroup || 'Unknown'} | Type: ${e.movementType || 'Unknown'} | Eq: ${e.equipment || 'Unknown'} | Risk: ${e.spinalRisk || 'Supported / Safe'}]`
         }));
         return JSON.stringify(compressed);
       }
