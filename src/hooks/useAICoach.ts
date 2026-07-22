@@ -392,69 +392,7 @@ ${activeSessionContext}
         return JSON.stringify(compressed);
       }
 
-      if (toolName === 'get_macros_and_nutrition') {
-        const macros: any = queryClient.getQueryData(['macroGoals']) || {};
-        const dailyMacros: any = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
-        const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
-        const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
-        
-        return JSON.stringify({ 
-          goals: { cal: macros.calories, p: macros.protein, c: macros.carbs, f: macros.fats }, 
-          today: { cal: dailyMacros.calories, p: dailyMacros.protein, c: dailyMacros.carbs, f: dailyMacros.fats }, 
-          water: `${hydration}/${waterGoal}` 
-        });
-      }
-
-      if (toolName === 'get_body_metrics') {
-        const metrics: any = queryClient.getQueryData(['bodyMetrics']) || {};
-        const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
-        const latestWeightLbs = weighIns && weighIns.length > 0 ? parseFloat(weighIns[0].weight) : null;
-        
-        let calculatedStr = "No weight logged.";
-        if (metrics.age && metrics.height_cm && latestWeightLbs) {
-          const age = parseInt(metrics.age);
-          const heightCm = parseFloat(metrics.height_cm);
-          const latestWeightKg = latestWeightLbs * 0.453592;
-          
-          const heightM = heightCm / 100;
-          const bmi = latestWeightKg / (heightM * heightM);
-          
-          let bmr = (10 * latestWeightKg) + (6.25 * heightCm) - (5 * age);
-          bmr += metrics.gender === 'male' ? 5 : -161;
-          
-          const multipliers: Record<string, number> = {
-            'sedentary': 1.2, 'light': 1.375, 'moderate': 1.55, 'active': 1.725, 'extra': 1.9
-          };
-          const tdee = bmr * (multipliers[metrics.activity_level] || 1.2);
-          
-          const genderFactor = metrics.gender === 'male' ? 1 : 0;
-          let bodyFatPercent = (1.20 * bmi) + (0.23 * age) - (10.8 * genderFactor) - 5.4;
-          if (bodyFatPercent < 2) bodyFatPercent = 2;
-          if (bodyFatPercent > 60) bodyFatPercent = 60;
-          
-          const balanced = {
-             protein: Math.round((tdee * 0.30) / 4),
-             carbs: Math.round((tdee * 0.40) / 4),
-             fats: Math.round((tdee * 0.30) / 9)
-          };
-          const lowCarb = {
-             protein: Math.round((tdee * 0.40) / 4),
-             carbs: Math.round((tdee * 0.20) / 4),
-             fats: Math.round((tdee * 0.40) / 9)
-          };
-
-          calculatedStr = `BMI: ${bmi.toFixed(1)}, BMR: ${Math.round(bmr)}, TDEE: ${Math.round(tdee)}, Body Fat: ${bodyFatPercent.toFixed(1)}% | MACRO OPTIONS - Balanced: P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g | Low Carb: P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`;
-        }
-
-        return JSON.stringify({
-          age: metrics.age,
-          height_cm: metrics.height_cm,
-          gender: metrics.gender,
-          activity_level: metrics.activity_level,
-          weight_lbs: latestWeightLbs,
-          calculations: calculatedStr
-        });
-      }
+      // Removed redundant get_macros_and_nutrition and get_body_metrics
 
       if (toolName === 'get_saved_routines') {
         const routines: any[] = queryClient.getQueryData(['routines']) || [];
@@ -591,19 +529,6 @@ ${activeSessionContext}
         });
       }
 
-      if (toolName === 'search_chat_history') {
-        const query = args.query?.toLowerCase() || '';
-        // Skip searching the most recent 6 messages since they are already in context
-        const olderMessages = messages.slice(0, -6);
-        const matches = olderMessages
-          .filter(m => m.text.toLowerCase().includes(query))
-          .map(m => `[${m.role.toUpperCase()}]: ${m.text}`);
-        
-        if (matches.length === 0) return `No past conversation found about: ${query}`;
-        // Return max 5 matches to avoid token explosion
-        return matches.slice(-5).join('\n\n');
-      }
-
       return `ERROR: Tool ${toolName} not found.`;
     };
 
@@ -661,12 +586,12 @@ ${activeSessionContext}
       const memoryContext = await memoryEngine.retrieveContext(text);
 
       // We maintain a conversation thread array for the API loop
-      // Only include the most recent 6 messages to save tokens (Sliding Window)
+      // Only include the most recent 4 messages to save tokens (Sliding Window)
       const apiMessages: any[] = [
         { role: 'system', content: staticContext },
         { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${dynamicContext}` },
         ...(memoryContext ? [{ role: 'system', content: `[RELEVANT MEMORY]\n${memoryContext}` }] : []),
-        ...messages.slice(-6).map(m => ({
+        ...messages.slice(-4).map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.text
         })),
@@ -763,18 +688,7 @@ ${activeSessionContext}
             }
           }
         },
-        {
-          type: "function",
-          function: {
-            name: "search_chat_history",
-            description: "Searches the user's permanent chat history for past conversations or topics not in your immediate memory.",
-            parameters: {
-              type: "object",
-              properties: { query: { type: "string", description: "The keyword or topic to search for" } },
-              required: ["query"]
-            }
-          }
-        },
+
         {
           type: "function",
           function: {
@@ -811,14 +725,7 @@ ${activeSessionContext}
             }
           }
         },
-        {
-          type: "function",
-          function: {
-            name: "get_macros_and_nutrition",
-            description: "Fetches the user's current diet goals, today's intake, and hydration.",
-            parameters: { type: "object", properties: {}, required: [] }
-          }
-        },
+
         {
           type: "function",
           function: {
@@ -890,14 +797,7 @@ ${activeSessionContext}
             }
           }
         },
-        {
-          type: "function",
-          function: {
-            name: "get_body_metrics",
-            description: "Fetches the user's Age, Height, Weight, BMI, BMR, TDEE, and Body Fat %. Use this if they ask for personalized calorie/macro targets.",
-            parameters: { type: "object", properties: {}, required: [] }
-          }
-        },
+
         {
           type: "function",
           function: {
