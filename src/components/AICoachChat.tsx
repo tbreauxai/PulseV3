@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Sparkles, User, Dumbbell, Mic, Trash2 } from 'lucide-react';
+import { X, Send, Sparkles, User, Dumbbell, Mic, Trash2, Brain, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAICoach } from '../hooks/useAICoach';
@@ -12,6 +12,7 @@ interface AICoachChatProps {
 export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [expandedReasoning, setExpandedReasoning] = useState<Record<number, boolean>>({});
   const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -204,8 +205,47 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
                 {msg.role === 'user' ? (
                   msg.text
                 ) : (
-                  <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-headings:my-2">
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <div className="flex flex-col space-y-4">
+                    {/* Reasoning Block */}
+                    {msg.reasoning && (
+                      <div className="border border-purple-900/50 bg-purple-950/10 rounded-xl overflow-hidden">
+                        <button 
+                          onClick={() => setExpandedReasoning(prev => ({ ...prev, [idx]: prev[idx] === false ? true : false }))}
+                          className="w-full flex items-center justify-between p-3 text-xs font-bold text-purple-400 hover:bg-purple-900/20 transition-colors"
+                        >
+                          <div className="flex items-center">
+                            <Brain className="h-3.5 w-3.5 mr-2" />
+                            {msg.text ? "REASONING PROCESS" : "THINKING..."}
+                          </div>
+                          {expandedReasoning[idx] === false ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        
+                        <AnimatePresence>
+                          {expandedReasoning[idx] !== false && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="px-3 pb-3 pt-0"
+                            >
+                              <div className="prose prose-invert prose-sm max-w-none text-gray-400 italic text-xs border-t border-purple-900/30 pt-3">
+                                <ReactMarkdown>{msg.reasoning}</ReactMarkdown>
+                                {!msg.text && (
+                                  <span className="inline-block ml-1 w-1.5 h-3.5 bg-purple-500 animate-pulse align-middle"></span>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                    
+                    {/* Final Output */}
+                    {msg.text && (
+                      <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-headings:my-2">
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

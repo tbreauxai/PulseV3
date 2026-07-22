@@ -13,7 +13,7 @@ export interface RateLimits {
 }
 
 export const useAICoach = () => {
-  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>(() => {
+  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string, reasoning?: string }[]>(() => {
     try {
       const stored = localStorage.getItem('pulse_ai_chat_history');
       return stored ? JSON.parse(stored) : [];
@@ -597,7 +597,7 @@ ${activeSessionContext}
         console.error("Router error:", err);
       }
       
-      const modelName = isComplex ? 'llama-3.3-70b-specdec' : 'llama-3.1-8b-instant';
+      const modelName = isComplex ? 'deepseek-r1-distill-llama-70b' : 'llama-3.1-8b-instant';
       console.log(`[Semantic Router] Routing payload to: ${modelName}`);
       
       const tools = [
@@ -819,11 +819,19 @@ ${activeSessionContext}
           tool_choice: "auto",
           stream: true,
           // @ts-ignore
-          stream_options: { include_usage: true }
+          stream_options: { include_usage: true },
+          ...(isComplex && {
+             // @ts-ignore
+             include_reasoning: true,
+             // @ts-ignore
+             reasoning_effort: "medium"
+          })
         });
 
         let currentResponse = "";
+        let currentReasoning = "";
         let toolCallsAcc: any[] = [];
+        let inThinkTag = false;
         
         for await (const chunk of stream) {
            const delta = chunk.choices[0]?.delta;
@@ -866,17 +874,56 @@ ${activeSessionContext}
               }
            }
            
-           if (delta.content) {
+           // @ts-ignore (Groq reasoning field)
+           if (delta.reasoning) {
               if (!uiMessageAdded) {
-                 setMessages(prev => [...prev, { role: 'model', text: '' }]);
+                 setMessages(prev => [...prev, { role: 'model', text: '', reasoning: '' }]);
                  uiMessageAdded = true;
               }
-              currentResponse += delta.content;
+              // @ts-ignore
+              currentReasoning += delta.reasoning;
               setMessages(prev => {
                  const newMessages = [...prev];
-                 newMessages[newMessages.length - 1].text = currentResponse;
+                 newMessages[newMessages.length - 1].reasoning = currentReasoning;
                  return newMessages;
               });
+           }
+           
+           if (delta.content) {
+              // Fallback for manual `<think>` tag parsing if include_reasoning isn't respected by API
+              let textToAdd = delta.content;
+              if (textToAdd.includes('<think>')) {
+                 inThinkTag = true;
+                 textToAdd = textToAdd.replace('<think>', '');
+              }
+              if (textToAdd.includes('</think>')) {
+                 inThinkTag = false;
+                 // Add the closing part to reasoning, and keep the rest for content
+                 const split = textToAdd.split('</think>');
+                 currentReasoning += split[0];
+                 textToAdd = split[1] || '';
+              }
+              
+              if (!uiMessageAdded) {
+                 setMessages(prev => [...prev, { role: 'model', text: '', reasoning: '' }]);
+                 uiMessageAdded = true;
+              }
+
+              if (inThinkTag) {
+                 currentReasoning += textToAdd;
+                 setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1].reasoning = currentReasoning;
+                    return newMessages;
+                 });
+              } else if (textToAdd) {
+                 currentResponse += textToAdd;
+                 setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1].text = currentResponse;
+                    return newMessages;
+                 });
+              }
            }
         }
 
