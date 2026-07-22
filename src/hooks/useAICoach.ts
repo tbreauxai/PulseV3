@@ -116,8 +116,14 @@ CRITICAL RULES:
       if (activeSessionStr) {
          const session = JSON.parse(activeSessionStr);
          if (session && session.exercises) {
-            const exNames = session.exercises.map((e: any) => e.exerciseName || e.name).join(', ');
-            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'} -> [${exNames}]`;
+            const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+            const exStrings = session.exercises.map((e: any) => {
+               const name = e.exerciseName || e.name;
+               const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
+               const risk = dbEx?.spinalRisk ? dbEx.spinalRisk : 'Supported / Safe';
+               return `${name} (Risk: ${risk})`;
+            });
+            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'} -> [${exStrings.join(', ')}]`;
          }
       }
     } catch(e) {}
