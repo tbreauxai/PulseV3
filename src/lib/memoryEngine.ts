@@ -99,6 +99,19 @@ Example output:
       
       if (!completion) return;
 
+      // Track usage
+      if (completion.usage?.total_tokens) {
+        try {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+          const storedUsage = stored.date === todayStr ? (stored.tokens || 0) : 0;
+          localStorage.setItem('pulse_groq_usage', JSON.stringify({ 
+            date: todayStr, 
+            tokens: storedUsage + completion.usage.total_tokens 
+          }));
+        } catch(e) {}
+      }
+
       const responseContent = completion.choices[0]?.message?.content || "{}";
       const parsed = JSON.parse(responseContent);
       

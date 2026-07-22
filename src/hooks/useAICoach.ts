@@ -51,13 +51,20 @@ export const useAICoach = () => {
       } catch(e) {}
     }
     
-    // Load last known rate limits
-    const storedLimits = localStorage.getItem('pulse_groq_limits');
-    if (storedLimits) {
-      try {
-        setRateLimits(JSON.parse(storedLimits));
-      } catch(e) {}
-    }
+    // Load last known rate limits from usage
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+      if (stored.date === todayStr) {
+        const estimatedRemaining = Math.max(0, 100000 - (stored.tokens || 0));
+        setRateLimits({
+          remainingTokens: estimatedRemaining.toString(),
+          remainingRequests: '--',
+          resetTokens: null,
+          resetRequests: null
+        });
+      }
+    } catch(e) {}
 
     // Initialize semantic cache
     semanticCache.init().catch(e => console.warn("Semantic cache init failed:", e));
@@ -545,6 +552,25 @@ ${activeSessionContext}
     // Fire hidden extraction asynchronously
     memoryEngine.processMessageAsync(text, apiKey).catch(() => {});
 
+    // Helper to log token usage
+    const trackUsage = (tokens: number) => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      let storedUsage = 0;
+      try {
+        const stored = JSON.parse(localStorage.getItem('pulse_groq_usage') || '{}');
+        if (stored.date === todayStr) {
+          storedUsage = stored.tokens || 0;
+        }
+      } catch(e) {}
+      const newTotalUsage = storedUsage + tokens;
+      localStorage.setItem('pulse_groq_usage', JSON.stringify({ date: todayStr, tokens: newTotalUsage }));
+      const estimatedRemaining = Math.max(0, 100000 - newTotalUsage);
+      setRateLimits(prev => ({
+        ...prev,
+        remainingTokens: estimatedRemaining.toString()
+      }));
+    };
+
     try {
       // -------------------------------------------------------------
       // 1. SEMANTIC CACHE LOOKUP
@@ -579,7 +605,7 @@ ${activeSessionContext}
       // -------------------------------------------------------------
       let isComplex = false;
       try {
-        const routerResponse = await groq.chat.completions.create({
+        const { data } = await groq.chat.completions.create({
           messages: [
             { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
             { role: 'user', content: text }
@@ -587,11 +613,18 @@ ${activeSessionContext}
           model: 'llama-3.1-8b-instant',
           temperature: 0,
           max_tokens: 5,
-        });
-        const classification = routerResponse.choices[0]?.message?.content?.trim().toUpperCase();
+        }).withResponse();
+        
+        const classification = data.choices[0]?.message?.content?.trim().toUpperCase();
         if (classification?.includes('COMPLEX')) {
           isComplex = true;
         }
+        
+        // Track router tokens
+        if (data.usage?.total_tokens) {
+           trackUsage(data.usage.total_tokens);
+        }
+        
         console.log(`[Semantic Router] Classified as: ${classification}`);
       } catch (err) {
         console.error("Router error:", err);
