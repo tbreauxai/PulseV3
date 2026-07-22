@@ -317,7 +317,17 @@ ${activeSessionContext}
                     return { weight: '', reps: '8-12', completed: false };
                  });
               }
-           });
+            });
+
+            const preserve = args.preserve_omitted_exercises !== false;
+            if (preserve) {
+               session.exercises.forEach((ex: any, idx: number) => {
+                  if (!usedOldIndices.has(idx)) {
+                     newExercises.push(ex);
+                     newSets[newExercises.length - 1] = session.sets[idx];
+                  }
+               });
+            }
 
            session.exercises = newExercises;
            session.sets = newSets;
@@ -847,10 +857,14 @@ ${activeSessionContext}
                 exercises: { 
                   type: "array", 
                   items: { type: "string" }, 
-                  description: "The full ordered list of exact exercise names that the active workout should be updated to. Do NOT include (Risk: ...) tags."
+                  description: "The ordered list of exact exercise names for the updated workout. Do NOT include [Muscle: ...] metadata tags."
+                },
+                preserve_omitted_exercises: {
+                  type: "boolean",
+                  description: "CRITICAL: Set to true if you are reordering, swapping, or adding exercises, but want to keep the rest of the user's routine intact. If true, any existing exercises you forgot to include in the 'exercises' array will be automatically appended to the end. Set to false ONLY if the user explicitly asked to delete/remove exercises."
                 }
               },
-              required: ["exercises"]
+              required: ["exercises", "preserve_omitted_exercises"]
             }
           }
         },
