@@ -565,11 +565,13 @@ ${activeSessionContext}
       // Only include the most recent 6 messages to save tokens (Sliding Window)
       const apiMessages: any[] = [
         { role: 'system', content: staticContext },
+        { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${dynamicContext}` },
+        ...(memoryContext ? [{ role: 'system', content: `[RELEVANT MEMORY]\n${memoryContext}` }] : []),
         ...messages.slice(-6).map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.text
         })),
-        { role: 'user', content: `${memoryContext}${dynamicContext}\n[USER MESSAGE]:\n${text}` }
+        { role: 'user', content: text }
       ];
 
       // -------------------------------------------------------------
