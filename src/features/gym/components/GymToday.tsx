@@ -79,6 +79,60 @@ export const GymToday = () => {
     }
   }, [activeSession]);
 
+  useEffect(() => {
+    const handleUpdateLiveWorkout = (e: any) => {
+      const newExNames: string[] = e.detail?.exercises;
+      if (!newExNames || !Array.isArray(newExNames)) return;
+
+      setActiveSession((prev: any) => {
+        if (!prev) return prev;
+
+        const newExercises: any[] = [];
+        const newSets: any = {};
+        const usedOldIndices = new Set<number>();
+
+        newExNames.forEach((name, i) => {
+           const oldIndex = prev.exercises.findIndex((ex: any, idx: number) => 
+               !usedOldIndices.has(idx) && 
+               (ex.exerciseName || ex.name)?.toLowerCase() === name.toLowerCase()
+           );
+
+           if (oldIndex !== -1) {
+              usedOldIndices.add(oldIndex);
+              newExercises.push(prev.exercises[oldIndex]);
+              newSets[i] = prev.sets[oldIndex];
+           } else {
+              const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
+              const type = dbEx ? (dbEx.type || 'strength') : 'strength';
+              newExercises.push({
+                 exerciseName: dbEx ? dbEx.name : name,
+                 type,
+                 sets: 3,
+                 reps: '8-12',
+                 time: '',
+                 distance: ''
+              });
+              
+              newSets[i] = Array.from({ length: 3 }).map(() => {
+                 if (type === 'cardio') return { time: '', distance: '', calories: '', completed: false };
+                 if (type === 'timed') return { time: '', completed: false };
+                 return { weight: '', reps: '8-12', completed: false };
+              });
+           }
+        });
+
+        return {
+           ...prev,
+           exercises: newExercises,
+           sets: newSets
+        };
+      });
+    };
+
+    window.addEventListener('pulse_update_active_workout', handleUpdateLiveWorkout);
+    return () => window.removeEventListener('pulse_update_active_workout', handleUpdateLiveWorkout);
+  }, [allExercises]);
+
   const generateRoutineData = useCallback((routine: any) => {
     const initialSets: any = {};
     const exercises = routine && routine.exercises ? routine.exercises.map((ex: any, idx: number) => {

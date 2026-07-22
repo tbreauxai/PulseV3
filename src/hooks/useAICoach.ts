@@ -188,6 +188,58 @@ ${workoutContext}
         return `SUCCESS: Updated Macros to ${args.calories}kcal`;
       }
 
+      if (toolName === 'modify_saved_routine') {
+        const routineName = args.routine_name;
+        const newExNames = args.exercises;
+        
+        if (!routineName || !Array.isArray(newExNames)) {
+           return "ERROR: Missing routine_name or exercises array.";
+        }
+
+        const routines: any[] = queryClient.getQueryData(['routines']) || [];
+        const routine = routines.find(r => r.name.toLowerCase() === routineName.toLowerCase());
+        
+        if (!routine) return `ERROR: Routine '${routineName}' not found in saved routines.`;
+        
+        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+        
+        const newExercisesPayload = newExNames.map(exName => {
+           const existing = routine.exercises?.find((e: any) => 
+             (e.exerciseName || e.name || e.exercise?.name)?.toLowerCase() === exName.toLowerCase()
+           );
+           if (existing) return existing;
+           
+           const dbEx = allExercises.find(a => a.name.toLowerCase() === exName.toLowerCase());
+           return {
+              exerciseName: dbEx ? dbEx.name : exName,
+              sets: 3,
+              reps: '8-12',
+              time: '',
+              distance: '',
+              type: dbEx ? (dbEx.type || 'strength') : 'strength'
+           };
+        });
+
+        const { error } = await supabase.from('routines').update({ exercises: newExercisesPayload }).eq('id', routine.id);
+        if (error) return `ERROR: ${error.message}`;
+        
+        await queryClient.invalidateQueries({ queryKey: ['routines'] });
+        return `SUCCESS: Modified saved routine '${routine.name}'. New exercise order has been saved permanently to the database.`;
+      }
+
+      if (toolName === 'update_active_workout') {
+        const newExNames = args.exercises;
+        if (!Array.isArray(newExNames)) {
+           return "ERROR: Missing exercises array.";
+        }
+        
+        window.dispatchEvent(new CustomEvent('pulse_update_active_workout', { 
+          detail: { exercises: newExNames } 
+        }));
+        
+        return "SUCCESS: The active live workout has been dynamically modified on the user's screen.";
+      }
+
       // READ-ONLY RAG TOOLS
       if (toolName === 'analyze_workout_history') {
         const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
@@ -621,6 +673,43 @@ ${workoutContext}
             name: "get_saved_routines",
             description: "Fetches the user's saved workout routines.",
             parameters: { type: "object", properties: {}, required: [] }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "modify_saved_routine",
+            description: "Modifies a saved workout routine by reordering, adding, or removing exercises. Pass the full, final list of exercises you want the routine to have. This will completely overwrite the existing exercise list for that routine.",
+            parameters: {
+              type: "object",
+              properties: {
+                routine_name: { type: "string", description: "The exact name of the routine to modify (e.g. 'Push Day')." },
+                exercises: { 
+                  type: "array", 
+                  items: { type: "string" }, 
+                  description: "An ordered list of exact exercise names for the new routine structure (e.g. ['Barbell Bench Press', 'Cable Crossover'])."
+                }
+              },
+              required: ["routine_name", "exercises"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "update_active_workout",
+            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'reorder my workout'. It will safely preserve completed sets and dynamically swap the remaining exercises.",
+            parameters: {
+              type: "object",
+              properties: {
+                exercises: { 
+                  type: "array", 
+                  items: { type: "string" }, 
+                  description: "The full ordered list of exercise names that the active workout should be updated to."
+                }
+              },
+              required: ["exercises"]
+            }
           }
         },
         {
