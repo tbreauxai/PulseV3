@@ -128,10 +128,13 @@ CRITICAL RULES:
             const exStrings = session.exercises.map((e: any) => {
                const name = e.exerciseName || e.name;
                const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
-               const risk = dbEx?.spinalRisk ? dbEx.spinalRisk : 'Supported / Safe';
-               return `${name} (Risk: ${risk})`;
+               const risk = dbEx?.spinalRisk || 'Supported / Safe';
+               const mType = dbEx?.movementType || 'Unknown';
+               const target = dbEx?.muscleGroup || 'Unknown';
+               const eq = dbEx?.equipment || 'Unknown';
+               return `"${name}" [Muscle: ${target} | Type: ${mType} | Eq: ${eq} | Risk: ${risk}]`;
             });
-            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'} -> [${exStrings.join(', ')}]`;
+            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'}\nExercises:\n- ${exStrings.join('\n- ')}`;
          }
       }
     } catch(e) {}
@@ -276,7 +279,16 @@ ${activeSessionContext}
            const newSets: any = {};
            const usedOldIndices = new Set<number>();
 
-           newExNames.forEach((name: string, i: number) => {
+           newExNames.forEach((rawName: string, i: number) => {
+              // Extract the name from quotes if the AI hallucinates the metadata tags
+              let name = rawName.trim();
+              if (name.startsWith('"')) {
+                 const match = name.match(/"([^"]+)"/);
+                 if (match) name = match[1];
+              } else {
+                 name = name.split(' [Muscle:')[0].split(' (Type:')[0].split(' (Risk:')[0].trim();
+              }
+
               const oldIndex = session.exercises.findIndex((ex: any, idx: number) => 
                   !usedOldIndices.has(idx) && 
                   (ex.exerciseName || ex.name)?.toLowerCase() === name.toLowerCase()
@@ -827,14 +839,14 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "update_active_workout",
-            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'reorder my workout'. It will safely preserve completed sets and dynamically swap the remaining exercises.",
+            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'reorder my workout'. It will safely preserve completed sets and dynamically swap the remaining exercises. You MUST provide the FULL list of ALL exercises that should remain in the workout. Do NOT drop exercises unless the user explicitly asks to remove them. Do NOT include any (Risk: ...) tags in the names.",
             parameters: {
               type: "object",
               properties: {
                 exercises: { 
                   type: "array", 
                   items: { type: "string" }, 
-                  description: "The full ordered list of exercise names that the active workout should be updated to."
+                  description: "The full ordered list of exact exercise names that the active workout should be updated to. Do NOT include (Risk: ...) tags."
                 }
               },
               required: ["exercises"]
