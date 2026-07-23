@@ -150,7 +150,17 @@ export const GymToday = () => {
 
   const generateRoutineData = useCallback((routine: any) => {
     const initialSets: any = {};
-    const exercises = routine && routine.exercises ? routine.exercises.map((ex: any, idx: number) => {
+    const rawExercises = routine?.exercises || [];
+    
+    const sortedExercises = [...rawExercises].sort((a: any, b: any) => {
+      const globalExA = allExercises.find((g: any) => g.name === a.exerciseName);
+      const globalExB = allExercises.find((g: any) => g.name === b.exerciseName);
+      const isCompoundA = globalExA?.movementType === 'Compound' ? 1 : 0;
+      const isCompoundB = globalExB?.movementType === 'Compound' ? 1 : 0;
+      return isCompoundB - isCompoundA;
+    });
+
+    const exercises = sortedExercises.map((ex: any, idx: number) => {
       const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
       const actualType = ex.type || globalEx?.type || 'strength';
       const numSets = parseInt(ex.sets, 10) || 1;
@@ -179,7 +189,7 @@ export const GymToday = () => {
         ...ex,
         type: actualType
       };
-    }) : [];
+    });
 
     return { exercises, sets: initialSets };
   }, [allExercises]);
