@@ -72,19 +72,21 @@ export const useAICoach = () => {
   }, []);
 
   const getStaticContext = () => {
-    return `
-You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.
-Your tone is supportive and highly scientific. You rely on data to make decisions.
-Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.
-
-CRITICAL RULES:
-- ONLY use your "Read-Only" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. "What did I do last Tuesday?" or "How has my weight changed this month?").
-- If they want to create or update something, use your "Write" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').
-- STRICT RULE: ONLY use "Write" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.
-- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.
-- STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the \`update_active_workout\` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.
-- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the \`search_exercise_knowledge\` tool.
-`;
+    return [
+      "You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.",
+      "Your tone is supportive and highly scientific. You rely on data to make decisions.",
+      "Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.",
+      "",
+      "CRITICAL RULES:",
+      "- ONLY use your \"Read-Only\" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. \"What did I do last Tuesday?\" or \"How has my weight changed this month?\").",
+      "- If they want to create or update something, use your \"Write\" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').",
+      "- STRICT RULE: ONLY use \"Write\" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.",
+      "- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.",
+      "- STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the `update_active_workout` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.",
+      "- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the `search_exercise_knowledge` tool.",
+      "- When using update_active_workout to reorder or sort a list, YOU MUST carefully sort the final 'exercises' array in the exact new order requested. The array you provide will directly overwrite the user's order.",
+      "Use local device time for ALL temporal logic."
+    ].join('\n');
   };
 
   const getDynamicContext = () => {
@@ -602,7 +604,12 @@ ${activeSessionContext}
       // FIRST-PASS LLM ROUTER (Semantic Routing)
       // -------------------------------------------------------------
       let isComplex = false;
-      try {
+      const tLower = text.toLowerCase();
+      if (tLower.includes('move') || tLower.includes('swap') || tLower.includes('reorder') || tLower.includes('sort') || tLower.includes('top') || tLower.includes('bottom') || tLower.includes('compound') || tLower.includes('isolated')) {
+         isComplex = true;
+         console.log('[Semantic Router] Fast-path triggered: COMPLEX');
+      } else {
+        try {
         const { data } = await groq.chat.completions.create({
           messages: [
             { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, modifying or sorting a routine, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
@@ -626,6 +633,7 @@ ${activeSessionContext}
         console.log(`[Semantic Router] Classified as: ${classification}`);
       } catch (err) {
         console.error("Router error:", err);
+      }
       }
       
       const modelName = isComplex ? 'deepseek-r1-distill-llama-70b' : 'llama-3.1-8b-instant';
