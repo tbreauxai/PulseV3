@@ -636,7 +636,7 @@ ${activeSessionContext}
       }
       }
       
-      const modelName = isComplex ? 'deepseek-r1-distill-llama-70b' : 'llama-3.1-8b-instant';
+      const modelName = isComplex ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
       console.log(`[Semantic Router] Routing payload to: ${modelName}`);
       
       const tools = [
