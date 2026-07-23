@@ -32,6 +32,11 @@ export const GymToday = () => {
     return null;
   });
 
+  const activeSessionRef = useRef(activeSession);
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
   const [restTimer, setRestTimer] = useState<{ endTime: number, mode: 'set' | 'exercise' } | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
@@ -376,9 +381,10 @@ export const GymToday = () => {
   }, []);
 
   const handleCompleteExercise = useCallback(async (exerciseIndex: number) => {
-    if (!activeSession) return;
-    const exercise = activeSession.exercises[exerciseIndex];
-    const exerciseSets = activeSession.sets[exerciseIndex] || [];
+    const currentSession = activeSessionRef.current;
+    if (!currentSession) return;
+    const exercise = currentSession.exercises[exerciseIndex];
+    const exerciseSets = currentSession.sets[exerciseIndex] || [];
     const validSets = exerciseSets.filter((s: any) => s.completed);
 
     if (validSets.length === 0) {
@@ -446,7 +452,7 @@ export const GymToday = () => {
 
     const payload = {
       dateStr: new Date().toISOString().split('T')[0],
-      routineName: activeSession.routineName || "Free Day",
+      routineName: currentSession.routineName || "Free Day",
       volume,
       setsCount,
       exerciseDetails: [{
@@ -483,7 +489,7 @@ export const GymToday = () => {
         sets: newSets
       };
     });
-  }, [activeSession, appendWorkoutExercise, getExerciseMemory, saveExerciseMemory]);
+  }, [appendWorkoutExercise, getExerciseMemory, saveExerciseMemory]);
 
   const handleSkipExercise = useCallback((exerciseIndex: number) => {
     setActiveSession((prev: any) => {
@@ -867,8 +873,8 @@ export const GymToday = () => {
                     onToggleComplete={toggleSetComplete}
                     onRemoveSet={removeSet}
                     onSwap={handleOpenExerciseModal}
-                    onCompleteExercise={() => handleCompleteExercise(originalIndex)}
-                    onSkipExercise={() => handleSkipExercise(originalIndex)}
+                    onCompleteExercise={handleCompleteExercise}
+                    onSkipExercise={handleSkipExercise}
                   />
                 );
               })}

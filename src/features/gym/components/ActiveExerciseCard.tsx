@@ -286,7 +286,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               <button 
                 onClick={async () => {
                   if (await confirm('Skip this exercise for today?')) {
-                    onSkipExercise();
+                    onSkipExercise(exerciseIndex);
                   }
                 }}
                 className="flex-1 bg-gray-900 hover:bg-gray-800 text-gray-500 hover:text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm border border-gray-800"
@@ -296,7 +296,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
               </button>
 
               <button 
-                onClick={onCompleteExercise}
+                onClick={() => onCompleteExercise(exerciseIndex)}
                 className="flex-[2] bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm shadow-[0_0_15px_rgba(16,185,129,0.2)]"
               >
                 <Check className="h-4 w-4" />
