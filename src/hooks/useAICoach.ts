@@ -81,9 +81,9 @@ export const useAICoach = () => {
       "- ONLY use your \"Read-Only\" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. \"What did I do last Tuesday?\" or \"How has my weight changed this month?\").",
       "- If they want to create or update something, use your \"Write\" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').",
       "- STRICT RULE: ONLY use \"Write\" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.",
-      "- STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the `update_active_workout` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.",
+      "- STRICT RULE: If the user asks you to modify, update, or condense their active workout, you MUST use the `update_active_workout` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.",
+      "- STRICT RULE: If the user asks to reorder, sort, or prioritize exercises by type (e.g. 'put compound first'), you MUST call the `sort_active_workout` tool. Do NOT manually sort the list yourself.",
       "- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the `search_exercise_knowledge` tool.",
-      "- When using update_active_workout to reorder or sort a list, YOU MUST carefully sort the final 'exercises' array in the exact new order requested. The array you provide will directly overwrite the user's order.",
       "Use local device time for ALL temporal logic."
     ].join('\n');
   };
@@ -344,6 +344,68 @@ ${activeSessionContext}
         }
       }
 
+      // DETERMINISTIC SORT TOOL — zero AI involvement in the actual sorting
+      if (toolName === 'sort_active_workout') {
+        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
+        if (!activeSessionStr) {
+           return "ERROR: No active workout session found. The user must start a workout first.";
+        }
+        try {
+           const session = JSON.parse(activeSessionStr);
+           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+           const sortBy = (args.sort_by || 'compound_first').toLowerCase();
+
+           // Build paired array of [exercise, sets] to sort together
+           const paired = session.exercises.map((ex: any, idx: number) => ({
+              exercise: ex,
+              sets: session.sets[idx],
+              originalIndex: idx
+           }));
+
+           paired.sort((a: any, b: any) => {
+              const aName = (a.exercise.exerciseName || a.exercise.name || '').toLowerCase();
+              const bName = (b.exercise.exerciseName || b.exercise.name || '').toLowerCase();
+              const aDb = allExercises.find((e: any) => e.name.toLowerCase() === aName);
+              const bDb = allExercises.find((e: any) => e.name.toLowerCase() === bName);
+              const aType = (aDb?.movementType || '').toLowerCase();
+              const bType = (bDb?.movementType || '').toLowerCase();
+
+              if (sortBy === 'compound_first') {
+                 const aIsCompound = aType === 'compound' ? 0 : 1;
+                 const bIsCompound = bType === 'compound' ? 0 : 1;
+                 return aIsCompound - bIsCompound;
+              } else if (sortBy === 'isolation_first') {
+                 const aIsIsolation = aType === 'isolation' ? 0 : 1;
+                 const bIsIsolation = bType === 'isolation' ? 0 : 1;
+                 return aIsIsolation - bIsIsolation;
+              }
+              return 0;
+           });
+
+           const newSets: any = {};
+           session.exercises = paired.map((p: any, i: number) => {
+              newSets[i] = p.sets;
+              return p.exercise;
+           });
+           session.sets = newSets;
+
+           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
+           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
+
+           const compoundNames = paired
+              .filter((p: any) => {
+                 const n = (p.exercise.exerciseName || p.exercise.name || '').toLowerCase();
+                 const db = allExercises.find((e: any) => e.name.toLowerCase() === n);
+                 return (db?.movementType || '').toLowerCase() === 'compound';
+              })
+              .map((p: any) => p.exercise.exerciseName || p.exercise.name);
+
+           return `SUCCESS: Sorted workout with ${sortBy}. Compound exercises moved to top: ${compoundNames.join(', ')}. All sets and data preserved.`;
+        } catch (err: any) {
+           return `ERROR: Failed to sort session - ${err.message}`;
+        }
+      }
+
       // READ-ONLY RAG TOOLS
       if (toolName === 'analyze_workout_history') {
         const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
@@ -599,44 +661,9 @@ ${activeSessionContext}
         { role: 'user', content: text }
       ];
 
-      // -------------------------------------------------------------
-      // FIRST-PASS LLM ROUTER (Semantic Routing)
-      // -------------------------------------------------------------
-      let isComplex = false;
-      const tLower = text.toLowerCase();
-      if (tLower.includes('move') || tLower.includes('swap') || tLower.includes('reorder') || tLower.includes('sort') || tLower.includes('top') || tLower.includes('bottom') || tLower.includes('compound') || tLower.includes('isolated')) {
-         isComplex = true;
-         console.log('[Semantic Router] Fast-path triggered: COMPLEX');
-      } else {
-        try {
-        const { data } = await groq.chat.completions.create({
-          messages: [
-            { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, modifying or sorting a routine, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
-            { role: 'user', content: text }
-          ],
-          model: 'llama-3.1-8b-instant',
-          temperature: 0,
-          max_tokens: 5,
-        }).withResponse();
-        
-        const classification = data.choices[0]?.message?.content?.trim().toUpperCase();
-        if (classification?.includes('COMPLEX')) {
-          isComplex = true;
-        }
-        
-        // Track router tokens
-        if (data.usage?.total_tokens) {
-           trackUsage(data.usage.total_tokens);
-        }
-        
-        console.log(`[Semantic Router] Classified as: ${classification}`);
-      } catch (err) {
-        console.error("Router error:", err);
-      }
-      }
-      
-      const modelName = isComplex ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-      console.log(`[Semantic Router] Routing payload to: ${modelName}`);
+      // Single model — no router, no double API calls
+      const modelName = 'llama-3.1-8b-instant';
+      console.log(`[AI Coach] Using model: ${modelName}`);
       
       const tools = [
         {
@@ -764,7 +791,7 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "update_active_workout",
-            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'reorder my workout'. It will safely preserve completed sets and dynamically swap the remaining exercises. You MUST provide the FULL list of ALL exercises that should remain in the workout. Do NOT drop exercises unless the user explicitly asks to remove them. Do NOT include any (Risk: ...) tags in the names.",
+            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'add/remove an exercise'. You MUST provide the FULL list of ALL exercises that should remain in the workout. Do NOT drop exercises unless the user explicitly asks to remove them. Do NOT include any (Risk: ...) tags in the names.",
             parameters: {
               type: "object",
               properties: {
@@ -779,6 +806,24 @@ ${activeSessionContext}
                 }
               },
               required: ["exercises", "preserve_omitted_exercises"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "sort_active_workout",
+            description: "Sorts the user's LIVE active workout by exercise type. Use this when the user asks to 'move compound exercises to the top', 'sort by compound first', 'prioritize compound lifts', or any request to reorder exercises by their movement type (compound vs isolation). This is a deterministic sort — it reads each exercise's movementType from the database and reorders automatically. All sets and progress data are preserved.",
+            parameters: {
+              type: "object",
+              properties: {
+                sort_by: { 
+                  type: "string", 
+                  enum: ["compound_first", "isolation_first"],
+                  description: "The sort order. Use 'compound_first' to put compound exercises at the top, or 'isolation_first' to put isolation exercises at the top."
+                }
+              },
+              required: ["sort_by"]
             }
           }
         },
@@ -941,18 +986,7 @@ ${activeSessionContext}
 
         toolCallsAcc = toolCallsAcc.filter(Boolean); // compact array
 
-        // Fallback parser: If the model hallucinated a raw text function call (Groq bug), intercept it manually.
-        if (toolCallsAcc.length === 0 && currentResponse.includes('function:')) {
-           const match = currentResponse.match(/function:\s*([a-zA-Z0-9_]+)[^\{]*(\{.*\})/s);
-           if (match) {
-               toolCallsAcc.push({
-                   id: 'call_' + Math.random().toString(36).substr(2, 9),
-                   type: 'function',
-                   function: { name: match[1], arguments: match[2] }
-               });
-               currentResponse = currentResponse.replace(match[0], '').replace(/<\/function>/g, '').trim();
-           }
-        }
+
 
         if (toolCallsAcc.length > 0) {
            madeToolCalls = true;
