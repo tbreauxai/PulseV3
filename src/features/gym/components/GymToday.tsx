@@ -826,7 +826,7 @@ export const GymToday = () => {
                 <select
                   value={selectedMuscleGroup}
                   onChange={(e) => setSelectedMuscleGroup(e.target.value)}
-                  className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+                  className="flex-1 min-w-0 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
                 >
                   <option value="All">All Muscles</option>
                   {(() => {
@@ -858,7 +858,7 @@ export const GymToday = () => {
                 <select
                   value={selectedMode}
                   onChange={(e) => setSelectedMode(e.target.value)}
-                  className="flex-1 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
+                  className="flex-1 min-w-0 bg-black border border-[#222] rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-rose-600/50"
                 >
                   <option value="All">All Modes</option>
                   {Array.from(new Set(activeSession.exercises.map((e: any) => {
