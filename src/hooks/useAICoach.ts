@@ -81,7 +81,6 @@ export const useAICoach = () => {
       "- ONLY use your \"Read-Only\" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. \"What did I do last Tuesday?\" or \"How has my weight changed this month?\").",
       "- If they want to create or update something, use your \"Write\" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').",
       "- STRICT RULE: ONLY use \"Write\" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.",
-      "- STRICT RULE: NEVER output raw function tags like <function=create_exercise> in your conversational text. If you must use a tool, use the standard JSON tool call format.",
       "- STRICT RULE: If the user asks you to modify, update, reorder, or condense their active workout, you MUST use the `update_active_workout` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.",
       "- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the `search_exercise_knowledge` tool.",
       "- When using update_active_workout to reorder or sort a list, YOU MUST carefully sort the final 'exercises' array in the exact new order requested. The array you provide will directly overwrite the user's order.",
@@ -941,6 +940,19 @@ ${activeSessionContext}
         }
 
         toolCallsAcc = toolCallsAcc.filter(Boolean); // compact array
+
+        // Fallback parser: If the model hallucinated a raw text function call (Groq bug), intercept it manually.
+        if (toolCallsAcc.length === 0 && currentResponse.includes('function:')) {
+           const match = currentResponse.match(/function:([a-zA-Z0-9_]+)({.*?})(?:<\/function>)?/s);
+           if (match) {
+               toolCallsAcc.push({
+                   id: 'call_' + Math.random().toString(36).substr(2, 9),
+                   type: 'function',
+                   function: { name: match[1], arguments: match[2] }
+               });
+               currentResponse = currentResponse.replace(match[0], '').trim();
+           }
+        }
 
         if (toolCallsAcc.length > 0) {
            madeToolCalls = true;
