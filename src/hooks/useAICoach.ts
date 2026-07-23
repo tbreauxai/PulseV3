@@ -605,7 +605,7 @@ ${activeSessionContext}
       try {
         const { data } = await groq.chat.completions.create({
           messages: [
-            { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
+            { role: 'system', content: "Does this user query require deep physiological analysis, workout generation, modifying or sorting a routine, examining historical data, or complex reasoning? Reply ONLY with 'COMPLEX' or 'SIMPLE'." },
             { role: 'user', content: text }
           ],
           model: 'llama-3.1-8b-instant',
