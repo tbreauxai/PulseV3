@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw, ClipboardList, Timer } from 'lucide-react';
+import { Calendar, Play, X, ChevronDown, ChevronRight, Dumbbell, Activity, CheckCircle2, Plus, Check, Trash2, Search, RefreshCw, ClipboardList, Timer, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { queueMutation } from '../../../lib/offlineSync';
 import { useRoutines } from '../hooks/useRoutines';
@@ -514,6 +514,42 @@ export const GymToday = () => {
     });
   }, []);
 
+  const handleSpineSafeFilter = useCallback(() => {
+    setActiveSession((prev: any) => {
+      if (!prev) return null;
+      
+      const newExercises: any[] = [];
+      const newSets: any = {};
+      let removedCount = 0;
+      
+      prev.exercises.forEach((ex: any, idx: number) => {
+        const libraryEx = allExercises.find((g: any) => g.name === ex.exerciseName || g.name === ex.name);
+        const risk = libraryEx?.spinalRisk || 'Supported / Safe';
+        
+        if (risk === 'Supported / Safe') {
+          newExercises.push(ex);
+          newSets[newExercises.length - 1] = prev.sets[idx];
+        } else {
+          removedCount++;
+        }
+      });
+      
+      if (removedCount > 0) {
+        alert(`Filtered out ${removedCount} spine risk exercises.`);
+      } else {
+        alert(`No spine risk exercises found in your routine.`);
+      }
+      
+      if (newExercises.length === 0) return null; // Automatically clear session if empty
+      
+      return {
+        ...prev,
+        exercises: newExercises,
+        sets: newSets
+      };
+    });
+  }, [allExercises, alert]);
+
   const finishWorkout = useCallback(async () => {
     if (await confirm('Are you sure you want to finish and save this workout?')) {
       let totalVolume = 0;
@@ -779,6 +815,13 @@ export const GymToday = () => {
                   className="w-full bg-black border border-[#222] rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-rose-600/50"
                 />
               </div>
+              <button 
+                onClick={handleSpineSafeFilter}
+                className="w-full bg-emerald-950/40 hover:bg-emerald-900/50 active:scale-[0.98] transition-all text-emerald-500 font-bold py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-emerald-900/50"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span className="text-xs tracking-wider">SPINE SAFE FILTER</span>
+              </button>
               <div className="flex gap-2">
                 <select
                   value={selectedMuscleGroup}
