@@ -95,7 +95,7 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
       {/* Main Card Content */}
       <div 
         style={{ transform: `translateX(${swipeOffset}px)` }}
-        className={`relative ${hasCompletedSet ? 'bg-[#022c22] border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-[#0a0a0a] border-[#1a1a1a]'} border rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
+        className={`relative ${hasCompletedSet ? 'bg-[#022c22] border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-[#0a0a0a] border-[#333] shadow-[0_4px_20px_rgba(0,0,0,0.4)]'} border-2 rounded-xl overflow-hidden transition-transform ${isDragging ? 'duration-0' : 'duration-300'}`}
       >
         {/* Card Header (Swipeable and Clickable) */}
         <div 

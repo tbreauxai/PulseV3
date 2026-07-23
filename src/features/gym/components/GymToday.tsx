@@ -187,7 +187,8 @@ export const GymToday = () => {
 
       return {
         ...ex,
-        type: actualType
+        type: actualType,
+        sourceRoutineName: routine?.name || 'Free Workout'
       };
     });
 
@@ -904,8 +905,13 @@ export const GymToday = () => {
                 }
                 
                 return matchSearch && matchMuscle && matchMode;
-              }).map((originalIndex: number) => {
+              }).map((originalIndex: number, filteredIndex: number, filteredArray: number[]) => {
                 const baseExercise = activeSession.exercises[originalIndex];
+                const prevExercise = filteredIndex > 0 ? activeSession.exercises[filteredArray[filteredIndex - 1]] : null;
+                const showHeader = baseExercise.sourceRoutineName && 
+                                   (!prevExercise || prevExercise.sourceRoutineName !== baseExercise.sourceRoutineName) && 
+                                   baseExercise.sourceRoutineName !== 'Free Workout';
+
                 const globalEx = allExercises.find((g: any) => g.name === baseExercise.exerciseName || g.name === baseExercise.name);
                 const exerciseName = baseExercise.exerciseName || baseExercise.name;
                 const progression = calculateProgression(exerciseName, history);
@@ -915,20 +921,28 @@ export const GymToday = () => {
                   equipment: baseExercise.equipment || globalEx?.equipment || ''
                 };
                 return (
-                  <ActiveExerciseCard 
-                    key={originalIndex}
-                    exercise={exercise}
-                    progression={progression}
-                    exerciseIndex={originalIndex}
-                    sessionSets={activeSession.sets[originalIndex]}
-                    onAddSet={addSet}
-                    onUpdateSet={updateSet}
-                    onToggleComplete={toggleSetComplete}
-                    onRemoveSet={removeSet}
-                    onSwap={handleOpenExerciseModal}
-                    onCompleteExercise={handleCompleteExercise}
-                    onSkipExercise={handleSkipExercise}
-                  />
+                  <React.Fragment key={originalIndex}>
+                    {showHeader && (
+                      <div className="flex items-center space-x-3 mt-8 mb-4">
+                        <div className="h-[2px] bg-[#222] flex-1 rounded-full"></div>
+                        <h4 className="text-xs font-black text-gray-400 tracking-[0.2em] px-2">{baseExercise.sourceRoutineName.toUpperCase()}</h4>
+                        <div className="h-[2px] bg-[#222] flex-1 rounded-full"></div>
+                      </div>
+                    )}
+                    <ActiveExerciseCard 
+                      exercise={exercise}
+                      progression={progression}
+                      exerciseIndex={originalIndex}
+                      sessionSets={activeSession.sets[originalIndex]}
+                      onAddSet={addSet}
+                      onUpdateSet={updateSet}
+                      onToggleComplete={toggleSetComplete}
+                      onRemoveSet={removeSet}
+                      onSwap={handleOpenExerciseModal}
+                      onCompleteExercise={handleCompleteExercise}
+                      onSkipExercise={handleSkipExercise}
+                    />
+                  </React.Fragment>
                 );
               })}
             </div>

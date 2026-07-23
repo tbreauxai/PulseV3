@@ -190,7 +190,7 @@ export const GymRoutine = () => {
               </p>
             ) : (
               draftExercises.map((ex, i) => (
-                <div key={i} className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl relative overflow-hidden group">
+                <div key={i} className="p-4 bg-[#0a0a0a] border border-[#333] shadow-md rounded-xl relative overflow-hidden group">
                     <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${ex.type === 'cardio' ? 'bg-emerald-900/50' : 'bg-gray-900'}`}>
@@ -384,7 +384,7 @@ export const GymRoutine = () => {
               <div 
                 key={routine.id} 
                 onClick={() => handleEditRoutine(routine)}
-                className="p-4 bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-start justify-between group hover:border-[#333] transition-colors cursor-pointer active:scale-[0.98]"
+                className="p-4 bg-[#0a0a0a] border border-[#333] shadow-md rounded-xl flex items-start justify-between group hover:border-gray-500 transition-colors cursor-pointer active:scale-[0.98]"
               >
                 <div>
                   <h4 className="text-white font-bold group-hover:text-rose-500 transition-colors">{routine.name}</h4>
