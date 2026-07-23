@@ -943,14 +943,14 @@ ${activeSessionContext}
 
         // Fallback parser: If the model hallucinated a raw text function call (Groq bug), intercept it manually.
         if (toolCallsAcc.length === 0 && currentResponse.includes('function:')) {
-           const match = currentResponse.match(/function:([a-zA-Z0-9_]+)({.*?})(?:<\/function>)?/s);
+           const match = currentResponse.match(/function:\s*([a-zA-Z0-9_]+)[^\{]*(\{.*\})/s);
            if (match) {
                toolCallsAcc.push({
                    id: 'call_' + Math.random().toString(36).substr(2, 9),
                    type: 'function',
                    function: { name: match[1], arguments: match[2] }
                });
-               currentResponse = currentResponse.replace(match[0], '').trim();
+               currentResponse = currentResponse.replace(match[0], '').replace(/<\/function>/g, '').trim();
            }
         }
 
