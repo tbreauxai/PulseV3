@@ -54,7 +54,7 @@ const ExerciseRow = React.memo(({ ex, onOpenForm, onDelete }: any) => {
           controls.start({ x: 0 });
           onOpenForm(ex);
         }}
-        className="relative bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl flex items-center justify-between p-4 cursor-pointer hover:border-rose-600/30 transition-colors z-10 touch-pan-y"
+        className="relative bg-[#0a0a0a] border border-[#333] shadow-md rounded-xl flex items-center justify-between p-4 cursor-pointer hover:border-rose-600/30 transition-colors z-10 touch-pan-y"
       >
         <div className="flex items-center space-x-4">
           <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${ex.type === 'cardio' ? 'bg-emerald-900' : 'bg-gray-900'}`}>

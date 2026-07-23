@@ -20,7 +20,7 @@ export const RoutineSelectorModal = ({ isOpen, onClose, routines, onSelect, acti
                 onSelect(routine.id);
                 onClose();
               }}
-              className={`p-4 bg-[#0a0a0a] border ${activeRoutineId === routine.id ? 'border-rose-600' : 'border-[#1a1a1a]'} rounded-xl cursor-pointer hover:border-rose-600/50 transition-all active:scale-[0.98]`}
+              className={`p-4 bg-[#0a0a0a] border-2 ${activeRoutineId === routine.id ? 'border-rose-600' : 'border-[#333]'} shadow-md rounded-xl cursor-pointer hover:border-gray-500 transition-all active:scale-[0.98]`}
             >
               <h4 className="text-white font-bold">{routine.name}</h4>
               <p className="text-xs text-gray-500 mt-1">{routine.description}</p>
