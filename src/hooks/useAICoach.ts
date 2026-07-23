@@ -407,6 +407,53 @@ ${activeSessionContext}
         }
       }
 
+      // DETERMINISTIC FILTER TOOL — removes exercises by risk category programmatically
+      if (toolName === 'filter_active_workout') {
+        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
+        if (!activeSessionStr) {
+           return "ERROR: No active workout session found. The user must start a workout first.";
+        }
+        try {
+           const session = JSON.parse(activeSessionStr);
+           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
+           const filterRisk = (args.remove_risk || '').toLowerCase();
+
+           const newExercises: any[] = [];
+           const newSets: any = {};
+           let removedCount = 0;
+           let removedNames: string[] = [];
+
+           session.exercises.forEach((ex: any, i: number) => {
+              const name = (ex.exerciseName || ex.name || '').toLowerCase();
+              const dbEx = allExercises.find((e: any) => e.name.toLowerCase() === name);
+              const risk = (dbEx?.spinalRisk || 'Supported / Safe').toLowerCase();
+
+              // Only keep exercises that DO NOT match the target risk
+              if (risk !== filterRisk && risk !== 'spinal shear / flexion' /* fallback string matching */) {
+                 newExercises.push(ex);
+                 newSets[newExercises.length - 1] = session.sets[i];
+              } else {
+                 removedCount++;
+                 removedNames.push(ex.exerciseName || ex.name);
+              }
+           });
+
+           if (removedCount === 0) {
+              return `NO ACTION: No exercises matching risk '${args.remove_risk}' were found in the active workout.`;
+           }
+
+           session.exercises = newExercises;
+           session.sets = newSets;
+
+           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
+           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
+
+           return `SUCCESS: Filtered workout. Removed ${removedCount} exercises matching risk '${args.remove_risk}': ${removedNames.join(', ')}.`;
+        } catch (err: any) {
+           return `ERROR: Failed to filter session - ${err.message}`;
+        }
+      }
+
       // READ-ONLY RAG TOOLS
       if (toolName === 'analyze_workout_history') {
         const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
@@ -925,6 +972,20 @@ ${activeSessionContext}
                 sort_by: { type: "string", enum: ["compound_first", "isolation_first"], description: "Sort order." }
               },
               required: ["sort_by"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "filter_active_workout",
+            description: "Filters out exercises from the user's LIVE workout based on their spinal risk profile. Use this when the user asks to 'remove spine risk exercises', 'filter out dangerous lifts', or 'remove spinal shear'. Deterministic filter — reads database metadata automatically.",
+            parameters: {
+              type: "object",
+              properties: {
+                remove_risk: { type: "string", description: "The exact risk category to remove, e.g., 'Spinal Shear / Flexion' or 'High Risk'." }
+              },
+              required: ["remove_risk"]
             }
           }
         },
