@@ -171,6 +171,8 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                   <div className="w-10 text-center">SET</div>
                   {exercise.type === 'timed' ? (
                     <div className="flex-1 text-center">DURATION (SEC)</div>
+                  ) : exercise.type === 'calisthenics' ? (
+                    <div className="flex-1 text-center">REPS</div>
                   ) : (
                     <>
                       <div className="flex-1 text-center">{exercise.type === 'cardio' ? 'TIME (MIN)' : 'WEIGHT (LBS)'}</div>
@@ -206,6 +208,14 @@ export const ActiveExerciseCard = React.memo(({ exercise, exerciseIndex, session
                         placeholder="60"
                         value={set.time || ''}
                         onChange={(e) => onUpdateSet(exerciseIndex, idx, 'time', e.target.value)}
+                        className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
+                      />
+                    ) : exercise.type === 'calisthenics' ? (
+                      <input 
+                        type="number"
+                        placeholder="10"
+                        value={set.reps || ''}
+                        onChange={(e) => onUpdateSet(exerciseIndex, idx, 'reps', e.target.value)}
                         className="flex-1 min-w-0 bg-black border border-gray-800 rounded-md py-2 text-center text-white font-medium focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 transition-all placeholder:text-gray-700"
                       />
                     ) : (

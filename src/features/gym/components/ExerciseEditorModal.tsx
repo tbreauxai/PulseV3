@@ -85,6 +85,7 @@ export const ExerciseEditorModal = ({ isOpen, onClose, onSave, onDelete, initial
                   <option value="strength">Strength (Weight / Reps)</option>
                   <option value="timed">Timed Hold (Duration)</option>
                   <option value="cardio">Cardio (Time / Calories)</option>
+                  <option value="calisthenics">Calisthenics (Bodyweight / Reps)</option>
                 </select>
               </label>
 
