@@ -837,13 +837,7 @@ ${activeSessionContext}
           tool_choice: "auto",
           stream: true,
           // @ts-ignore
-          stream_options: { include_usage: true },
-          ...(isComplex && {
-             // @ts-ignore
-             include_reasoning: true,
-             // @ts-ignore
-             reasoning_effort: "medium"
-          })
+          stream_options: { include_usage: true }
         });
 
         let currentResponse = "";
