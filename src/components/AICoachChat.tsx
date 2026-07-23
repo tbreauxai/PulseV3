@@ -13,7 +13,7 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
   const [input, setInput] = useState('');
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [expandedReasoning, setExpandedReasoning] = useState<Record<number, boolean>>({});
-  const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio } = useAICoach();
+  const { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio, isDeepCoach, toggleDeepCoach } = useAICoach();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [isRecording, setIsRecording] = useState(false);
@@ -135,10 +135,23 @@ export const AICoachChat = ({ isOpen, onClose }: AICoachChatProps) => {
             </div>
             <div>
               <h3 className="text-lg font-black text-white tracking-wider">AI COACH</h3>
-              <p className="text-xs text-rose-500 font-bold tracking-widest">POWERED BY GROQ</p>
+              <p className={`text-xs font-bold tracking-widest ${isDeepCoach ? 'text-purple-400' : 'text-rose-500'}`}>
+                {isDeepCoach ? '🧠 DEEP COACH MODE' : 'POWERED BY GROQ'}
+              </p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={toggleDeepCoach}
+              title={isDeepCoach ? 'Switch to Action Mode (fast, tools)' : 'Switch to Deep Coach Mode (smarter, deeper analysis)'}
+              className={`h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                isDeepCoach 
+                  ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]' 
+                  : 'bg-gray-900 text-gray-500 hover:text-purple-400 hover:bg-gray-800'
+              }`}
+            >
+              <Brain className="h-5 w-5" />
+            </button>
 
             <button
               onClick={onClose}

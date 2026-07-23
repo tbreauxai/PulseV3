@@ -27,6 +27,7 @@ export const useAICoach = () => {
   }, [messages]);
 
   const [isTyping, setIsTyping] = useState(false);
+  const [isDeepCoach, setIsDeepCoach] = useState(false);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
   const [rateLimits, setRateLimits] = useState<RateLimits>(() => {
     try {
@@ -661,10 +662,9 @@ ${activeSessionContext}
         { role: 'user', content: text }
       ];
 
-      // Single model — no router, no double API calls
-      const modelName = 'llama-3.1-8b-instant';
-      console.log(`[AI Coach] Using model: ${modelName}`);
-      
+      // -----------------------------------------------------------------
+      // Tool definitions (shared by standard mode and deep coach handoff)
+      // -----------------------------------------------------------------
       const tools = [
         {
           type: "function",
@@ -684,6 +684,124 @@ ${activeSessionContext}
             }
           }
         },
+      ];
+
+      // -----------------------------------------------------------------
+      // TWO-BRAIN PIPELINE: Deep Coach (70B thinks) → Action (8B executes)
+      // -----------------------------------------------------------------
+      if (isDeepCoach) {
+        console.log('[AI Coach] Deep Coach mode — using llama-3.3-70b-versatile (no tools)');
+        
+        // Stage 1: 70B deep reasoning (no tools)
+        const deepStream = await groq.chat.completions.create({
+          messages: apiMessages,
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0.3,
+          stream: true,
+          // @ts-ignore
+          stream_options: { include_usage: true }
+        });
+
+        let deepResponse = '';
+        let uiAdded = false;
+        for await (const chunk of deepStream) {
+          // @ts-ignore
+          if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
+          const delta = chunk.choices[0]?.delta;
+          if (!delta?.content) continue;
+          deepResponse += delta.content;
+          if (!uiAdded) {
+            setMessages(prev => [...prev, { role: 'model', text: '' }]);
+            uiAdded = true;
+          }
+          setMessages(prev => {
+            const n = [...prev];
+            n[n.length - 1].text = deepResponse;
+            return n;
+          });
+        }
+
+        // Stage 2: Hand off to 8B for tool execution detection
+        console.log('[AI Coach] Checking if 70B response requires tool actions...');
+        const handoffMessages: any[] = [
+          { role: 'system', content: getStaticContext() },
+          { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${getDynamicContext()}` },
+          { role: 'user', content: text },
+          { role: 'assistant', content: deepResponse },
+          { role: 'user', content: 'Based on your coaching analysis above, execute any tool calls that are needed (e.g. create routines, sort workouts, update macros). If no action is needed, reply with exactly: NO_ACTION_NEEDED' }
+        ];
+
+        const actionStream = await groq.chat.completions.create({
+          messages: handoffMessages,
+          model: 'llama-3.1-8b-instant',
+          temperature: 0.0,
+          // @ts-ignore
+          tools: tools,
+          tool_choice: 'auto',
+          stream: true,
+          // @ts-ignore
+          stream_options: { include_usage: true }
+        });
+
+        let actionToolCalls: any[] = [];
+        let actionText = '';
+        for await (const chunk of actionStream) {
+          // @ts-ignore
+          if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
+          const delta = chunk.choices[0]?.delta;
+          if (!delta) continue;
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index;
+              if (!actionToolCalls[idx]) {
+                actionToolCalls[idx] = { id: tc.id, type: 'function', function: { name: tc.function?.name || '', arguments: '' } };
+              }
+              if (tc.function?.arguments) actionToolCalls[idx].function.arguments += tc.function.arguments;
+            }
+          }
+          if (delta.content) actionText += delta.content;
+        }
+
+        actionToolCalls = actionToolCalls.filter(Boolean);
+        if (actionToolCalls.length > 0) {
+          console.log('[AI Coach] 8B executing tool handoff:', actionToolCalls.map((t: any) => t.function.name));
+          for (const toolCall of actionToolCalls) {
+            try {
+              const args = JSON.parse(toolCall.function.arguments);
+              const result = await executeToolLogic(toolCall.function.name, args, text);
+              // Append tool result to the deep coach message
+              setMessages(prev => {
+                const n = [...prev];
+                n[n.length - 1].text += `\n\n---\n✅ **Action Taken:** \`${toolCall.function.name}\` → ${result}`;
+                return n;
+              });
+            } catch (err: any) {
+              setMessages(prev => {
+                const n = [...prev];
+                n[n.length - 1].text += `\n\n---\n❌ **Action Failed:** \`${toolCall.function.name}\` → ${err.message}`;
+                return n;
+              });
+            }
+          }
+        } else {
+          console.log('[AI Coach] No tool actions needed from 70B analysis.');
+        }
+
+        // Cache the deep response
+        if (deepResponse) {
+          semanticCache.set(text, deepResponse).catch(e => console.warn('Failed to set semantic cache:', e));
+        }
+
+        setIsTyping(false);
+        return;
+      }
+
+      // Standard mode — single model with tools
+      const modelName = 'llama-3.1-8b-instant';
+      console.log(`[AI Coach] Using model: ${modelName}`);
+      
+      // tools already defined above the deep coach block — add remaining schemas
+      tools.push(
         {
           type: "function",
           function: {
@@ -722,7 +840,6 @@ ${activeSessionContext}
             }
           }
         },
-
         {
           type: "function",
           function: {
@@ -759,7 +876,6 @@ ${activeSessionContext}
             }
           }
         },
-
         {
           type: "function",
           function: {
@@ -772,16 +888,12 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "modify_saved_routine",
-            description: "Modifies a saved workout routine by reordering, adding, or removing exercises. Pass the full, final list of exercises you want the routine to have. This will completely overwrite the existing exercise list for that routine.",
+            description: "Modifies a saved workout routine by reordering, adding, or removing exercises.",
             parameters: {
               type: "object",
               properties: {
-                routine_name: { type: "string", description: "The exact name of the routine to modify (e.g. 'Push Day')." },
-                exercises: { 
-                  type: "array", 
-                  items: { type: "string" }, 
-                  description: "An ordered list of exact exercise names for the new routine structure (e.g. ['Barbell Bench Press', 'Cable Crossover'])."
-                }
+                routine_name: { type: "string", description: "The exact name of the routine to modify." },
+                exercises: { type: "array", items: { type: "string" }, description: "An ordered list of exact exercise names." }
               },
               required: ["routine_name", "exercises"]
             }
@@ -791,19 +903,12 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "update_active_workout",
-            description: "Modifies the user's LIVE active workout on their screen. Use this when the user is currently working out and asks you to 'condense my workout', 'swap this exercise', or 'add/remove an exercise'. You MUST provide the FULL list of ALL exercises that should remain in the workout. Do NOT drop exercises unless the user explicitly asks to remove them. Do NOT include any (Risk: ...) tags in the names.",
+            description: "Modifies the user's LIVE active workout. Use for 'condense', 'swap', or 'add/remove'. Provide the FULL list of ALL exercises.",
             parameters: {
               type: "object",
               properties: {
-                exercises: { 
-                  type: "array", 
-                  items: { type: "string" }, 
-                  description: "The ordered list of exact exercise names for the updated workout. Do NOT include [Muscle: ...] metadata tags."
-                },
-                preserve_omitted_exercises: {
-                  type: "boolean",
-                  description: "CRITICAL: Set to true if you are reordering, swapping, or adding exercises, but want to keep the rest of the user's routine intact. If true, any existing exercises you forgot to include in the 'exercises' array will be automatically appended to the end. Set to false ONLY if the user explicitly asked to delete/remove exercises."
-                }
+                exercises: { type: "array", items: { type: "string" }, description: "Ordered list of exact exercise names. No metadata tags." },
+                preserve_omitted_exercises: { type: "boolean", description: "Set true to keep omitted exercises. Set false only if user asked to delete." }
               },
               required: ["exercises", "preserve_omitted_exercises"]
             }
@@ -813,15 +918,11 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "sort_active_workout",
-            description: "Sorts the user's LIVE active workout by exercise type. Use this when the user asks to 'move compound exercises to the top', 'sort by compound first', 'prioritize compound lifts', or any request to reorder exercises by their movement type (compound vs isolation). This is a deterministic sort — it reads each exercise's movementType from the database and reorders automatically. All sets and progress data are preserved.",
+            description: "Sorts the user's LIVE workout by exercise type. Use when asked to 'move compound to top', 'sort by compound first', or 'prioritize compound lifts'. Deterministic sort — all sets preserved.",
             parameters: {
               type: "object",
               properties: {
-                sort_by: { 
-                  type: "string", 
-                  enum: ["compound_first", "isolation_first"],
-                  description: "The sort order. Use 'compound_first' to put compound exercises at the top, or 'isolation_first' to put isolation exercises at the top."
-                }
+                sort_by: { type: "string", enum: ["compound_first", "isolation_first"], description: "Sort order." }
               },
               required: ["sort_by"]
             }
@@ -831,7 +932,7 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "get_exercise_library",
-            description: "Fetches the user's entire available exercise library including their custom exercises, muscle groups, and movement types. Use this to see what exercises they have available when building new routines.",
+            description: "Fetches the user's exercise library with muscle groups and movement types.",
             parameters: { type: "object", properties: {}, required: [] }
           }
         },
@@ -839,32 +940,31 @@ ${activeSessionContext}
           type: "function",
           function: {
             name: "search_exercise_knowledge",
-            description: "Searches the Supabase Exercise Knowledge Base for detailed information on how to perform an exercise, what muscles it targets, common mistakes, and video links. ALWAYS call this when the user asks 'how do I do this', 'is my form right', or asks for a guide.",
+            description: "Searches the Exercise Knowledge Base for how to perform an exercise, muscles targeted, common mistakes, and video links.",
             parameters: {
               type: "object",
               properties: {
-                exercise_name: { type: "string", description: "The exact name of the exercise to look up (e.g. 'Barbell Squat')." }
+                exercise_name: { type: "string", description: "The exact name of the exercise." }
               },
               required: ["exercise_name"]
             }
           }
         },
-
         {
           type: "function",
           function: {
             name: "calculate_custom_macros",
-            description: "Calculates exact grammatical macro splits for a custom or hypothetical calorie target. Use this whenever the user asks for macros based on a specific calorie number (e.g. 1800) rather than their body metrics.",
+            description: "Calculates macro splits for a custom calorie target.",
             parameters: {
               type: "object",
               properties: {
-                target_calories: { type: "number", description: "The total calorie target to calculate splits for." }
+                target_calories: { type: "number", description: "The total calorie target." }
               },
               required: ["target_calories"]
             }
           }
         }
-      ];
+      );
 
       let keepRunning = true;
       let finalResponseContent = "";
@@ -1063,5 +1163,7 @@ ${activeSessionContext}
 
   const clearChat = () => setMessages([]);
 
-  return { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio };
+  const toggleDeepCoach = useCallback(() => setIsDeepCoach(prev => !prev), []);
+
+  return { messages, isTyping, sendMessage, clearChat, requestTimestamps, rateLimits, transcribeAudio, isDeepCoach, toggleDeepCoach };
 };
