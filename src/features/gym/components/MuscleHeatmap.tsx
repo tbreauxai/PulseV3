@@ -154,7 +154,7 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
 
       return {
         name: `Heat Score: ${count.toFixed(1)}`,
-        muscles: [muscle],
+        muscles: [muscle as any],
         frequency: freq
       };
     });

@@ -4,6 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { semanticCache } from '../lib/semanticCache';
 import { memoryEngine } from '../lib/memoryEngine';
+import { aiTools } from '../features/ai/tools/schemas';
+import { executeToolLogic } from '../features/ai/tools/executor';
+import { getStaticContext, getDynamicContext } from '../features/ai/contextBuilder';
 
 export interface RateLimits {
   remainingTokens: string | null;
@@ -72,577 +75,7 @@ export const useAICoach = () => {
     semanticCache.init().catch(e => console.warn("Semantic cache init failed:", e));
   }, []);
 
-  const getStaticContext = () => {
-    return [
-      "You are Pulse AI, a world-class personal trainer embedded in a fitness app. You are talking to the user.",
-      "Your tone is supportive and highly scientific. You rely on data to make decisions.",
-      "Never output raw JSON or code blocks unless requested. Format your output nicely using markdown.",
-      "",
-      "CRITICAL RULES:",
-      "- ONLY use your \"Read-Only\" tools (like analyze_workout_history) if the user asks for deep historical data (e.g. \"What did I do last Tuesday?\" or \"How has my weight changed this month?\").",
-      "- If they want to create or update something, use your \"Write\" tools ('create_routine', 'create_exercise', 'update_macros', 'update_active_workout', 'modify_saved_routine').",
-      "- STRICT RULE: ONLY use \"Write\" tools if the user EXPLICITLY asks you to create or update something. Do NOT volunteer to call write tools on your own.",
-      "- STRICT RULE: If the user asks you to modify, update, or condense their active workout, you MUST use the `update_active_workout` tool. NEVER just output a text list of exercises in your chat response. You MUST call the tool.",
-      "- STRICT RULE: If the user asks to reorder, sort, or prioritize exercises by type (e.g. 'put compound first'), you MUST call the `sort_active_workout` tool. Do NOT manually sort the list yourself.",
-      "- STRICT RULE: If the user asks how to perform an exercise, what muscles it targets, or for a video guide, you MUST call the `search_exercise_knowledge` tool.",
-      "Use local device time for ALL temporal logic."
-    ].join('\n');
-  };
-
-  const getDynamicContext = () => {
-    // 1. Fetch zero-shot context from react-query cache
-    const todayDate = new Date().toISOString().split('T')[0];
-    
-    // Body Metrics
-    const metrics: any = queryClient.getQueryData(['bodyMetrics']) || {};
-    const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
-    const weightLbs = weighIns && weighIns.length > 0 ? parseFloat(weighIns[0].weight) : 'Unknown';
-    let bodyContext = `Body Metrics: Age: ${metrics.age || '?'}, Height: ${metrics.height_cm || '?'}cm, Weight: ${weightLbs}lbs, Activity: ${metrics.activity_level || '?'}.`;
-
-    // Macros & Hydration
-    const macroGoals: any = queryClient.getQueryData(['macroGoals']) || {};
-    const dailyMacros: any = queryClient.getQueryData(['dailyMacros', todayDate]) || {};
-    const hydration = queryClient.getQueryData(['hydration', todayDate]) || 0;
-    const waterGoal = queryClient.getQueryData(['waterGoal']) || 2000;
-    
-    const macroContext = `Today's Intake vs Goals: 
-- Calories: ${dailyMacros.calories || 0}/${macroGoals.calories || 0} kcal
-- Protein: ${dailyMacros.protein || 0}/${macroGoals.protein || 0} g
-- Carbs: ${dailyMacros.carbs || 0}/${macroGoals.carbs || 0} g
-- Fats: ${dailyMacros.fats || 0}/${macroGoals.fats || 0} g
-- Hydration: ${hydration}/${waterGoal} ml`;
-
-    // Last Workout
-    const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
-    let workoutContext = "Last Workout: None logged recently.";
-    if (history && history.length > 0) {
-      const last = history[0]; // Assuming sorted desc
-      workoutContext = `Last Workout: ${last.routineName || 'Unknown Routine'} on ${last.date?.split('T')[0] || '?'} (Volume: ${last.totalVolume || 0} lbs)`;
-    }
-
-    // Active Live Session
-    let activeSessionContext = "ACTIVE LIVE WORKOUT: None.";
-    try {
-      const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
-      if (activeSessionStr) {
-         const session = JSON.parse(activeSessionStr);
-         if (session && session.exercises) {
-            const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-            const exStrings = session.exercises.map((e: any) => {
-               const name = e.exerciseName || e.name;
-               const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
-               const risk = dbEx?.spinalRisk || 'Supported / Safe';
-               const mType = dbEx?.movementType || 'Unknown';
-               const target = dbEx?.muscleGroup || 'Unknown';
-               const eq = dbEx?.equipment || 'Unknown';
-               return `"${name}" [Muscle: ${target} | Type: ${mType} | Eq: ${eq} | Risk: ${risk}]`;
-            });
-            activeSessionContext = `ACTIVE LIVE WORKOUT (Currently on user's screen): ${session.routineName || 'Custom'}\nExercises:\n- ${exStrings.join('\n- ')}`;
-         }
-      }
-    } catch(e) {}
-
-    return `
---- ZERO-SHOT DAILY BRIEFING ---
-You ALREADY know the following about the user. Do NOT use tools to fetch this baseline information.
-${bodyContext}
-
-${macroContext}
-
-${workoutContext}
-
-${activeSessionContext}
---------------------------------
-`;
-  };
-
   const sendMessage = useCallback(async (text: string) => {
-    const executeToolLogic = async (toolName: string, args: any, goalText: string = "") => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Authentication required for tool calls.");
-      
-      const todayDate = new Date().toISOString().split('T')[0];
-
-      // WRITE TOOLS
-      if (toolName === 'create_routine') {
-        if (!args.name || typeof args.name !== 'string' || args.name.trim().length === 0) return 'ERROR: Routine name cannot be empty.';
-        if (!args.exercises || !Array.isArray(args.exercises) || args.exercises.length === 0) return 'ERROR: Routine must contain at least one exercise.';
-        if (args.exercises.length > 50) return 'ERROR: Too many exercises in routine (max 50).';
-
-        const routineId = Date.now().toString();
-        const routineDate = args.date ? new Date(args.date).toISOString() : new Date().toISOString();
-        const payload = {
-          user_id: user.id,
-          routine_id: routineId,
-          name: args.name,
-          exercises: args.exercises,
-          created_at: routineDate,
-          updated_at: routineDate
-        };
-        await supabase.from('routines').insert([payload]);
-        await queryClient.invalidateQueries({ queryKey: ['routines'] });
-        return `SUCCESS: Created Routine ${args.name}`;
-      }
-      
-      if (toolName === 'create_exercise') {
-        if (!args.name || typeof args.name !== 'string' || args.name.trim().length === 0) return 'ERROR: Exercise name cannot be empty.';
-        if (args.name.length > 100) return 'ERROR: Exercise name is too long.';
-        if (!args.muscleGroup || typeof args.muscleGroup !== 'string' || args.muscleGroup.trim().length === 0) return 'ERROR: Muscle group is required.';
-
-        const exerciseId = Date.now().toString();
-        const payload = {
-          user_id: user.id,
-          exercise_id: exerciseId,
-          name: args.name,
-          type: args.type || 'strength',
-          muscle_group: args.muscleGroup || '',
-          equipment: args.equipment || ''
-        };
-        await supabase.from('user_exercises').insert([payload]);
-        await queryClient.invalidateQueries({ queryKey: ['exercises'] });
-        return `SUCCESS: Created Exercise ${args.name}`;
-      }
-      
-      if (toolName === 'update_macros') {
-        if (args.calories < 500 || args.calories > 10000) return 'ERROR: Calories must be between 500 and 10000.';
-        if (args.protein < 0 || args.protein > 500) return 'ERROR: Protein must be realistic (0-500g).';
-        if (args.carbs < 0 || args.carbs > 1500) return 'ERROR: Carbs must be realistic (0-1500g).';
-        if (args.fats < 0 || args.fats > 500) return 'ERROR: Fats must be realistic (0-500g).';
-
-        const payload = {
-          calories_goal: args.calories,
-          protein_goal: args.protein,
-          carbs_goal: args.carbs,
-          fats_goal: args.fats
-        };
-        
-        const { data } = await supabase.from('user_settings').update(payload).eq('user_id', user.id).select();
-        if (!data || data.length === 0) {
-           await supabase.from('user_settings').insert([{ user_id: user.id, ...payload }]);
-        }
-        await queryClient.invalidateQueries({ queryKey: ['macroGoals'] });
-        return `SUCCESS: Updated Macros to ${args.calories}kcal`;
-      }
-
-      if (toolName === 'modify_saved_routine') {
-        const routineName = args.routine_name;
-        const newExNames = args.exercises;
-        
-        if (!routineName || !Array.isArray(newExNames)) {
-           return "ERROR: Missing routine_name or exercises array.";
-        }
-
-        const routines: any[] = queryClient.getQueryData(['routines']) || [];
-        const routine = routines.find(r => r.name.toLowerCase() === routineName.toLowerCase());
-        
-        if (!routine) return `ERROR: Routine '${routineName}' not found in saved routines.`;
-        
-        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-        
-        const newExercisesPayload = newExNames.map(exName => {
-           const existing = routine.exercises?.find((e: any) => 
-             (e.exerciseName || e.name || e.exercise?.name)?.toLowerCase() === exName.toLowerCase()
-           );
-           if (existing) return existing;
-           
-           const dbEx = allExercises.find(a => a.name.toLowerCase() === exName.toLowerCase());
-           return {
-              exerciseName: dbEx ? dbEx.name : exName,
-              sets: 3,
-              reps: '8-12',
-              time: '',
-              distance: '',
-              type: dbEx ? (dbEx.type || 'strength') : 'strength'
-           };
-        });
-
-        const { error } = await supabase.from('routines').update({ exercises: newExercisesPayload }).eq('id', routine.id);
-        if (error) return `ERROR: ${error.message}`;
-        
-        await queryClient.invalidateQueries({ queryKey: ['routines'] });
-        return `SUCCESS: Modified saved routine '${routine.name}'. New exercise order has been saved permanently to the database.`;
-      }
-
-      if (toolName === 'update_active_workout') {
-        const newExNames = args.exercises;
-        if (!Array.isArray(newExNames)) {
-           return "ERROR: Missing exercises array.";
-        }
-        
-        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
-        if (!activeSessionStr) {
-           return "ERROR: No active workout session found. The user must start a workout first.";
-        }
-        
-        try {
-           const session = JSON.parse(activeSessionStr);
-           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-           
-           const newExercises: any[] = [];
-           const newSets: any = {};
-           const usedOldIndices = new Set<number>();
-
-           newExNames.forEach((rawName: string, i: number) => {
-              // Extract the name from quotes if the AI hallucinates the metadata tags
-              let name = rawName.trim();
-              if (name.startsWith('"')) {
-                 const match = name.match(/"([^"]+)"/);
-                 if (match) name = match[1];
-              } else {
-                 name = name.split(' [Muscle:')[0].split(' (Type:')[0].split(' (Risk:')[0].trim();
-              }
-
-              const oldIndex = session.exercises.findIndex((ex: any, idx: number) => 
-                  !usedOldIndices.has(idx) && 
-                  (ex.exerciseName || ex.name)?.toLowerCase() === name.toLowerCase()
-              );
-
-              if (oldIndex !== -1) {
-                 usedOldIndices.add(oldIndex);
-                 newExercises.push(session.exercises[oldIndex]);
-                 newSets[i] = session.sets[oldIndex];
-              } else {
-                 const dbEx = allExercises.find((a: any) => a.name.toLowerCase() === name.toLowerCase());
-                 const type = dbEx ? (dbEx.type || 'strength') : 'strength';
-                 newExercises.push({
-                    exerciseName: dbEx ? dbEx.name : name,
-                    type,
-                    sets: 3,
-                    reps: '8-12',
-                    time: '',
-                    distance: ''
-                 });
-                 
-                 newSets[i] = Array.from({ length: 3 }).map(() => {
-                    if (type === 'cardio') return { time: '', distance: '', calories: '', completed: false };
-                    if (type === 'timed') return { time: '', completed: false };
-                    return { weight: '', reps: '8-12', completed: false };
-                 });
-              }
-            });
-
-            const preserve = args.preserve_omitted_exercises !== false;
-            if (preserve) {
-               session.exercises.forEach((ex: any, idx: number) => {
-                  if (!usedOldIndices.has(idx)) {
-                     newExercises.push(ex);
-                     newSets[newExercises.length - 1] = session.sets[idx];
-                  }
-               });
-            }
-
-           session.exercises = newExercises;
-           session.sets = newSets;
-           
-           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
-           
-           // Notify any mounted Gym tabs to reload from local storage
-           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
-           
-           return "SUCCESS: The active live workout has been dynamically modified.";
-        } catch (err: any) {
-           return `ERROR: Failed to update session - ${err.message}`;
-        }
-      }
-
-      // DETERMINISTIC SORT TOOL — zero AI involvement in the actual sorting
-      if (toolName === 'sort_active_workout') {
-        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
-        if (!activeSessionStr) {
-           return "ERROR: No active workout session found. The user must start a workout first.";
-        }
-        try {
-           const session = JSON.parse(activeSessionStr);
-           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-           const sortBy = (args.sort_by || 'compound_first').toLowerCase();
-
-           // Build paired array of [exercise, sets] to sort together
-           const paired = session.exercises.map((ex: any, idx: number) => ({
-              exercise: ex,
-              sets: session.sets[idx],
-              originalIndex: idx
-           }));
-
-           paired.sort((a: any, b: any) => {
-              const aName = (a.exercise.exerciseName || a.exercise.name || '').toLowerCase();
-              const bName = (b.exercise.exerciseName || b.exercise.name || '').toLowerCase();
-              const aDb = allExercises.find((e: any) => e.name.toLowerCase() === aName);
-              const bDb = allExercises.find((e: any) => e.name.toLowerCase() === bName);
-              const aType = (aDb?.movementType || '').toLowerCase();
-              const bType = (bDb?.movementType || '').toLowerCase();
-
-              if (sortBy === 'compound_first') {
-                 const aIsCompound = aType === 'compound' ? 0 : 1;
-                 const bIsCompound = bType === 'compound' ? 0 : 1;
-                 return aIsCompound - bIsCompound;
-              } else if (sortBy === 'isolation_first') {
-                 const aIsIsolation = aType === 'isolation' ? 0 : 1;
-                 const bIsIsolation = bType === 'isolation' ? 0 : 1;
-                 return aIsIsolation - bIsIsolation;
-              }
-              return 0;
-           });
-
-           const newSets: any = {};
-           session.exercises = paired.map((p: any, i: number) => {
-              newSets[i] = p.sets;
-              return p.exercise;
-           });
-           session.sets = newSets;
-
-           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
-           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
-
-           const compoundNames = paired
-              .filter((p: any) => {
-                 const n = (p.exercise.exerciseName || p.exercise.name || '').toLowerCase();
-                 const db = allExercises.find((e: any) => e.name.toLowerCase() === n);
-                 return (db?.movementType || '').toLowerCase() === 'compound';
-              })
-              .map((p: any) => p.exercise.exerciseName || p.exercise.name);
-
-           return `SUCCESS: Sorted workout with ${sortBy}. Compound exercises moved to top: ${compoundNames.join(', ')}. All sets and data preserved.`;
-        } catch (err: any) {
-           return `ERROR: Failed to sort session - ${err.message}`;
-        }
-      }
-
-      // DETERMINISTIC FILTER TOOL — removes exercises by risk category programmatically
-      if (toolName === 'filter_active_workout') {
-        const activeSessionStr = localStorage.getItem('pulseV3-activeSession');
-        if (!activeSessionStr) {
-           return "ERROR: No active workout session found. The user must start a workout first.";
-        }
-        try {
-           const session = JSON.parse(activeSessionStr);
-           const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-           const filterRisk = (args.remove_risk || '').toLowerCase();
-
-           const newExercises: any[] = [];
-           const newSets: any = {};
-           let removedCount = 0;
-           let removedNames: string[] = [];
-
-           session.exercises.forEach((ex: any, i: number) => {
-              const name = (ex.exerciseName || ex.name || '').toLowerCase();
-              const dbEx = allExercises.find((e: any) => e.name.toLowerCase() === name);
-              const risk = (dbEx?.spinalRisk || 'Supported / Safe').toLowerCase();
-
-              // Only keep exercises that DO NOT match the target risk
-              if (risk !== filterRisk && risk !== 'spinal shear / flexion' /* fallback string matching */) {
-                 newExercises.push(ex);
-                 newSets[newExercises.length - 1] = session.sets[i];
-              } else {
-                 removedCount++;
-                 removedNames.push(ex.exerciseName || ex.name);
-              }
-           });
-
-           if (removedCount === 0) {
-              return `NO ACTION: No exercises matching risk '${args.remove_risk}' were found in the active workout.`;
-           }
-
-           session.exercises = newExercises;
-           session.sets = newSets;
-
-           localStorage.setItem('pulseV3-activeSession', JSON.stringify(session));
-           window.dispatchEvent(new CustomEvent('pulse_force_reload_active_workout'));
-
-           return `SUCCESS: Filtered workout. Removed ${removedCount} exercises matching risk '${args.remove_risk}': ${removedNames.join(', ')}.`;
-        } catch (err: any) {
-           return `ERROR: Failed to filter session - ${err.message}`;
-        }
-      }
-
-      // READ-ONLY RAG TOOLS
-      if (toolName === 'analyze_workout_history') {
-        const history: any[] = queryClient.getQueryData(['workoutHistory']) || [];
-        const days = args.days || 30;
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - days);
-        const filtered = history.filter(h => new Date(h.date) >= cutoff);
-        
-        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-        // Compress payload to save tokens
-        const compressed = filtered.map(h => {
-          let exercisesStr = 'Unknown';
-          try {
-            const details = typeof h.exerciseDetails === 'string' ? JSON.parse(h.exerciseDetails) : (h.exerciseDetails || []);
-            if (Array.isArray(details)) {
-               exercisesStr = details.map((d: any) => {
-                 const name = d.exerciseName || d.name || d.exercise?.name || '';
-                 if (!name) return '';
-                 const ex = allExercises.find(e => e.name === name);
-                 const mType = ex?.movementType ? ex.movementType : '';
-                 const sRisk = ex?.spinalRisk && ex.spinalRisk !== 'Supported / Safe' ? ex.spinalRisk : '';
-                 const tags = [mType, sRisk].filter(Boolean).join(', ');
-                 return tags ? `${name} (${tags})` : name;
-               }).filter(Boolean).join(' | ');
-            }
-          } catch(e) {}
-          
-          return {
-             date: h.date?.split('T')[0],
-             routine: h.routineName,
-             volume: h.totalVolume,
-             exercises: exercisesStr
-          };
-        });
-        
-        // Use Neural Skimmer to filter down to the 10 most relevant workouts based on the user's query
-        const pruned = await semanticCache.pruneJSON(goalText, compressed, 10);
-        
-        return JSON.stringify(pruned);
-      }
-
-      if (toolName === 'analyze_weigh_ins') {
-        const weighIns: any[] = queryClient.getQueryData(['weighIns']) || [];
-        const days = args.days || 30;
-        const filtered = weighIns.slice(0, days);
-        const compressed = filtered.map(w => `${w.date}: ${w.weight}`);
-        return JSON.stringify(compressed);
-      }
-
-      // Removed redundant get_macros_and_nutrition and get_body_metrics
-
-      if (toolName === 'get_saved_routines') {
-        const routines: any[] = queryClient.getQueryData(['routines']) || [];
-        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-        const compressed = routines.map(r => ({
-          name: r.name,
-          ex: r.exercises?.map((e: any) => {
-             const name = e.name || e.exercise?.name || e.exerciseName || '';
-             if (!name) return '';
-             const ex = allExercises.find(a => a.name === name);
-             const risk = ex?.spinalRisk || 'Supported / Safe';
-             const mType = ex?.movementType || 'Unknown';
-             const target = ex?.muscleGroup || 'Unknown';
-             const eq = ex?.equipment || 'Unknown';
-             return `"${name}" [Muscle: ${target} | Type: ${mType} | Eq: ${eq} | Risk: ${risk}]`;
-          }) || []
-        }));
-        return JSON.stringify(compressed);
-      }
-
-      if (toolName === 'get_exercise_library') {
-        const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
-        const compressed = allExercises.map(e => ({
-          name: e.name,
-          metadata: `[Muscle: ${e.muscleGroup || 'Unknown'} | Type: ${e.movementType || 'Unknown'} | Eq: ${e.equipment || 'Unknown'} | Risk: ${e.spinalRisk || 'Supported / Safe'}]`
-        }));
-        return JSON.stringify(compressed);
-      }
-
-      if (toolName === 'update_adaptive_tdee') {
-        // Find date 30 days ago
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const cutoff = thirtyDaysAgo.toISOString().split('T')[0];
-
-        // 1. Fetch weigh-ins
-        const { data: weighIns } = await supabase
-          .from('weigh_ins')
-          .select('date, weight')
-          .gte('date', cutoff)
-          .order('date', { ascending: true });
-
-        // 2. Fetch daily macros
-        const { data: macros } = await supabase
-          .from('daily_macros')
-          .select('date, calories')
-          .gte('date', cutoff)
-          .gt('calories', 500) // ignore blank/empty days
-          .order('date', { ascending: true });
-
-        if (!weighIns || weighIns.length < 2) return 'ERROR: Not enough weigh-in data (needs at least 2 weigh-ins in the last 30 days). Fallback to Mifflin-St. Jeor.';
-        if (!macros || macros.length < 14) return 'ERROR: Not enough caloric tracking data (needs at least 14 days of tracked calories > 500 in the last 30 days). Fallback to Mifflin-St. Jeor.';
-
-        // Calculate Average Calories
-        const totalCals = macros.reduce((sum, m) => sum + (m.calories || 0), 0);
-        const avgCals = totalCals / macros.length;
-
-        // Calculate Weight Delta
-        const firstWeight = parseFloat(weighIns[0].weight);
-        const lastWeight = parseFloat(weighIns[weighIns.length - 1].weight);
-        const weightDeltaLbs = lastWeight - firstWeight;
-        
-        // Days elapsed between first and last weigh in
-        const firstDate = new Date(weighIns[0].date).getTime();
-        const lastDate = new Date(weighIns[weighIns.length - 1].date).getTime();
-        const daysElapsed = Math.max(14, (lastDate - firstDate) / (1000 * 3600 * 24)); // ensure at least 14 to avoid dividing by 0 or artificially short windows
-
-        const caloriesFromTissue = weightDeltaLbs * 3500;
-        const totalCaloriesExpended = totalCals - caloriesFromTissue;
-        const adaptiveTDEE = totalCaloriesExpended / daysElapsed;
-        
-        const balanced = {
-           protein: Math.round((adaptiveTDEE * 0.30) / 4),
-           carbs: Math.round((adaptiveTDEE * 0.40) / 4),
-           fats: Math.round((adaptiveTDEE * 0.30) / 9)
-        };
-        const lowCarb = {
-           protein: Math.round((adaptiveTDEE * 0.40) / 4),
-           carbs: Math.round((adaptiveTDEE * 0.20) / 4),
-           fats: Math.round((adaptiveTDEE * 0.40) / 9)
-        };
-
-        return JSON.stringify({
-           days_tracked: macros.length,
-           average_intake: Math.round(avgCals),
-           weight_change_lbs: weightDeltaLbs.toFixed(2),
-           adaptive_tdee: Math.round(adaptiveTDEE),
-           suggested_macros: {
-              balanced: `P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g`,
-              low_carb: `P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`
-           }
-        });
-      }
-
-      if (toolName === 'search_exercise_knowledge') {
-        const queryName = args.exercise_name;
-        if (!queryName) return "ERROR: Missing exercise_name.";
-        
-        const { data, error } = await supabase
-          .from('exercise_knowledge')
-          .select('*')
-          .ilike('exercise_name', `%${queryName}%`)
-          .limit(1);
-          
-        if (error) {
-           return `ERROR searching knowledge base: ${error.message}. The user might need to run the SQL migration to create the exercise_knowledge table.`;
-        }
-        
-        if (!data || data.length === 0) {
-           return `NO KNOWLEDGE FOUND for exercise: ${queryName}.`;
-        }
-        
-        return JSON.stringify(data[0]);
-      }
-
-      if (toolName === 'calculate_custom_macros') {
-        const cals = args.target_calories;
-        const balanced = {
-           protein: Math.round((cals * 0.30) / 4),
-           carbs: Math.round((cals * 0.40) / 4),
-           fats: Math.round((cals * 0.30) / 9)
-        };
-        const lowCarb = {
-           protein: Math.round((cals * 0.40) / 4),
-           carbs: Math.round((cals * 0.20) / 4),
-           fats: Math.round((cals * 0.40) / 9)
-        };
-        return JSON.stringify({
-          target_calories: cals,
-          suggested_macros: {
-            balanced: `P:${balanced.protein}g C:${balanced.carbs}g F:${balanced.fats}g`,
-            low_carb: `P:${lowCarb.protein}g C:${lowCarb.carbs}g F:${lowCarb.fats}g`
-          }
-        });
-      }
-
-      return `ERROR: Tool ${toolName} not found.`;
-    };
-
     const apiKey = localStorage.getItem('pulse_groq_key');
     if (!apiKey) {
       setMessages(prev => [...prev, { role: 'user', text }, { role: 'model', text: 'Error: No Groq API key found. Please open App Settings (gear icon) and add your API key.' }]);
@@ -693,7 +126,7 @@ ${activeSessionContext}
 
       const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const staticContext = getStaticContext();
-      const dynamicContext = getDynamicContext();
+      const dynamicContext = getDynamicContext(queryClient);
       const memoryContext = await memoryEngine.retrieveContext(text);
 
       // We maintain a conversation thread array for the API loop
@@ -709,29 +142,7 @@ ${activeSessionContext}
         { role: 'user', content: text }
       ];
 
-      // -----------------------------------------------------------------
-      // Tool definitions (shared by standard mode and deep coach handoff)
-      // -----------------------------------------------------------------
-      const tools = [
-        {
-          type: "function",
-          function: {
-            name: "create_routine",
-            description: "Creates a new workout routine.",
-            strict: true,
-            parameters: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                date: { type: "string", description: "ISO date string (e.g. YYYY-MM-DD)" },
-                exercises: { type: "array", items: { type: "object", properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" }, target_muscle: { type: "string" } }, required: ["name", "sets", "reps", "target_muscle"], additionalProperties: false } }
-              },
-              required: ["name", "date", "exercises"],
-              additionalProperties: false
-            }
-          }
-        },
-      ];
+
 
       // -----------------------------------------------------------------
       // TWO-BRAIN PIPELINE: Deep Coach (70B thinks) → Action (8B executes)
@@ -772,7 +183,7 @@ ${activeSessionContext}
         console.log('[AI Coach] Checking if 70B response requires tool actions...');
         const handoffMessages: any[] = [
           { role: 'system', content: getStaticContext() },
-          { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${getDynamicContext()}` },
+          { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${getDynamicContext(queryClient)}` },
           { role: 'user', content: text },
           { role: 'assistant', content: deepResponse },
           { role: 'user', content: 'Based on your coaching analysis above, execute any tool calls that are needed (e.g. create routines, sort workouts, update macros). If no action is needed, reply with exactly: NO_ACTION_NEEDED' }
@@ -783,7 +194,7 @@ ${activeSessionContext}
           model: 'llama-3.1-8b-instant',
           temperature: 0.0,
           // @ts-ignore
-          tools: tools,
+          tools: aiTools,
           tool_choice: 'auto',
           stream: true,
           // @ts-ignore
@@ -815,7 +226,7 @@ ${activeSessionContext}
           for (const toolCall of actionToolCalls) {
             try {
               const args = JSON.parse(toolCall.function.arguments);
-              const result = await executeToolLogic(toolCall.function.name, args, text);
+              const result = await executeToolLogic(toolCall.function.name, args, text, queryClient);
               // Append tool result to the deep coach message
               setMessages(prev => {
                 const n = [...prev];
@@ -847,185 +258,7 @@ ${activeSessionContext}
       const modelName = 'llama-3.1-8b-instant';
       console.log(`[AI Coach] Using model: ${modelName}`);
       
-      // tools already defined above the deep coach block — add remaining schemas
-      tools.push(
-        {
-          type: "function",
-          function: {
-            name: "create_exercise",
-            description: "Creates a new custom exercise.",
-            strict: true,
-            parameters: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                muscleGroup: { type: "string" },
-                type: { type: "string", description: "strength, cardio, or mobility" },
-                equipment: { type: "string" }
-              },
-              required: ["name", "muscleGroup", "type", "equipment"],
-              additionalProperties: false
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "update_macros",
-            description: "Updates the user's daily macro goals.",
-            strict: true,
-            parameters: {
-              type: "object",
-              properties: {
-                calories: { type: "number" },
-                protein: { type: "number" },
-                carbs: { type: "number" },
-                fats: { type: "number" }
-              },
-              required: ["calories", "protein", "carbs", "fats"],
-              additionalProperties: false
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "analyze_workout_history",
-            description: "Fetches the user's logged workouts over the specified number of days.",
-            parameters: {
-              type: "object",
-              properties: {
-                days: { type: "number", description: "Number of days to analyze (default 30)" }
-              }
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "update_adaptive_tdee",
-            description: "Calculates the user's true Adaptive TDEE using thermodynamic analysis over the last 21-30 days of weigh-ins and calories. DO NOT ask the user before calling this tool, just call it.",
-            parameters: {
-              type: "object",
-              properties: {}
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "analyze_weigh_ins",
-            description: "Fetches the user's weigh-in history (body weight).",
-            parameters: {
-              type: "object",
-              properties: { days: { type: "number", description: "Number of most recent weigh-ins to fetch" } },
-              required: ["days"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "get_saved_routines",
-            description: "Fetches the user's saved workout routines.",
-            parameters: { type: "object", properties: {}, required: [] }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "modify_saved_routine",
-            description: "Modifies a saved workout routine by reordering, adding, or removing exercises.",
-            parameters: {
-              type: "object",
-              properties: {
-                routine_name: { type: "string", description: "The exact name of the routine to modify." },
-                exercises: { type: "array", items: { type: "string" }, description: "An ordered list of exact exercise names." }
-              },
-              required: ["routine_name", "exercises"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "update_active_workout",
-            description: "Modifies the user's LIVE active workout. Use for 'condense', 'swap', or 'add/remove'. Provide the FULL list of ALL exercises.",
-            parameters: {
-              type: "object",
-              properties: {
-                exercises: { type: "array", items: { type: "string" }, description: "Ordered list of exact exercise names. No metadata tags." },
-                preserve_omitted_exercises: { type: "boolean", description: "Set true to keep omitted exercises. Set false only if user asked to delete." }
-              },
-              required: ["exercises", "preserve_omitted_exercises"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "sort_active_workout",
-            description: "Sorts the user's LIVE workout by exercise type. Use when asked to 'move compound to top', 'sort by compound first', or 'prioritize compound lifts'. Deterministic sort — all sets preserved.",
-            parameters: {
-              type: "object",
-              properties: {
-                sort_by: { type: "string", enum: ["compound_first", "isolation_first"], description: "Sort order." }
-              },
-              required: ["sort_by"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "filter_active_workout",
-            description: "Filters out exercises from the user's LIVE workout based on their spinal risk profile. Use this when the user asks to 'remove spine risk exercises', 'filter out dangerous lifts', or 'remove spinal shear'. Deterministic filter — reads database metadata automatically.",
-            parameters: {
-              type: "object",
-              properties: {
-                remove_risk: { type: "string", description: "The exact risk category to remove, e.g., 'Spinal Shear / Flexion' or 'High Risk'." }
-              },
-              required: ["remove_risk"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "get_exercise_library",
-            description: "Fetches the user's exercise library with muscle groups and movement types.",
-            parameters: { type: "object", properties: {}, required: [] }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "search_exercise_knowledge",
-            description: "Searches the Exercise Knowledge Base for how to perform an exercise, muscles targeted, common mistakes, and video links.",
-            parameters: {
-              type: "object",
-              properties: {
-                exercise_name: { type: "string", description: "The exact name of the exercise." }
-              },
-              required: ["exercise_name"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "calculate_custom_macros",
-            description: "Calculates macro splits for a custom calorie target.",
-            parameters: {
-              type: "object",
-              properties: {
-                target_calories: { type: "number", description: "The total calorie target." }
-              },
-              required: ["target_calories"]
-            }
-          }
-        }
-      );
+
 
       let keepRunning = true;
       let finalResponseContent = "";
@@ -1038,7 +271,7 @@ ${activeSessionContext}
           model: modelName,
           temperature: 0.0,
           // @ts-ignore
-          tools: tools,
+          tools: aiTools,
           tool_choice: "auto",
           stream: true,
           // @ts-ignore
@@ -1054,8 +287,8 @@ ${activeSessionContext}
            const delta = chunk.choices[0]?.delta;
            
            // @ts-ignore
-           if (chunk.usage && chunk.usage.total_tokens) {
-              const usage = chunk.usage.total_tokens;
+           if ((chunk as any).usage && (chunk as any).usage.total_tokens) {
+              const usage = (chunk as any).usage.total_tokens;
               const d = new Date();
               const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
               let storedUsage = 0;
@@ -1160,7 +393,7 @@ ${activeSessionContext}
            const toolResults = await Promise.all(toolCallsAcc.map(async (toolCall: any) => {
              try {
                const args = JSON.parse(toolCall.function.arguments);
-               const toolResult = await executeToolLogic(toolCall.function.name, args, text);
+               const toolResult = await executeToolLogic(toolCall.function.name, args, text, queryClient);
                return {
                  role: 'tool',
                  tool_call_id: toolCall.id,
