@@ -119,8 +119,17 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
         const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName);
         if (!globalEx || !globalEx.muscleGroup) return;
 
-        // Parse Primary | Secondary or comma-separated
-        const muscleGroups = globalEx.muscleGroup.split(/[|,]/).map((s: string) => s.trim());
+        // Parse Primary | Secondary explicitly
+        let primaryGroups: string[] = [];
+        let secondaryGroups: string[] = [];
+
+        if (globalEx.muscleGroup.includes('|')) {
+          const parts = globalEx.muscleGroup.split('|');
+          primaryGroups = parts[0].split(',').map((s: string) => s.trim()).filter(Boolean);
+          secondaryGroups = parts[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else {
+          primaryGroups = globalEx.muscleGroup.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
         
         // Count completed sets
         const completedSets = ex.sets ? ex.sets.filter((s: any) => s.completed).length : 0;
@@ -128,17 +137,21 @@ export const MuscleHeatmap = ({ history }: { history: any[] }) => {
         if (completedSets > 0) {
           const processedGenerics = new Set<string>();
           
-          muscleGroups.forEach((mg: string, index: number) => {
-            const generic = genericMuscleMap[mg];
-            if (!generic || processedGenerics.has(generic)) return;
-            
-            processedGenerics.add(generic);
-            const isPrimary = index === 0;
-            const baseHeat = isPrimary ? completedSets : (completedSets * 0.5);
-            const addedHeat = baseHeat * timeMultiplier;
-            
-            muscleSetCounts[generic] = (muscleSetCounts[generic] || 0) + addedHeat;
-          });
+          const processGroups = (groups: string[], weight: number) => {
+            groups.forEach((mg: string) => {
+              const generic = genericMuscleMap[mg];
+              if (!generic || processedGenerics.has(generic)) return;
+              
+              processedGenerics.add(generic);
+              const baseHeat = completedSets * weight;
+              const addedHeat = baseHeat * timeMultiplier;
+              
+              muscleSetCounts[generic] = (muscleSetCounts[generic] || 0) + addedHeat;
+            });
+          };
+
+          processGroups(primaryGroups, 1.0);
+          processGroups(secondaryGroups, 0.5);
         }
       });
     });
