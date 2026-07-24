@@ -155,6 +155,7 @@ export const useAICoach = () => {
           messages: apiMessages,
           model: 'llama-3.3-70b-versatile',
           temperature: 0.3,
+          max_tokens: 8000,
           stream: true,
           // @ts-ignore
           stream_options: { include_usage: true }
@@ -193,6 +194,7 @@ export const useAICoach = () => {
           messages: handoffMessages,
           model: 'llama-3.1-8b-instant',
           temperature: 0.0,
+          max_tokens: 8000,
           // @ts-ignore
           tools: aiTools,
           tool_choice: 'auto',
