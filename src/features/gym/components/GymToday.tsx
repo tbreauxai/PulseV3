@@ -480,6 +480,11 @@ export const GymToday = () => {
       return;
     }
 
+    // Start 60-second exercise transition timer
+    const newTimer = { endTime: Date.now() + 60 * 1000, mode: 'exercise' as const };
+    localStorage.setItem('pulse_rest_timer', JSON.stringify(newTimer));
+    window.dispatchEvent(new Event('pulse_timer_updated'));
+
     setActiveSession((prev: any) => {
       if (!prev) return null;
       const newExercises = [...prev.exercises];
@@ -674,7 +679,8 @@ export const GymToday = () => {
         // Timer Logic
         const isLastSet = updatedSets.every((s: any) => s.completed);
         const ex = prev.exercises[exerciseIndex];
-        const isCompound = ex?.movementType === 'Compound';
+        const globalEx = allExercises.find((g: any) => g.name === ex.exerciseName || g.name === ex.name);
+        const isCompound = globalEx?.movementType === 'Compound';
         let durationSec = isCompound ? 120 : 60;
         let mode: 'set' | 'exercise' = 'set';
         
