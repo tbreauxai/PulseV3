@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk';
 import { semanticCache } from './semanticCache';
+import { z } from 'zod';
 
 export interface MemoryNode {
   id: string;
@@ -66,7 +67,19 @@ Example output:
   ]
 }`;
 
+      const factsSchema = z.object({
+        facts: z.array(
+          z.object({
+            entity: z.string(),
+            relation: z.string(),
+            target: z.string(),
+            type: z.string()
+          })
+        )
+      });
+
       let completion: any = null;
+      let parsedFacts: z.infer<typeof factsSchema> | null = null;
       let retries = 0;
       const maxRetries = 3;
       
@@ -85,15 +98,18 @@ Example output:
             // @ts-ignore
             service_tier: 'flex'
           });
+          
+          const responseContent = completion.choices[0]?.message?.content || "{}";
+          parsedFacts = factsSchema.parse(JSON.parse(responseContent));
           break; // success
         } catch (error: any) {
           retries++;
-          if (retries >= maxRetries || (error.status !== 429 && error.status !== 503)) {
-            console.warn(`[Memory Engine] Flex tier failed after ${retries} attempts:`, error);
+          if (retries >= maxRetries || (error.status !== 429 && error.status !== 503 && !(error instanceof z.ZodError) && !(error instanceof SyntaxError))) {
+            console.warn(`[Memory Engine] Failed after ${retries} attempts:`, error);
             return; // Give up
           }
           const backoffDelay = Math.pow(2, retries) * 1000 + Math.random() * 1000;
-          console.log(`[Memory Engine] Flex capacity error. Retrying in ${Math.round(backoffDelay)}ms...`);
+          console.log(`[Memory Engine] Parsing or API error. Retrying in ${Math.round(backoffDelay)}ms...`);
           await new Promise(resolve => setTimeout(resolve, backoffDelay));
         }
       }
@@ -114,11 +130,10 @@ Example output:
         } catch(e) {}
       }
 
-      const responseContent = completion.choices[0]?.message?.content || "{}";
-      const parsed = JSON.parse(responseContent);
+      if (!parsedFacts) return;
       
-      if (parsed.facts && Array.isArray(parsed.facts)) {
-        for (const fact of parsed.facts) {
+      if (parsedFacts.facts && Array.isArray(parsedFacts.facts)) {
+        for (const fact of parsedFacts.facts) {
           const factText = `${fact.entity} ${fact.relation} ${fact.target}`;
           
           // Deduplication check

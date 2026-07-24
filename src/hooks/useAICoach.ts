@@ -150,106 +150,127 @@ export const useAICoach = () => {
       if (isDeepCoach) {
         console.log('[AI Coach] Deep Coach mode — using llama-3.3-70b-versatile (no tools)');
         
-        // Stage 1: 70B deep reasoning (no tools)
-        const deepStream = await groq.chat.completions.create({
-          messages: apiMessages,
-          model: 'llama-3.3-70b-versatile',
-          temperature: 0.3,
-          max_tokens: 8000,
-          stream: true,
-          // @ts-ignore
-          stream_options: { include_usage: true }
-        });
+        let stepCount = 0;
+        const maxSteps = 3;
+        let keepDeepRunning = true;
+        let finalDeepResponse = '';
 
-        let deepResponse = '';
-        let uiAdded = false;
-        for await (const chunk of deepStream) {
-          // @ts-ignore
-          if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
-          const delta = chunk.choices[0]?.delta;
-          if (!delta?.content) continue;
-          deepResponse += delta.content;
-          if (!uiAdded) {
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-            uiAdded = true;
-          }
-          setMessages(prev => {
-            const n = [...prev];
-            n[n.length - 1].text = deepResponse;
-            return n;
+        while (keepDeepRunning && stepCount < maxSteps) {
+          stepCount++;
+          
+          // Stage 1: 70B deep reasoning (no tools)
+          const deepStream = await groq.chat.completions.create({
+            messages: apiMessages,
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.3,
+            max_tokens: 8000,
+            stream: true,
+            // @ts-ignore
+            stream_options: { include_usage: true }
           });
-        }
 
-        // Stage 2: Hand off to 8B for tool execution detection
-        console.log('[AI Coach] Checking if 70B response requires tool actions...');
-        const handoffMessages: any[] = [
-          { role: 'system', content: getStaticContext() },
-          { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${getDynamicContext(queryClient)}` },
-          { role: 'user', content: text },
-          { role: 'assistant', content: deepResponse },
-          { role: 'user', content: 'Based on your coaching analysis above, execute any tool calls that are needed (e.g. create routines, sort workouts, update macros). If no action is needed, reply with exactly: NO_ACTION_NEEDED' }
-        ];
+          let deepResponse = '';
+          let uiAdded = false;
+          for await (const chunk of deepStream) {
+            // @ts-ignore
+            if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
+            const delta = chunk.choices[0]?.delta;
+            if (!delta?.content) continue;
+            deepResponse += delta.content;
+            if (!uiAdded) {
+              setMessages(prev => [...prev, { role: 'model', text: '' }]);
+              uiAdded = true;
+            }
+            setMessages(prev => {
+              const n = [...prev];
+              n[n.length - 1].text = deepResponse;
+              return n;
+            });
+          }
+          
+          finalDeepResponse = deepResponse;
 
-        const actionStream = await groq.chat.completions.create({
-          messages: handoffMessages,
-          model: 'llama-3.1-8b-instant',
-          temperature: 0.0,
-          max_tokens: 8000,
-          // @ts-ignore
-          tools: aiTools,
-          tool_choice: 'auto',
-          stream: true,
-          // @ts-ignore
-          stream_options: { include_usage: true }
-        });
+          // Stage 2: Hand off to 8B for tool execution detection
+          console.log(`[AI Coach] Checking if 70B response requires tool actions (Step ${stepCount})...`);
+          const handoffMessages: any[] = [
+            { role: 'system', content: getStaticContext() },
+            { role: 'system', content: `[CURRENT STATE & CONTEXT]\n${getDynamicContext(queryClient)}` },
+            ...apiMessages.filter(m => m.role !== 'system'), // Give 8B the chat context too
+            { role: 'assistant', content: deepResponse },
+            { role: 'user', content: 'Based on your coaching analysis above, execute any tool calls that are needed (e.g. create routines, sort workouts, update macros). If no action is needed, reply with exactly: NO_ACTION_NEEDED' }
+          ];
 
-        let actionToolCalls: any[] = [];
-        let actionText = '';
-        for await (const chunk of actionStream) {
-          // @ts-ignore
-          if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
-          const delta = chunk.choices[0]?.delta;
-          if (!delta) continue;
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index;
-              if (!actionToolCalls[idx]) {
-                actionToolCalls[idx] = { id: tc.id, type: 'function', function: { name: tc.function?.name || '', arguments: '' } };
+          const actionStream = await groq.chat.completions.create({
+            messages: handoffMessages,
+            model: 'llama-3.1-8b-instant',
+            temperature: 0.0,
+            max_tokens: 8000,
+            // @ts-ignore
+            tools: aiTools,
+            tool_choice: 'auto',
+            stream: true,
+            // @ts-ignore
+            stream_options: { include_usage: true }
+          });
+
+          let actionToolCalls: any[] = [];
+          for await (const chunk of actionStream) {
+            // @ts-ignore
+            if (chunk.usage?.total_tokens) trackUsage(chunk.usage.total_tokens);
+            const delta = chunk.choices[0]?.delta;
+            if (!delta) continue;
+            if (delta.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const idx = tc.index;
+                if (!actionToolCalls[idx]) {
+                  actionToolCalls[idx] = { id: tc.id, type: 'function', function: { name: tc.function?.name || '', arguments: '' } };
+                }
+                if (tc.function?.arguments) actionToolCalls[idx].function.arguments += tc.function.arguments;
               }
-              if (tc.function?.arguments) actionToolCalls[idx].function.arguments += tc.function.arguments;
             }
           }
-          if (delta.content) actionText += delta.content;
-        }
 
-        actionToolCalls = actionToolCalls.filter(Boolean);
-        if (actionToolCalls.length > 0) {
-          console.log('[AI Coach] 8B executing tool handoff:', actionToolCalls.map((t: any) => t.function.name));
-          for (const toolCall of actionToolCalls) {
-            try {
-              const args = JSON.parse(toolCall.function.arguments);
-              const result = await executeToolLogic(toolCall.function.name, args, text, queryClient);
-              // Append tool result to the deep coach message
-              setMessages(prev => {
-                const n = [...prev];
-                n[n.length - 1].text += `\n\n---\n✅ **Action Taken:** \`${toolCall.function.name}\` → ${result}`;
-                return n;
-              });
-            } catch (err: any) {
-              setMessages(prev => {
-                const n = [...prev];
-                n[n.length - 1].text += `\n\n---\n❌ **Action Failed:** \`${toolCall.function.name}\` → ${err.message}`;
-                return n;
-              });
-            }
+          actionToolCalls = actionToolCalls.filter(Boolean);
+          if (actionToolCalls.length > 0) {
+            console.log('[AI Coach] 8B executing tool handoff:', actionToolCalls.map((t: any) => t.function.name));
+            
+            const toolResults = await Promise.all(actionToolCalls.map(async (toolCall: any) => {
+              try {
+                const args = JSON.parse(toolCall.function.arguments);
+                const result = await executeToolLogic(toolCall.function.name, args, text, queryClient);
+                // Append tool result to the deep coach message
+                setMessages(prev => {
+                  const n = [...prev];
+                  n[n.length - 1].text += `\n\n---\n✅ **Action Taken:** \`${toolCall.function.name}\` → ${result}`;
+                  return n;
+                });
+                return { name: toolCall.function.name, result: result };
+              } catch (err: any) {
+                setMessages(prev => {
+                  const n = [...prev];
+                  n[n.length - 1].text += `\n\n---\n❌ **Action Failed:** \`${toolCall.function.name}\` → ${err.message}`;
+                  return n;
+                });
+                return { name: toolCall.function.name, result: `Error: ${err.message}` };
+              }
+            }));
+            
+            // Push results to apiMessages and loop to let 70B synthesize
+            apiMessages.push({ role: 'assistant', content: deepResponse });
+            apiMessages.push({
+              role: 'system',
+              content: `[TOOL EXECUTION RESULTS]\nThe following actions were taken based on your previous reasoning:\n${toolResults.map(tr => `- ${tr.name}: ${tr.result}`).join('\n')}\n\nPlease analyze these results and either take the next necessary action, or provide a final synthesis.`
+            });
+            
+          } else {
+            console.log('[AI Coach] No tool actions needed from 70B analysis.');
+            keepDeepRunning = false;
           }
-        } else {
-          console.log('[AI Coach] No tool actions needed from 70B analysis.');
         }
 
-        // Cache the deep response
-        if (deepResponse) {
-          semanticCache.set(text, deepResponse).catch(e => console.warn('Failed to set semantic cache:', e));
+        // Cache the final deep response
+        if (finalDeepResponse) {
+          semanticCache.set(text, finalDeepResponse).catch(e => console.warn('Failed to set semantic cache:', e));
         }
 
         setIsTyping(false);
