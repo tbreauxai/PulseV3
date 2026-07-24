@@ -314,7 +314,10 @@ export const executeToolLogic = async (
     
     const allExercises: any[] = queryClient.getQueryData(['exercises']) || [];
     // Compress payload to save tokens
-    const compressed = filtered.map(h => {
+    // Limit to max 60 workouts to prevent token explosion
+    const cappedFiltered = filtered.slice(0, 60);
+    
+    const compressed = cappedFiltered.map(h => {
       let exercisesStr = 'Unknown';
       try {
         const details = typeof h.exerciseDetails === 'string' ? JSON.parse(h.exerciseDetails) : (h.exerciseDetails || []);
@@ -322,10 +325,11 @@ export const executeToolLogic = async (
            exercisesStr = details.map((d: any) => {
              const name = d.exerciseName || d.name || d.exercise?.name || '';
              if (!name) return '';
-             const ex = allExercises.find(e => e.name === name);
+             const ex = allExercises.find(e => e.name.toLowerCase() === name.toLowerCase());
              const mType = ex?.movementType ? ex.movementType : '';
+             const target = ex?.muscleGroup ? ex.muscleGroup : '';
              const sRisk = ex?.spinalRisk && ex.spinalRisk !== 'Supported / Safe' ? ex.spinalRisk : '';
-             const tags = [mType, sRisk].filter(Boolean).join(', ');
+             const tags = [target, mType, sRisk].filter(Boolean).join(', ');
              return tags ? `${name} (${tags})` : name;
            }).filter(Boolean).join(' | ');
         }
@@ -339,10 +343,8 @@ export const executeToolLogic = async (
       };
     });
     
-    // Use Neural Skimmer to filter down to the 10 most relevant workouts based on the user's query
-    const pruned = await semanticCache.pruneJSON(goalText, compressed, 10);
-    
-    return JSON.stringify(pruned);
+    // Return chronological data directly, do not use semantic pruning for temporal queries
+    return JSON.stringify(compressed);
   }
 
   if (toolName === 'analyze_weigh_ins') {
