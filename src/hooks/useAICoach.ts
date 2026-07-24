@@ -158,16 +158,34 @@ export const useAICoach = () => {
         while (keepDeepRunning && stepCount < maxSteps) {
           stepCount++;
           
-          // Stage 1: 70B deep reasoning (no tools)
-          const deepStream = await groq.chat.completions.create({
-            messages: apiMessages,
-            model: 'llama-3.3-70b-versatile',
-            temperature: 0.3,
-            max_tokens: 8000,
-            stream: true,
-            // @ts-ignore
-            stream_options: { include_usage: true }
-          });
+          // Stage 1: 70B deep reasoning (no tools), with fallback to 8B if rate limited
+          let deepStream;
+          try {
+            deepStream = await groq.chat.completions.create({
+              messages: apiMessages,
+              model: 'llama-3.3-70b-versatile',
+              temperature: 0.3,
+              max_tokens: 8000,
+              stream: true,
+              // @ts-ignore
+              stream_options: { include_usage: true }
+            });
+          } catch (err: any) {
+            if (err.status === 429 || err.status === 503) {
+              console.warn(`[AI Coach] 70B Rate Limit or 503 (Step ${stepCount}). Falling back to 8B...`);
+              deepStream = await groq.chat.completions.create({
+                messages: apiMessages,
+                model: 'llama-3.1-8b-instant',
+                temperature: 0.3,
+                max_tokens: 8000,
+                stream: true,
+                // @ts-ignore
+                stream_options: { include_usage: true }
+              });
+            } else {
+              throw err;
+            }
+          }
 
           let deepResponse = '';
           let uiAdded = false;
@@ -409,7 +427,7 @@ export const useAICoach = () => {
            madeToolCalls = true;
            apiMessages.push({
              role: 'assistant',
-             content: null,
+             content: "",
              tool_calls: toolCallsAcc
            });
 
@@ -434,6 +452,7 @@ export const useAICoach = () => {
            }));
            
            apiMessages.push(...toolResults);
+           uiMessageAdded = false;
         } else {
            finalResponseContent = currentResponse;
            keepRunning = false;
