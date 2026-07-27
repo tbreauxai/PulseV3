@@ -70,7 +70,7 @@ export const useExercises = () => {
       // If we have exercises in Supabase, format and return them
       if (data && data.length > 0) {
         const formatted = data.map(ex => {
-          const defaultEx = defaultExercises.find(d => d.name.toLowerCase() === ex.name.toLowerCase());
+          const defaultEx = defaultExercises.find(d => d.name && ex.name && d.name.toLowerCase() === ex.name.toLowerCase());
           return {
             id: ex.exercise_id,
             name: ex.name,
