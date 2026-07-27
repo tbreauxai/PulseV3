@@ -69,19 +69,22 @@ export const useExercises = () => {
 
       // If we have exercises in Supabase, format and return them
       if (data && data.length > 0) {
-        const formatted = data.map(ex => ({
-          id: ex.exercise_id,
-          name: ex.name,
-          type: ex.type,
-          movementType: ex.movement_type || 'Compound',
-          spinalRisk: ex.spinal_risk || 'Supported / Safe',
-          muscleGroup: ex.muscle_group,
-          weight: ex.weight,
-          reps: ex.reps,
-          equipment: ex.equipment,
-          time: ex.time,
-          distance: ex.distance
-        }));
+        const formatted = data.map(ex => {
+          const defaultEx = defaultExercises.find(d => d.name.toLowerCase() === ex.name.toLowerCase());
+          return {
+            id: ex.exercise_id,
+            name: ex.name,
+            type: ex.type || defaultEx?.type || 'strength',
+            movementType: ex.movement_type || defaultEx?.movementType || 'Compound',
+            spinalRisk: ex.spinal_risk || defaultEx?.spinalRisk || 'Supported / Safe',
+            muscleGroup: ex.muscle_group || defaultEx?.muscleGroup || '',
+            weight: ex.weight || '',
+            reps: ex.reps || '',
+            equipment: ex.equipment || defaultEx?.equipment || '',
+            time: ex.time || '',
+            distance: ex.distance || ''
+          };
+        });
         await set(STORAGE_KEY, formatted);
         return formatted;
       }
